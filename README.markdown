@@ -1,0 +1,13 @@
+# Parsex-Cl - Experimental project for regular expressions, lexer and parser design.
+
+## Usage
+
+## Installation
+
+## Author
+
+* John Badie (johnkirollos@gmail.com)
+
+## Copyright
+
+Copyright (c) 2018 John Badie (johnkirollos@gmail.com)
