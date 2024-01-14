@@ -1,10 +1,10 @@
 #|
   This file is a part of parsex-cl project.
-  Copyright (c) 2018 John Badie (johnkirollos@gmail.com)
+  Copyright (c) 2018 - 2024 John Badie (johnkirollos@gmail.com)
 |#
 
 #|
-  Experimental project for regular expressions, lexer and parser design.
+  Experimental project for tokenizer, regular expressions, lexer and parser design.
 
   Author: John Badie (johnkirollos@gmail.com)
 |#
@@ -21,8 +21,11 @@
   :depends-on ()
   :components ((:module "src"
                 :components
-                ((:file "parsex-cl"))))
-  :description "Experimental project for regular expressions, lexer and parser design."
+                ((:file "packages")
+                 (:file "parsex-cl")
+                 (:file "tokenizer")
+                 (:file "basic-string-tokenizer"))))
+  :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
   :long-description
   #.(with-open-file (stream (merge-pathnames
                              #p"README.markdown"
