@@ -10,8 +10,16 @@
   (:use :cl)
   (:export :normal-state
            :terminal-state
-           :tokenizer-fsm-config
-           :tokenize))
+           :transition-to-other
+           :transition-to-self
+           :init-fsm
+           :retrieve-atom
+           :input-empty-p
+           :update-fsm
+           :fsm ;reader of fsm from output obj
+           :token ;reader of token from output obj
+           :tokenize
+           :create-tokenizer))
 
 (defpackage :parsex-cl.basic-string-tokenizer
   (:use :cl :parsex-cl.tokenizer :alexandria))
