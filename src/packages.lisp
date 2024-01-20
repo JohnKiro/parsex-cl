@@ -12,13 +12,13 @@
            :terminal-state
            :transition-to-other
            :transition-to-self
-           :init-fsm
            :retrieve-atom
            :input-empty-p
-           :update-fsm
-           :fsm ;reader of fsm from output obj
+           :update-input
+           :update-accumulator
            :token ;reader of token from output obj
-           :tokenize
+           :accumulator ;reader of token accumulator from output obj
+           :tokenize ;TODO: may remove, since create-tokenizer is simpler
            :create-tokenizer))
 
 (defpackage :parsex-cl.basic-string-tokenizer

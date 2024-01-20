@@ -2,46 +2,45 @@
 
 #|
 Implementation of a tokenizer for string-based source.
-input: string
-fsm: class (resizable vector of characters for atoms, reference to input string)
-Initially, I'll use a list of chars for simplicity
-output: contents of fsm + acceptance/error token
+
+Input is implemented as a string + reading index (TODO: specify slot type).
+For the accumulator, initially, I'll use a list of chars for simplicity.
 |#
 
-(defclass string-fsm ()
+(defclass string-input ()
   ((input-text :initarg :input-text :reader input-text)
-   (reading-index :initform 0 :accessor reading-index)
-   (accumulator :initform '() :accessor accumulator)))
+   (reading-index :initarg :reading-index :initform 0 :accessor reading-index)))
 
-;;; prepare initial FSM, given the tokenizer input
-(defmethod init-fsm ((input string))
-  (make-instance 'string-fsm :input-text input))
+;;; prepare initial accumulator (empty list of characters)
+(defun init-accumulator ()
+  '())
 
-(defmethod input-empty-p ((fsm string-fsm))
-  (>= (reading-index fsm)
-      (length (input-text fsm))))
+(defmethod input-empty-p ((input string-input))
+  (>= (reading-index input)
+      (length (input-text input))))
 
-(defmethod retrieve-atom ((fsm string-fsm))
-  (aref (input-text fsm) (reading-index fsm)))
+(defmethod retrieve-atom ((input string-input))
+  (aref (input-text input) (reading-index input)))
 
-;;; We return the same FSM object, since the caller expects it
+;;; We return the same input object, since the caller expects it
+;;; note that case returns evaluation of last form for the matching clause.
 ;;; TODO: may define a type for atom-handling (3 symbols: skip/use/keep)
-(defmethod update-fsm ((fsm string-fsm) atom-handling)
-  (progn (case atom-handling
-           (:skip (incf (reading-index fsm)))
-           (:use (progn (setf (accumulator fsm)
-                              (append (accumulator fsm) (list (retrieve-atom fsm))))
-                        (incf (reading-index fsm))))
-           (:keep nil)
-           (t (error "Invalid character handling ~a!" atom-handling)))
-         fsm))
+(defmethod update-input ((input string-input) atom-handling)
+  (ecase atom-handling
+    ((:skip :use) (incf (reading-index input)) input)
+    (:keep input)))
+
+;;; Return an updated accumulator, based on atom handling.
+(defmethod update-accumulator ((accumulator list) (atom character) atom-handling)
+  (ecase atom-handling
+    (:use (append accumulator (list atom)))
+    ((:skip :keep) accumulator)))
 
 
 ;;; testing code
 ;;; TODO: relocate
-;;; TODO: make it easier to tokenize multiple tokens (keep track of char index in input)
-;;; NEXT: NEED TO FIGURE OUT HOW TO HANDLE FSM AND OUTPUT!!!
-
+;;; To use it, simply call it, and inspect output.
+;;; TODO: automatic output verification (asserts)
 (defun test-tokenizer ()
   (let* ((acceptance-state (make-instance 'terminal-state
                                           :token :TOKEN-ENDING-WITH-DOLLAR-SIGN))
@@ -55,7 +54,8 @@ output: contents of fsm + acceptance/error token
                                                                       (if (char= c #\$)
                                                                           trans-to-acceptance
                                                                           self-trans))))
-         (sample-tokenizer (create-tokenizer test-initial-state "one$two$three$")))
+         (input (make-instance 'string-input :input-text "one$two$three$"))
+         (sample-tokenizer (create-tokenizer test-initial-state input #'init-accumulator)))
     (loop for out in (list (funcall sample-tokenizer)
                            (funcall sample-tokenizer)
                            (funcall sample-tokenizer)
@@ -63,5 +63,5 @@ output: contents of fsm + acceptance/error token
                            (funcall sample-tokenizer))
          do (format t
                     "Token: ~a, text: ~a~%"
-                    (slot-value out 'token)
-                    (accumulator (fsm out))))))
+                    (token out)
+                    (accumulator out)))))
