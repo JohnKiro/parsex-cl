@@ -23,3 +23,14 @@
 
 (defpackage :parsex-cl.basic-string-tokenizer
   (:use :cl :parsex-cl.tokenizer :alexandria))
+
+(defpackage :parsex-cl.common-transition-finders
+  (:use :cl)
+  (:export :find-transition-from-set
+           :create-set-based-transition-finder))
+
+(defpackage :parsex-cl.common-atom-matchers
+  (:use :cl)
+  (:export :create-matcher-for-single-char
+            :create-matcher-for-char-range
+            :create-matcher-for-char-set))
