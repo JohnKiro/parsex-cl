@@ -7,22 +7,49 @@
   (:export :todo))
 
 (defpackage :parsex-cl.tokenizer
-  (:use :cl)
-  (:export :normal-state
-           :terminal-state
-           :transition-to-other
-           :transition-to-self
-           :retrieve-atom
+  (:use :cl
+        :parsex-cl.tokenizer-states
+        :parsex-cl.tokenizer-transitions)
+  (:export :retrieve-atom
            :input-empty-p
            :update-input
            :update-accumulator
-           :token ;reader of token from output obj
-           :accumulator ;reader of token accumulator from output obj
+           :token ;reader of token from output obj (TODO: may rename to output-token)
+           :accumulator
+           :tokenizer-input
            :tokenize ;TODO: may remove, since create-tokenizer is simpler
            :create-tokenizer))
 
+(defpackage :parsex-cl.tokenizer-states
+  (:use :cl)
+  (:export :normal-state
+           :transition-finder-func
+           :token-on-no-input
+           :terminal-state
+           :terminal-token
+           :get-next-state))
+
+(defpackage :parsex-cl.tokenizer-transitions
+  (:use :cl :parsex-cl.tokenizer-states)
+  (:export :transition-to-other
+           :transition-to-self
+           :atom-handling
+           :get-next-state))
+
 (defpackage :parsex-cl.basic-string-tokenizer
-  (:use :cl :parsex-cl.tokenizer :alexandria))
+  (:use :cl
+        :parsex-cl.tokenizer
+        :parsex-cl.tokenizer-states
+        :parsex-cl.tokenizer-transitions
+        :alexandria)
+  (:export :string-input
+           :input-text
+           :reading-index
+           :init-accumulator
+           :input-empty-p
+           :retrieve-atom
+           :update-input
+           :update-accumulator))
 
 (defpackage :parsex-cl.common-transition-finders
   (:use :cl)

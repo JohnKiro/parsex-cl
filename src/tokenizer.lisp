@@ -6,48 +6,6 @@ a single method. Hope this will be simplest and most elegant version.
 |#
 (in-package :parsex-cl.tokenizer)
 
-;;; Scanner normal state.
-;;; Slots:
-;;; - transition finder function (atom -> transition)
-;;; - token on no input: token to return when no atoms are left in input
-(defclass normal-state ()
-  ((transition-finder-func :initarg :transition-finder-func
-                           :initform (error "Mandatory: transition-finder-func")
-                           :reader transition-finder-func
-                           :type function)
-   (token-on-no-input :initarg :token-on-no-input
-                      :initform (error "Mandatory: token-on-no-input")
-                      :reader token-on-no-input)))
-
-;;; Scanner terminal state.
-;;; Slots:
-;;; - token: Scanner's output token
-(defclass terminal-state ()
-  ((token :initarg :token :initform (error "Mandatory: token") :reader token)))
-
-(defclass transition ()
-  ((atom-handling :initarg :atom-handling
-                  :initform (error "Mandatory: atom-handling!")
-                  :reader atom-handling)))
-
-(defclass transition-to-other (transition)
-  ((next-state :initarg :next-state
-               :initform (error "Mandatory: next-state!")
-               :type (or normal-state terminal-state))))
-
-(defclass transition-to-self (transition)
-  ())
-
-;;; TODO: alternatively (probably for better performance, may change to defun.
-;;; In this case, also combine transition hierarchy into a single class.
-(defgeneric get-next-state (transition current-state))
-
-(defmethod get-next-state ((transition transition-to-other) current-state)
-  (slot-value transition 'next-state))
-
-(defmethod get-next-state ((transition transition-to-self) current-state)
-  current-state)
-
 ;;; retrieve atom from input, and keeping it there (shouldn't advance)
 (defgeneric retrieve-atom (input))
 
@@ -82,7 +40,7 @@ a single method. Hope this will be simplest and most elegant version.
 
 ;;; final state: prepare output based on terminal token
 (defmethod transit ((current-state terminal-state) input accumulator)
-  (let ((terminal-token (slot-value current-state 'token)))
+  (let ((terminal-token (slot-value current-state 'terminal-token)))
     (prepare-output input accumulator terminal-token)))
 
 ;;;for normal state, use next atom from input to find transition and follow transition,

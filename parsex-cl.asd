@@ -18,13 +18,24 @@
   :version "0.1"
   :author "John Badie"
   :license ""
-  :depends-on ()
+  :depends-on (:iterate :alexandria :fiveam)
   :components ((:module "src"
                 :components
                 ((:file "packages")
                  (:file "parsex-cl")
+                 (:file "elements")
+                 (:file "nfa")
                  (:file "tokenizer")
-                 (:file "basic-string-tokenizer"))))
+                 (:file "tokenizer-states")
+                 (:file "tokenizer-transitions")
+                 (:file "common-atom-matchers")
+                 (:file "common-transition-finders")
+                 (:file "basic-string-tokenizer")))
+               (:module "test"
+                :components
+                ((:file "packages")
+                 (:file "test"))))
+
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
   :long-description
   #.(with-open-file (stream (merge-pathnames

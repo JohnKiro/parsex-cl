@@ -1,0 +1,15 @@
+(defpackage :parsex-cl.test
+  (:use :cl
+        :fiveam)
+  (:export :parsex-cl-tests))
+
+(defpackage :parsex-cl.tokenizer.test
+  (:use :cl
+        :fiveam
+        :parsex-cl.test ;package containing root test suite
+        :parsex-cl.tokenizer
+        :parsex-cl.tokenizer-states
+        :parsex-cl.tokenizer-transitions
+        :parsex-cl.common-transition-finders
+        :parsex-cl.common-atom-matchers
+        :parsex-cl.basic-string-tokenizer))
