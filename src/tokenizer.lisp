@@ -23,31 +23,35 @@ a single method. Hope this will be simplest and most elegant version.
 ;;; tokenizer state handling methods
 (defgeneric transit (origin-state input accumulator))
 
+(defgeneric prepare-tokenization-result (token accumulator))
+
 (defclass tokenizer-output ()
-  ((token :initarg :token
-          :initform (error "Token (acceptance or error) is mandatory")
-          :reader token)
-   (tokenizer-input :initarg :tokenizer-input
-                    :initform (error "tokenizer-input is mandatory")
-                    :reader tokenizer-input)
-   (accumulator :initarg :accumulator
-                :initform (error "accumulator is mandatory")
-                :reader accumulator)))
+  ((tokenization-result :initarg :tokenization-result
+                        :initform (error "tokenization-result is mandatory!")
+                        :reader tokenization-result)
+   (input-for-next-run :initarg :input-for-next-run
+                       :initform (error "input-for-next-run is mandatory!")
+                       :reader input-for-next-run)))
 
 ;;; input + accumulator + token => tokenizer output
-(defun prepare-output (input accumulator token)
-  (make-instance 'tokenizer-output :tokenizer-input input :accumulator accumulator :token token))
+(defun prepare-output (tokenization-result input-for-next-run)
+  (make-instance 'tokenizer-output
+                 :tokenization-result tokenization-result
+                 :input-for-next-run input-for-next-run))
 
 ;;; final state: prepare output based on terminal token
 (defmethod transit ((current-state terminal-state) input accumulator)
-  (let ((terminal-token (slot-value current-state 'terminal-token)))
-    (prepare-output input accumulator terminal-token)))
+  (let* ((terminal-token (slot-value current-state 'terminal-token))
+         (tokenization-result (prepare-tokenization-result terminal-token accumulator))) 
+    (prepare-output tokenization-result input)))
 
 ;;;for normal state, use next atom from input to find transition and follow transition,
 ;;;unless when input is empty, at which case, we terminate with default token of current state
 (defmethod transit ((current-state normal-state) input accumulator)
   (if (input-empty-p input)
-      (prepare-output input accumulator (slot-value current-state 'token-on-no-input))
+      (prepare-output (prepare-tokenization-result (token-on-no-input current-state)
+                                                   accumulator)
+                      input)
       (let* ((atom (retrieve-atom input))
              (transition (funcall (slot-value current-state 'transition-finder-func) atom))
              (next-state (get-next-state transition current-state))
@@ -60,7 +64,8 @@ a single method. Hope this will be simplest and most elegant version.
 ;;; Initiate the traversal of states, starting from an "initial state"
 ;;; Returns the tokenizer output.
 ;;; NOTE: the returned output contains the updated input, for the next tokenization run.
-;;; TODO: may remove it since "create-tokenizer" is more handy.
+;;; TODO: may remove it since "create-tokenizer" is more handy. However, may keep it as
+;;; lower-level tokenization function, and use it in create-tokenizer (higher-level interface).
 (defun tokenize (initial-state input accumulator-factory-fn)
   "Tokenization function that should be used by the user."
   (let ((initial-accumulator (funcall accumulator-factory-fn)))
@@ -71,7 +76,11 @@ a single method. Hope this will be simplest and most elegant version.
 (defun create-tokenizer (initial-state initial-input accumulator-factory-fn)
   (let ((input initial-input))
     (lambda ()
-      (let* ((initial-accumulator (funcall accumulator-factory-fn))
-             (output (transit initial-state input initial-accumulator)))
-        (setf input (slot-value output 'tokenizer-input))
-        output))))
+      (let* ((tokenizer-output (tokenize initial-state input accumulator-factory-fn))
+             (input-for-next-run (input-for-next-run tokenizer-output)))
+        (setf input input-for-next-run)
+        tokenizer-output))))
+
+;(values output input))))))
+
+;(multiple-value-bind (output input-for-next-run)

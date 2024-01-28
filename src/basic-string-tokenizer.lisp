@@ -11,6 +11,10 @@ For the accumulator, initially, I'll use a list of chars for simplicity.
   ((input-text :initarg :input-text :reader input-text)
    (reading-index :initarg :reading-index :initform 0 :accessor reading-index)))
 
+(defclass basic-tokenization-result ()
+  ((accumulator :initarg :accumulator :reader accumulator)
+   (token :initarg :token :reader token)))
+
 ;;; prepare initial accumulator (empty list of characters)
 (defun init-accumulator ()
   '())
@@ -33,5 +37,11 @@ For the accumulator, initially, I'll use a list of chars for simplicity.
 ;;; Return an updated accumulator, based on atom handling.
 (defmethod update-accumulator ((accumulator list) (atom character) atom-handling)
   (ecase atom-handling
-    (:use-atom (append accumulator (list atom)))
+    (:use-atom (push atom accumulator))
     ((:skip-atom :keep-atom) accumulator)))
+
+
+(defmethod prepare-tokenization-result ((token symbol) (accumulator list))
+  (make-instance 'basic-tokenization-result
+                 :token token
+                 :accumulator (reverse accumulator)))

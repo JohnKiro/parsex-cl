@@ -36,8 +36,9 @@
 ;;; this may help to see any error easily.
 (test simple-string-tokenization-test
   (let* ((tokenization-output-list (tokenize-and-collect-tokens))
-         (tokens (mapcar #'token tokenization-output-list))
-         (accumulators (mapcar #'accumulator tokenization-output-list)))
+         (tokenization-result-list (mapcar #'tokenization-result tokenization-output-list))
+         (tokens (mapcar #'token tokenization-result-list))
+         (accumulators (mapcar #'accumulator tokenization-result-list)))
     (is (equal tokens '(:TOKEN-ENDING-WITH-DOLLAR-SIGN
                         :TOKEN-ENDING-WITH-DOLLAR-SIGN
                         :TOKEN-ENDING-WITH-DOLLAR-SIGN
