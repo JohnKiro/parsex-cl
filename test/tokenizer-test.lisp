@@ -13,30 +13,33 @@
   (is (equalp #\a #\A)))
 
 ;;; To use it, simply call it, and inspect output.
-;;; TODO: automatic output verification (asserts)
-(defun tokenize-and-collect-tokens ()
-  (let* ((acceptance-state (make-instance 'terminal-state
-                                          :terminal-token :TOKEN-ENDING-WITH-DOLLAR-SIGN))
-         (trans-to-acceptance (make-instance 'transition-to-other
-                                             :next-state acceptance-state
-                                             :atom-handling :use-atom))
-         (self-trans (make-instance 'transition-to-self :atom-handling :use-atom))
-         (initial-state (make-instance 'normal-state
-                                       :token-on-no-input :INPUT-EMPTY-TOKEN
-                                       :transition-finder-func (lambda (c)
-                                                                 (if (char= c #\$)
-                                                                     trans-to-acceptance
-                                                                     self-trans))))
-         (input (make-instance 'string-input :input-text "one$two$three$"))
-         (sample-tokenizer (create-tokenizer initial-state input #'init-accumulator)))
-    (loop for i from 1 to 4 
-       collecting (funcall sample-tokenizer))))
+(let* ((acceptance-state (make-instance 'terminal-state
+                                        :terminal-token :TOKEN-ENDING-WITH-DOLLAR-SIGN))
+       (trans-to-acceptance (make-instance 'transition-to-other
+                                           :next-state acceptance-state
+                                           :atom-handling :use-atom))
+       (self-trans (make-instance 'transition-to-self :atom-handling :use-atom))
+       (initial-state (make-instance 'normal-state
+                                     :token-on-no-input :INPUT-EMPTY-TOKEN
+                                     :transition-finder-func (lambda (c)
+                                                               (if (char= c #\$)
+                                                                   trans-to-acceptance
+                                                                   self-trans)))))
+  (defun tokenize-and-collect-tokens ()
+    (let* ((input (make-instance 'string-input :input-text "one$two$three$"))
+           (sample-tokenizer (create-tokenizer initial-state input #'init-accumulator)))
+      (loop for i from 1 to 4
+         collecting (funcall sample-tokenizer))))
+
+  (defun tokenize-just-one-time ()
+    (let* ((input (make-instance 'string-input :input-text "AAA$BBB$CCC$"))
+           (sample-tokenizer (create-tokenizer initial-state input #'init-accumulator)))
+      (funcall sample-tokenizer))))
 
 ;;; TODO: May try to create a loop of "is" statements instead (if possible)
 ;;; this may help to see any error easily.
-(test simple-string-tokenization-test
-  (let* ((tokenization-output-list (tokenize-and-collect-tokens))
-         (tokenization-result-list (mapcar #'tokenization-result tokenization-output-list))
+(test simple-string-tokenization-test-loop
+  (let* ((tokenization-result-list (tokenize-and-collect-tokens))
          (tokens (mapcar #'token tokenization-result-list))
          (accumulators (mapcar #'accumulator tokenization-result-list)))
     (is (equal tokens '(:TOKEN-ENDING-WITH-DOLLAR-SIGN
@@ -47,3 +50,12 @@
                               (#\t #\w #\o #\$)
                               (#\t #\h #\r #\e #\e #\$)
                               NIL)))))
+
+(test simple-string-tokenization-test-single
+  (multiple-value-bind (result input) (tokenize-just-one-time)
+    (let* ((token (token result))
+           (accumulator (accumulator result))
+           (input-reading-index (reading-index input)))
+      (is (eq token :TOKEN-ENDING-WITH-DOLLAR-SIGN))
+      (is (equal accumulator '(#\A #\A #\A #\$)))
+      (is (= input-reading-index 4)))))

@@ -15,13 +15,7 @@
            :update-input
            :update-accumulator
            :prepare-tokenization-result
-           :tokenizer-output
-           :tokenization-result
-           :input-for-next-run
-           :token ;reader of token from output obj (TODO: may rename to output-token)
-           :accumulator
-           :tokenizer-input
-           :tokenize ;TODO: may remove, since create-tokenizer is simpler
+           :tokenize
            :create-tokenizer))
 
 (defpackage :parsex-cl.tokenizer-states

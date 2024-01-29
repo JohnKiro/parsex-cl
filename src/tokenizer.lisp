@@ -23,26 +23,18 @@ a single method. Hope this will be simplest and most elegant version.
 ;;; tokenizer state handling methods
 (defgeneric transit (origin-state input accumulator))
 
+
+;;; prepare a suitable representation for the result, based on token + accumulator
 (defgeneric prepare-tokenization-result (token accumulator))
 
-(defclass tokenizer-output ()
-  ((tokenization-result :initarg :tokenization-result
-                        :initform (error "tokenization-result is mandatory!")
-                        :reader tokenization-result)
-   (input-for-next-run :initarg :input-for-next-run
-                       :initform (error "input-for-next-run is mandatory!")
-                       :reader input-for-next-run)))
-
-;;; input + accumulator + token => tokenizer output
+;;; result + input => tokenizer output
 (defun prepare-output (tokenization-result input-for-next-run)
-  (make-instance 'tokenizer-output
-                 :tokenization-result tokenization-result
-                 :input-for-next-run input-for-next-run))
+  (values tokenization-result input-for-next-run))
 
 ;;; final state: prepare output based on terminal token
 (defmethod transit ((current-state terminal-state) input accumulator)
-  (let* ((terminal-token (slot-value current-state 'terminal-token))
-         (tokenization-result (prepare-tokenization-result terminal-token accumulator))) 
+  (let* ((terminal-token (terminal-token current-state))
+         (tokenization-result (prepare-tokenization-result terminal-token accumulator)))
     (prepare-output tokenization-result input)))
 
 ;;;for normal state, use next atom from input to find transition and follow transition,
@@ -66,21 +58,19 @@ a single method. Hope this will be simplest and most elegant version.
 ;;; NOTE: the returned output contains the updated input, for the next tokenization run.
 ;;; TODO: may remove it since "create-tokenizer" is more handy. However, may keep it as
 ;;; lower-level tokenization function, and use it in create-tokenizer (higher-level interface).
-(defun tokenize (initial-state input accumulator-factory-fn)
+(defun tokenize (initial-state initial-input accumulator-factory-fn)
   "Tokenization function that should be used by the user."
   (let ((initial-accumulator (funcall accumulator-factory-fn)))
-    (transit initial-state input initial-accumulator)))
+    (transit initial-state initial-input initial-accumulator)))
 
 ;;; Simplifies the usage of the tokenizer, by providing a lambda that can be called sequentially
 ;;; to retrieve token by token. See the basic text tokenizer for demonstration (test code).
 (defun create-tokenizer (initial-state initial-input accumulator-factory-fn)
   (let ((input initial-input))
     (lambda ()
-      (let* ((tokenizer-output (tokenize initial-state input accumulator-factory-fn))
-             (input-for-next-run (input-for-next-run tokenizer-output)))
+      (multiple-value-bind  (tokenizer-result input-for-next-run)
+          (tokenize initial-state input accumulator-factory-fn)
         (setf input input-for-next-run)
-        tokenizer-output))))
+        (prepare-output tokenizer-result input-for-next-run)))))
 
-;(values output input))))))
 
-;(multiple-value-bind (output input-for-next-run)
