@@ -25,16 +25,17 @@
                  (:file "parsex-cl")
                  (:file "elements")
                  (:file "nfa")
-                 (:file "tokenizer")
                  (:file "tokenizer-states")
                  (:file "tokenizer-transitions")
+                 (:file "tokenizer")
                  (:file "common-atom-matchers")
                  (:file "common-transition-finders")
                  (:file "basic-string-tokenizer")))
                (:module "test"
                 :components
                 ((:file "packages")
-                 (:file "test"))))
+                 (:file "test")
+                 (:file "tokenizer-test"))))
 
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
   :long-description
@@ -49,4 +50,4 @@
                                :fill-pointer t)))
           (setf (fill-pointer seq) (read-sequence seq stream))
           seq)))
-  :in-order-to ((test-op (test-op parsex-cl-test))))
+  :in-order-to ((test-op (test-op parsex-cl.test))))

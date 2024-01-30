@@ -6,18 +6,6 @@
   (:use :cl :iterate)
   (:export :todo))
 
-(defpackage :parsex-cl.tokenizer
-  (:use :cl
-        :parsex-cl.tokenizer-states
-        :parsex-cl.tokenizer-transitions)
-  (:export :retrieve-atom
-           :input-empty-p
-           :update-input
-           :update-accumulator
-           :prepare-tokenization-result
-           :tokenize
-           :create-tokenizer))
-
 (defpackage :parsex-cl.tokenizer-states
   (:use :cl)
   (:export :normal-state
@@ -34,6 +22,18 @@
            :atom-handling
            :get-next-state))
 
+(defpackage :parsex-cl.tokenizer
+  (:use :cl
+        :parsex-cl.tokenizer-states
+        :parsex-cl.tokenizer-transitions)
+  (:export :retrieve-atom
+           :input-empty-p
+           :update-input
+           :update-accumulator
+           :prepare-tokenization-result
+           :tokenize
+           :create-tokenizer))
+
 (defpackage :parsex-cl.basic-string-tokenizer
   (:use :cl
         :parsex-cl.tokenizer
@@ -47,7 +47,9 @@
            :input-empty-p
            :retrieve-atom
            :update-input
-           :update-accumulator))
+           :update-accumulator
+           :accumulator
+           :token))
 
 (defpackage :parsex-cl.common-transition-finders
   (:use :cl)

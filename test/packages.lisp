@@ -1,7 +1,8 @@
 (defpackage :parsex-cl.test
   (:use :cl
         :fiveam)
-  (:export :parsex-cl-tests))
+  (:export :parsex-cl.test-suite
+           :test-it))
 
 (defpackage :parsex-cl.tokenizer.test
   (:use :cl

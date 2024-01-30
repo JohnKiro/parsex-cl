@@ -1,12 +1,12 @@
 (in-package :parsex-cl.tokenizer.test)
 
 ;; Test suite to contain all tokenizer tests
-(def-suite tokenizer-tests
+(def-suite :parsex-cl.tokenizer.test-suite
   :description "Tests the tokenizer"
-  :in parsex-cl.test:parsex-cl-tests)
+  :in :parsex-cl.test-suite)
 
 ;;; All tests below to be part of tokenizer-tests
-(in-suite tokenizer-tests)
+(in-suite :parsex-cl.tokenizer.test-suite)
 
 (test warming-up
   (is (= 9 (+ 5 4)))
