@@ -21,28 +21,32 @@ a single method. Hope this will be simplest and most elegant version.
 (defgeneric update-accumulator (accumulator atom atom-handling))
 
 ;;; tokenizer state handling methods
+;;; TODO: after reconsideration, I'll keep generic methods for usages where the code user
+;;; is the one who should provide the behavior. In this case here, we just want to choose
+;;; behavior based on state type, which is either TERMINAL-STATE or NORMAL-STATE, so a
+;;; function and etypecase will do the job (and code will be simpler).
 (defgeneric transit (origin-state input accumulator))
 
 
 ;;; prepare a suitable representation for the result, based on token + accumulator
 (defgeneric prepare-tokenization-result (token accumulator))
 
-;;; result + input => tokenizer output
-(defun prepare-output (tokenization-result input-for-next-run)
-  (values tokenization-result input-for-next-run))
+;;; token + accumulator + input => tokenizer output
+(defun prepare-output (token accumulator input-for-next-run)
+  (values (prepare-tokenization-result token accumulator)
+          input-for-next-run))
 
 ;;; final state: prepare output based on terminal token
 (defmethod transit ((current-state terminal-state) input accumulator)
-  (let* ((terminal-token (terminal-token current-state))
-         (tokenization-result (prepare-tokenization-result terminal-token accumulator)))
-    (prepare-output tokenization-result input)))
+  (let* ((terminal-token (terminal-token current-state)))
+    (prepare-output terminal-token accumulator input)))
 
 ;;;for normal state, use next atom from input to find transition and follow transition,
 ;;;unless when input is empty, at which case, we terminate with default token of current state
 (defmethod transit ((current-state normal-state) input accumulator)
   (if (input-empty-p input)
-      (prepare-output (prepare-tokenization-result (token-on-no-input current-state)
-                                                   accumulator)
+      (prepare-output (token-on-no-input current-state)
+                      accumulator
                       input)
       (let* ((atom (retrieve-atom input))
              (transition (funcall (slot-value current-state 'transition-finder-func) atom))
@@ -71,6 +75,6 @@ a single method. Hope this will be simplest and most elegant version.
       (multiple-value-bind  (tokenizer-result input-for-next-run)
           (tokenize initial-state input accumulator-factory-fn)
         (setf input input-for-next-run)
-        (prepare-output tokenizer-result input-for-next-run)))))
+        (values tokenizer-result input-for-next-run)))))
 
 
