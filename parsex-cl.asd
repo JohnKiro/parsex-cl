@@ -23,8 +23,7 @@
                 :components
                 ((:file "packages")
                  (:file "parsex-cl")
-                 (:file "elements")
-                 (:file "nfa")
+                 (:file "regex")
                  (:file "tokenizer-states")
                  (:file "tokenizer-transitions")
                  (:file "tokenizer")
@@ -35,7 +34,8 @@
                 :components
                 ((:file "packages")
                  (:file "test")
-                 (:file "tokenizer-test"))))
+                 (:file "tokenizer-test")
+                 (:file "regex-test"))))
 
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
   :long-description

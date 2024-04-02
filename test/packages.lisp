@@ -14,3 +14,9 @@
         :parsex-cl.common-transition-finders
         :parsex-cl.common-atom-matchers
         :parsex-cl.basic-string-tokenizer))
+
+(defpackage :parsex-cl.regex.test
+  (:use :cl
+        :fiveam
+        :parsex-cl.test ;package containing root test suite
+        :parsex-cl.regex))

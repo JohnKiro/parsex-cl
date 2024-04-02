@@ -61,3 +61,15 @@
   (:export :create-matcher-for-single-char
             :create-matcher-for-char-range
             :create-matcher-for-char-set))
+(defpackage :parsex-cl.regex
+  (:use #:cl #:iterate)
+  (:export #:parse-and-produce-dfa
+           #:match-regex
+           #:create-basic-accumulator
+           #:create-basic-input
+           #:regex-matching-result
+           #:regex-matching-result-accumulator-interface-fn
+           #:regex-matching-result-input-interface-fn
+           #:regex-matching-result-p
+           #:regex-matching-result-status
+           #:regex-matching-result-token))
