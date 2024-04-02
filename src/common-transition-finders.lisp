@@ -29,8 +29,7 @@
   (let ((trans-table-entry (find-if (lambda (matcher-predicate)
                                       (funcall matcher-predicate atom))
                                     transition-table
-                                    :key (lambda (trans-table-entry)
-                                           (slot-value trans-table-entry 'matcher-predicate)))))
+                                    :key #'transition-table-entry-matcher-predicate)))
     (if trans-table-entry (slot-value trans-table-entry 'transition) nil)))
 
 
