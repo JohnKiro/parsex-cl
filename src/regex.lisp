@@ -171,9 +171,10 @@ Other element types not needing special class:
     (add-nfa-normal-transition input-nfa-state element output-state)
     output-state))
 
-;;; TODO: ALTERNATIVELY, INCLUDE IT IN NORMAL TRANSITIONS
+;;; TODO: decide whether to add it to NORMAL TRANSITIONS or separate slot
 (defmethod produce-nfa ((element (eql :any-char)) input-nfa-state)
   (let* ((output-state (make-instance 'nfa-state)))
+    ;;I think I'll keep it in normal transitions
     (setf (transition-on-any-char input-nfa-state) output-state)
     output-state))
 
@@ -375,26 +376,36 @@ Other element types not needing special class:
     (char-range-element (char-range-equal element other-obj))))
 
 
+(defun create-nfa-transition-association-collection (range-splitting-points)
+  "Creates an environment and interface for NFA transition associations, which map simple
+elements (single char, char range, any-char) to set of destination NFA states (representing the
+state's closure). The interface provides two functions: one to add transition (includes splitting
+range into sub-ranges as needed, based on character splitting points), and another to create
+iterators on the transitions."
+  (let ((assoc-list nil))
+    (labels ((add-trans (element next-state)
+               (let* ((entry (assoc element assoc-list
+                                    :test #'simple-element-equal))
+                      (arr (or (cdr entry)
+                               (make-array 10 :adjustable t :fill-pointer 0))))
+                 (vector-push-extend next-state arr)
+                 (unless entry
+                   (push (cons element arr) assoc-list)))))
+      (let ((transition-adder
+              (lambda (transition)
+                (with-slots (element next-state) transition
+                  (typecase element
+                    (char-range-element (let ((split-ranges
+                                                (split-char-range element range-splitting-points)))
+                                          (dolist (r split-ranges)
+                                            (add-trans r next-state))))
+                    (single-char-element (add-trans element next-state))))))
+            (transition-iterator-factory (lambda ()
+                                           (let ((list-iter assoc-list))
+                                             (lambda ()
+                                               (pop list-iter))))))
+        (values transition-adder transition-iterator-factory)))))
 
-;;; Normalizes transition upon a specific element (single char or char range) by storing it
-;;; in an association list, with the element as key, and the value as the transition's next
-;;; state's closure.
-(defun normalize-and-store-transition (transition transitions-assoc splitting-points)
-  (with-slots (element next-state) transition
-    (etypecase element
-      (single-char-element (let* ((entry (assoc element transitions-assoc
-                                                :test #'single-char-equal)))
-                             (cond
-                               (entry (push next-state (cdr entry)) transitions-assoc)
-                               (t (acons element `(,next-state) transitions-assoc)))))
-      (char-range-element (let ((split-ranges (split-char-range element splitting-points)))
-                            (dolist (r split-ranges transitions-assoc)
-                              (let* ((entry (assoc r transitions-assoc :test #'char-range-equal)))
-                                (if entry
-                                    (push next-state (cdr entry))
-                                    (setf transitions-assoc (acons r
-                                                                   `(,next-state)
-                                                                   transitions-assoc))))))))))
 
 ;;; A DFA state contains the union of NFA states that form the DFA state, as well as an
 ;;; association of transitions (simple-element --> next DFA state).
@@ -473,31 +484,32 @@ found or newly created."
   (let ((nfa-root-state-closure (prepare-nfa-state-closure nil nfa-root-state))
         (dfa-state-set (create-dfa-state-set)))
     ;;root state's closure union is root state's closure (union of one).
-    (produce-dfa-recurse nfa-root-state-closure dfa-state-set)))
+    (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
   
 ;;; Note that we cannot pass the state union instead of closure union, and this is
 ;;; is because the same closure union could result from two different state unions,
 ;;; and we need to lookup the same entry for both, in such case.
-(defun produce-dfa-recurse (nfa-state-closure-union traversed-dfa-states)
+(defun produce-dfa-rec (nfa-state-closure-union traversed-dfa-states)
   (multiple-value-bind (dfa-state found-or-new) (find-dfa-state nfa-state-closure-union
                                                                 traversed-dfa-states)
     (if (eq found-or-new 'already-found)
         dfa-state
-        (let ((transitions-assoc nil)
-              (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
-          ;;TODO: refactoring: may extract a function here.
-          (dolist (nfa-state nfa-state-closure-union)
-            (dolist (trans (normal-transitions nfa-state))
-              (setf transitions-assoc (normalize-and-store-transition trans
-                                                                      transitions-assoc
-                                                                      splitting-points))))
-          ;;replace each entry value with union of state closures (in place of union of states)
-          (dolist (normalized-trans transitions-assoc dfa-state)
-            (let* ((element (car normalized-trans))
-                   (dest-state-union (cdr normalized-trans))
-                   (dest-state-closure-union (prepare-nfa-state-closure-union dest-state-union))
-                   (dest-dfa (produce-dfa-recurse dest-state-closure-union traversed-dfa-states)))
-              (add-dfa-transition dfa-state element dest-dfa)))))))
+        (let ((splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
+          (multiple-value-bind (trans-adder-fn trans-iterator-factory-fn)
+              (create-nfa-transition-association-collection splitting-points)
+            (dolist (nfa-state nfa-state-closure-union)
+              (dolist (trans (normal-transitions nfa-state))
+                (funcall trans-adder-fn trans)))
+            ;;replace each entry value with union of state closures (in place of union of states)
+            (loop with iterator-fn = (funcall trans-iterator-factory-fn)
+                  for trans = (funcall iterator-fn)
+                  while trans
+                  do (let* ((element (car trans))
+                            (dest-state-union (cdr trans))
+                            (dest-closure-union (prepare-nfa-state-closure-union dest-state-union))
+                            (dest-dfa (produce-dfa-rec dest-closure-union traversed-dfa-states)))
+                       (add-dfa-transition dfa-state element dest-dfa))))
+          dfa-state))))
 
 
 (defclass dfa-fsm-operators ()
