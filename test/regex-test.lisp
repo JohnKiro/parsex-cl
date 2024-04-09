@@ -34,6 +34,18 @@
     (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
     (is (equal splitting-points '(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z)))))
 
+(:* (:or
+                      (:char-range #\a #\d)
+                      (:char-range #\b #\e)
+                      "xyz"))
+
+(test graphvizdot-generation
+  (let* ((regex '(:* (:or
+                      (:char-range #\a #\d)
+                      (:char-range #\x #\z))))
+         (dfa (parsex-cl.regex::parse-and-produce-dfa regex)))
+    (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.regex::dfa-to-graphvizdot dfa))
+    (is (eq t t))))
 
 ;;; TODO: need to put more tests in a loop (matching token by token)
 (test basic-regex-matching-test
@@ -51,8 +63,8 @@
          (matching-status (regex-matching-result-status result))
          (updated-acc (funcall accumulator-retrieval-fn)))
     (format t "~%Updated accumulator is ~a~%" updated-acc)
-    (is (and (equal matching-status :regex-matched)
-             (equal updated-acc "anamatasxzwy")))))
+    (is (equal matching-status :regex-matched))
+    (is (equal updated-acc "anamatasxzwy"))))
 
 (test basic2-regex-matching-test
   (let* ((regex '(:+ (:or
@@ -66,8 +78,27 @@
          (matching-status (regex-matching-result-status result))
          (updated-acc (funcall accumulator-retrieval-fn)))
     (format t "~%Updated accumulator is ~a~%" updated-acc)
-    (is (and (equal matching-status :regex-matched)
-             (equal updated-acc "abcacdaecccaabeadde")))))
+    (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.regex::dfa-to-graphvizdot dfa))
+    (is (equal matching-status :regex-matched))
+    (is (equal updated-acc "abcacdaecccaabeadde"))))
+
+(test basic3-regex-matching-test
+  (let* ((regex '(:+ (:or
+                      (:seq #\a #\n)
+                      (:seq :any-char #\M)
+                      (:seq :any-char #\P)
+                      )))
+         (input-handler (create-basic-input "anxMyManzMvMsPiMan"))
+         (accumulator-handler (create-basic-accumulator))
+         (accumulator-retrieval-fn (nth-value 0 (funcall accumulator-handler)))
+         (dfa (parsex-cl.regex::parse-and-produce-dfa regex))
+         (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
+         (matching-status (regex-matching-result-status result))
+         (updated-acc (funcall accumulator-retrieval-fn)))
+    (format t "~%Updated accumulator is ~a~%" updated-acc)
+    (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.regex::dfa-to-graphvizdot dfa))
+    (is (equal matching-status :regex-matched))
+    (is (equal updated-acc "anxMyManzMvMsPiMan"))))
 
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."

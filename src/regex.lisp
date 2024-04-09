@@ -114,8 +114,8 @@ Other element types not needing special class:
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    ;(default-transition :initform nil :type nfa-state :accessor default-transition)
-   (transition-on-any-char :initform nil :type (or nfa-state null)
-                           :accessor transition-on-any-char)))
+   (transition-on-any-char-REM :initform nil :type (or (cons nfa-state) null)
+                           :accessor transition-on-any-char-REM)))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
 (defclass negated-nfa-state (nfa-state)
@@ -149,12 +149,13 @@ Other element types not needing special class:
 ;;; Add default transition (on any other input).
 ;;; Used in "2nd path" (see text-processing-plan.html)
 ;;; TODO: actually it belongs to DFA not NFA!!
-(defun add-nfa-default-transition (state next-state)
+(defun add-nfa-default-transition-REMOVE_IT (state next-state)
   (if (null (nfa-state-default-transition state))
       (setf (nfa-state-default-transition state) next-state)
       (error "Default transition already set!")))
 
-
+(defun add-nfa-transition-on-any-char-REM (orig-state next-state)
+  (push next-state (transition-on-any-char-REM orig-state)))
 ;;; Creates as many states for the element, glues with input-state,
 ;;; and returns output-state as continuation point.
 (defgeneric produce-nfa (element input-nfa-state))
@@ -175,7 +176,9 @@ Other element types not needing special class:
 (defmethod produce-nfa ((element (eql :any-char)) input-nfa-state)
   (let* ((output-state (make-instance 'nfa-state)))
     ;;I think I'll keep it in normal transitions
-    (setf (transition-on-any-char input-nfa-state) output-state)
+    (add-nfa-normal-transition input-nfa-state element output-state)
+    ;;So probably going to remove this (TODO)
+    ;(add-nfa-transition-on-any-char-REM input-nfa-state output-state)
     output-state))
 
 ;;; TODO, for perf, may change to vector, and use iteration instead of recursion.
@@ -316,7 +319,7 @@ Other element types not needing special class:
       (let ((normal-transitions (normal-transitions nfa-state)))
         (dolist (trans normal-transitions)
           (let ((element (slot-value trans 'element)))
-            (etypecase element
+            (typecase element
               (single-char-element (setf result (insert-char-in-order (dec-char
                                                                        (single-char element))
                                                                       result))
@@ -373,7 +376,8 @@ Other element types not needing special class:
 (defun simple-element-equal (element other-obj)
   (etypecase element
     (single-char-element (single-char-equal element other-obj))
-    (char-range-element (char-range-equal element other-obj))))
+    (char-range-element (char-range-equal element other-obj))
+    (symbol (eq element :any-char))))
 
 
 (defun create-nfa-transition-association-collection (range-splitting-points)
@@ -399,7 +403,7 @@ iterators on the transitions."
                                                 (split-char-range element range-splitting-points)))
                                           (dolist (r split-ranges)
                                             (add-trans r next-state))))
-                    (single-char-element (add-trans element next-state))))))
+                    (t (add-trans element next-state))))))
             (transition-iterator-factory (lambda ()
                                            (let ((list-iter assoc-list))
                                              (lambda ()
@@ -413,11 +417,63 @@ iterators on the transitions."
   ((nfa-states :initarg :nfa-states
                :reader nfa-states
                :initform (error "nfa-states must be specified!"))
-   (transitions :reader transitions :initform nil)
+   (transitions :accessor transitions :initform nil :type list)
+   (transition-on-any-other :accessor transition-on-any-other
+                            :initform nil
+                            :type (or null dfa-state))
    (candidate-terminal :initarg :candidate-terminal
                         :reader candidate-terminal
                         :type (or (eql t) (eql nil))
                         :initform nil)))
+
+;;; TODO: move to a utility package!!!
+(defun dfa-to-graphvizdot (root-dfa)
+  "Generate a Graphviz DOT string for the DFA state machine."
+  (let ((dfa-address-map nil)
+        (state-index 0)
+        (traversed-dfas nil))
+    (labels ((get-dfa-index (dfa-state)
+               (or (cdr (assoc dfa-state dfa-address-map))
+                   (progn (push (cons dfa-state (incf state-index)) dfa-address-map)
+                          state-index)))
+             (get-fresh-index ()
+               (incf state-index))
+             (print-el (el)
+               (typecase el
+                 (single-char-element (single-char el))
+                 (char-range-element (format nil "~a - ~a" (char-start el) (char-end el)))
+                 (t el)))
+             (print-edge (source dest el stream)
+               (when (and source dest)
+                 (format stream "~%~a -> ~a[label=\"~a\"];"
+                         (get-dfa-index source)
+                         (get-dfa-index dest)
+                         (print-el el))))
+             (print-terminal-edge (source stream)
+               (when (and source (not (dfa-state-definitely-terminal-p source)))
+                 (format stream "~%~a -> ~a[label=\"~a (~a)\"];"
+                         (get-dfa-index source)
+                         (get-fresh-index)
+                         "Other/No-Input"
+                         (if (candidate-terminal source)
+                             "MATCH"
+                             "NO-MATCH"))))
+             (iter (start-dfa stream)
+               (unless (find start-dfa traversed-dfas)
+                 (push start-dfa traversed-dfas)
+                 (loop for (el . dest-dfa) in (transitions start-dfa)
+                       do (print-edge start-dfa dest-dfa el stream)
+                          (iter dest-dfa stream))
+                 (let ((dest-dfa-on-any-other (transition-on-any-other start-dfa)))
+                   (when dest-dfa-on-any-other
+                     (print-edge start-dfa dest-dfa-on-any-other "Other" stream)
+                     (iter dest-dfa-on-any-other stream)))
+                 (print-terminal-edge start-dfa stream))))
+      (with-output-to-string (a-stream)
+        (format a-stream "digraph \{~%")
+        (format a-stream "rankdir = LR;~%")
+        (iter root-dfa a-stream)
+        (format a-stream "~%\}~%")))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
@@ -473,12 +529,11 @@ found or newly created."
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))
-    (if (lookup-dfa-transition simple-element origin-dfa-state)
-        (error "Transition already present (BUG?):")
-        (let ((transitions (transitions origin-dfa-state)))
-          (setf (slot-value origin-dfa-state 'transitions)
-                (acons simple-element destination-dfa-state transitions)))))
-
+  (if (eq simple-element :any-char)
+      (setf (transition-on-any-other origin-dfa-state) destination-dfa-state)
+      (if (lookup-dfa-transition simple-element origin-dfa-state)
+          (error "Transition already present (BUG?):")
+          (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state)))))
 
 (defun produce-dfa (nfa-root-state)
   (let ((nfa-root-state-closure (prepare-nfa-state-closure nil nfa-root-state))
@@ -498,6 +553,9 @@ found or newly created."
           (multiple-value-bind (trans-adder-fn trans-iterator-factory-fn)
               (create-nfa-transition-association-collection splitting-points)
             (dolist (nfa-state nfa-state-closure-union)
+              ;;; TODO: may consider handling "trans on any char here", but current solution makes
+              ;;; code simpler (though could be slightly less performant due to extra check in
+              ;;; each transition below.
               (dolist (trans (normal-transitions nfa-state))
                 (funcall trans-adder-fn trans)))
             ;;replace each entry value with union of state closures (in place of union of states)
@@ -523,16 +581,18 @@ found or newly created."
                              :initform nil)))
 
 
-
+;;; Note: currently returning only destination DFA state, may find later that I need
+;;; the match criterion as well (i.e. not extracting the CDR part).
 (defun find-matching-transition (origin-dfa-state char)
-  "Find matching transition from ORIGIN-DFA-STATE, based on input CHAR."
-  (assoc char (transitions origin-dfa-state)
-         :test (lambda (ch elem)
-                 (etypecase elem
-                   (symbol (eq elem :any-char))
-                   (single-char-element (char= ch (single-char elem)))
-                   (char-range-element (and (char>= ch (char-start elem))
-                                            (char<= ch (char-end elem))))))))
+  "Find matching transition from ORIGIN-DFA-STATE, based on input CHAR.
+Returns destination DFA state."
+  (or (cdr (assoc char (transitions origin-dfa-state)
+                  :test (lambda (ch elem)
+                          (etypecase elem
+                            (single-char-element (char= ch (single-char elem)))
+                            (char-range-element (and (char>= ch (char-start elem))
+                                                     (char<= ch (char-end elem))))))))
+      (transition-on-any-other origin-dfa-state)))
 
 (defstruct regex-matching-result
   input-interface-fn
@@ -555,8 +615,7 @@ found or newly created."
                                            :regex-matched
                                            :regex-not-matched))
                        (let* ((next-ch (funcall read-input-fn))
-                              (dest-dfa-state (cdr (find-matching-transition origin-dfa-state
-                                                                             next-ch))))
+                              (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
                          (if dest-dfa-state
                              (let ((append-to-accumulator-fn
                                      (nth-value 1 (if accumulator-interface-fn
