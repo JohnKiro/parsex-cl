@@ -2,7 +2,7 @@
 #+subtitle: Experimental project for regular expressions, lexer and parser design
 
 * Status
-This project is still at an early experimental condition. At this stage, it is possible to match strings against regular expressions, provided in the form of s-expressions. See section [[unit-tests]] for information about how to experiment with the regex matcher's different unit test cases.
+This project is still at an early experimental condition. At this stage, it is possible to match strings against *regular expressions* provided in the form of s-expressions. See section entitled "[[unit-tests][Unit Tests]]" for information about how to experiment with the regex matcher's different unit test cases.
 
 * Prerequisites
 - Git
@@ -150,7 +150,7 @@ In order to inspect the NFA or DFA visually, the *dot* utility provided with *Gr
 
 *Note*: A Graphviz installation is required for this step.
 
-For example, to visualize the DFA corresponding to the test case described in the previous section [[unit-tests]], the following commands can be used (assuming a Unix/Linux terminal):
+For example, to visualize the DFA corresponding to the test case described in the previous section ([[unit-tests][Unit Tests]]), the following commands can be used (assuming a Unix/Linux terminal):
 
 - Save the Dot output for the DFA into a text file:
 
