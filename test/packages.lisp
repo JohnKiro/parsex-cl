@@ -16,7 +16,8 @@
         :parsex-cl.basic-string-tokenizer))
 
 (defpackage :parsex-cl.regex.test
-  (:use :cl
-        :fiveam
-        :parsex-cl.test ;package containing root test suite
-        :parsex-cl.regex))
+  (:use #:cl
+        #:fiveam
+        #:parsex-cl.test ;package containing root test suite
+        #:parsex-cl.regex
+        #:parsex-cl.graphviz-util))

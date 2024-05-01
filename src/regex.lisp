@@ -1,7 +1,6 @@
 (in-package :parsex-cl.regex)
 
-;;; TODO: either rename this file (and package) into broader name (RegEx + NFA + DFA),
-;;; or split into multiple files.
+;;; TODO: split into multiple files.
 
 #||
 Other element types not needing special class:
@@ -11,26 +10,29 @@ Other element types not needing special class:
 - string (string of character corresponds to a sequence-element where all elements are characters).
 ||#
 
-;;; Classes representing regex constructs
-(defclass element () ())
+
+(defclass element () ()
+  (:documentation "Base class for all regex element types."))
 
 ;;; Single character elements (range, any-char, specific char)
-(defclass simple-element (element) ())
+(defclass simple-element (element) ()
+  (:documentation "Base class for single char regex elements (single char and char range)."))
 
 ;;; TODO: probably remove (use character directly). The problem is that I would have two
 ;;; identical produce-nfa methods :(
 ;;; Also may need an object, to include some properties, such as "accepted token" (not sure).
-;;; So probably I'm going to keep it.
 (defclass single-char-element (simple-element)
   ((single-char :initarg :single-char :initform (error "Mandatory")
-                :reader single-char :type character)))
+                :reader single-char :type character))
+  (:documentation "Wrapper object for single-char elements."))
 
 ;; TODO: add constructor that ensures char-end >= char-start
 (defclass char-range-element (simple-element)
   ((char-start :initarg :char-start :initform (error "Mandatory")
                :reader char-start :type character)
    (char-end :initarg :char-end :initform (error "Mandatory")
-             :reader char-end :type character)))
+             :reader char-end :type character))
+  (:documentation "Char range regex element."))
 
 (defmethod print-object ((object single-char-element) stream)
   (print-unreadable-object (object stream :type t :identity nil)
@@ -48,22 +50,18 @@ Other element types not needing special class:
 
 (defclass zero-or-more-element (single-element-wrapper-element) ())
 
-;;; for now, not used (TODO: decide if needed)
 (defclass zero-or-one-element (single-element-wrapper-element) ())
 
-;;; for now, not used (TODO: decide if needed)
+;;; TODO: for now, not used (decide if needed)
 (defclass one-or-more-element (single-element-wrapper-element) ())
 
 ;;; any-char, corresponds to "." in regular expressions.
 ;;; not sure whether I pass it as symbol (.) or map to this class (see note below)
+;;; TODO: for now, not used (decide if needed)
 (defclass any-char-element (simple-element) ())
 
-;;; other char (including input empty?), similar to default case in switch statements
-;;; TODO: not sure of its use yet (actually instead, it's a parameter in DFA state)
+;;; TODO: not currently used (actually instead, it's a parameter in DFA state)
 (defclass any-other-char-element (element) ())
-
-;;; not sure yet (most probably to be removed)
-(defclass auto-transition-element (element) ())
 
 (defclass multiple-elements-wrapper-element (element)
   ((elements :initarg :elements :initform nil :reader elements :type sequence)))
@@ -74,14 +72,15 @@ Other element types not needing special class:
 
 
 
-;;;; prepare-regex-tree: takes a list as element and recursively constructs an equivalent object.
 ;;;; NOTE: since the reader will accept only a valid sexp, the "no more input" case is not possible.
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
 ;;;; TODO: accept reversed char range
 ;;;; TODO: may split function using other helper functions
 ;;;; TODO: flatten (simplify specific cases such as seq within seq)
-;;;; TODO: unit test cases, packages
+;;;; TODO: more unit test cases, reorganize packages
 (defun prepare-regex-tree (regex)
+  "Takes an input list as regex element, and recursively constructs an equivalent regex element
+ object."
   (etypecase regex
     (character (make-instance 'single-char-element :single-char regex))
     (symbol regex) ;e.g. "." to indicate "any char" (TODO: pass unchanged, or generate any-char-element?)
@@ -113,6 +112,9 @@ Other element types not needing special class:
 (defclass nfa-state ()
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
+   ;;NOTE: terminus state will not have any normal transitions, so may enhance by
+   ;;prohibiting incosistency (introduce class hierarchy level)
+   (terminus :initform nil :type (or null t) :accessor terminus)
    ;(default-transition :initform nil :type nfa-state :accessor default-transition)
    (transition-on-any-char-REM :initform nil :type (or (cons nfa-state) null)
                            :accessor transition-on-any-char-REM)))
@@ -136,6 +138,7 @@ Other element types not needing special class:
   ;;            (:constructor make-nfa-transition-on-any
   ;;                          (next-state &aux (element 'any-char))))
   
+
 
 
 (defun add-nfa-normal-transition (orig-state element dest-state)
@@ -219,7 +222,7 @@ Other element types not needing special class:
     (add-nfa-auto-transition s2 output-state)
     output-state))
 
-;;;TODO: review!!!
+;;;TODO: review (currently not used)
 (defmethod produce-nfa ((element one-or-more-element) input-nfa-state)
   (let* ((inner-element (slot-value element 'element))
          (output-state-1 (produce-nfa inner-element input-nfa-state))
@@ -232,7 +235,7 @@ Other element types not needing special class:
     output-state-3))
 
 (defmethod produce-nfa ((element not-element) input-nfa-state)
-  (error "TODO: IMPLEMENT THE NOT-ELEMENT, JOHN!"))
+  (error "TODO: IMPLEMENT THE NOT-ELEMENT!"))
                      
 ;;; NFA state defines a normal transition table (element --> next state), E-transitions (auto),
 ;;; and a default transition (transition on any other input, including case no input). Also it
@@ -270,7 +273,8 @@ Other element types not needing special class:
 ;;; Extracts a union of NFA closures for a set of states.
 ;;; NOTE: duplication is automatically handled by prepare-nfa-state-closure.
 (defun prepare-nfa-state-closure-union (states)
-  (reduce #'prepare-nfa-state-closure states :initial-value nil))
+  (let ((result (reduce #'prepare-nfa-state-closure states :initial-value nil)))
+    result))
 
 
 ;;; Inserts a character in a sorted list (maintaining ascending order).
@@ -426,55 +430,6 @@ iterators on the transitions."
                         :type (or (eql t) (eql nil))
                         :initform nil)))
 
-;;; TODO: move to a utility package!!!
-(defun dfa-to-graphvizdot (root-dfa)
-  "Generate a Graphviz DOT string for the DFA state machine."
-  (let ((dfa-address-map nil)
-        (state-index 0)
-        (traversed-dfas nil))
-    (labels ((get-dfa-index (dfa-state)
-               (or (cdr (assoc dfa-state dfa-address-map))
-                   (progn (push (cons dfa-state (incf state-index)) dfa-address-map)
-                          state-index)))
-             (get-fresh-index ()
-               (incf state-index))
-             (print-el (el)
-               (typecase el
-                 (single-char-element (single-char el))
-                 (char-range-element (format nil "~a - ~a" (char-start el) (char-end el)))
-                 (t el)))
-             (print-edge (source dest el stream)
-               (when (and source dest)
-                 (format stream "~%~a -> ~a[label=\"~a\"];"
-                         (get-dfa-index source)
-                         (get-dfa-index dest)
-                         (print-el el))))
-             (print-terminal-edge (source stream)
-               (when (and source (not (dfa-state-definitely-terminal-p source)))
-                 (format stream "~%~a -> ~a[label=\"~a (~a)\"];"
-                         (get-dfa-index source)
-                         (get-fresh-index)
-                         "Other/No-Input"
-                         (if (candidate-terminal source)
-                             "MATCH"
-                             "NO-MATCH"))))
-             (iter (start-dfa stream)
-               (unless (find start-dfa traversed-dfas)
-                 (push start-dfa traversed-dfas)
-                 (loop for (el . dest-dfa) in (transitions start-dfa)
-                       do (print-edge start-dfa dest-dfa el stream)
-                          (iter dest-dfa stream))
-                 (let ((dest-dfa-on-any-other (transition-on-any-other start-dfa)))
-                   (when dest-dfa-on-any-other
-                     (print-edge start-dfa dest-dfa-on-any-other "Other" stream)
-                     (iter dest-dfa-on-any-other stream)))
-                 (print-terminal-edge start-dfa stream))))
-      (with-output-to-string (a-stream)
-        (format a-stream "digraph \{~%")
-        (format a-stream "rankdir = LR;~%")
-        (iter root-dfa a-stream)
-        (format a-stream "~%\}~%")))))
-
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
 transitions out. It must be used only in regex matching (after DFA is completely constructed)."
@@ -497,10 +452,9 @@ transitions out. It must be used only in regex matching (after DFA is completely
 
 (defun terminal-nfa-closure-union-p (nfa-states)
   "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
-when any of the NFA states in the closure is terminal (having no normal transitions or
-transitions on any char out)."
+when any of the NFA states in the closure is the terminus state produced by the NFA."
   (dolist (s nfa-states nil)
-    (when (eq (normal-transitions s) nil)
+    (when (terminus s)
       (return t))))
     
 (defun find-dfa-state (nfa-states traversed-dfa-states)
@@ -562,11 +516,10 @@ found or newly created."
             (loop with iterator-fn = (funcall trans-iterator-factory-fn)
                   for trans = (funcall iterator-fn)
                   while trans
-                  do (let* ((element (car trans))
-                            (dest-state-union (cdr trans))
-                            (dest-closure-union (prepare-nfa-state-closure-union dest-state-union))
-                            (dest-dfa (produce-dfa-rec dest-closure-union traversed-dfa-states)))
-                       (add-dfa-transition dfa-state element dest-dfa))))
+                  for (element . dest-state-union) = trans
+                  for dest-closure-union = (prepare-nfa-state-closure-union dest-state-union)
+                  for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
+                  do (add-dfa-transition dfa-state element dest-dfa)))
           dfa-state))))
 
 
@@ -660,17 +613,13 @@ Returns destination DFA state."
       (values input-empty-predicate read-input-fn advance-input-fn))))
 
 ;;; Public interface function (regex --> NFA root state)
-;;; TODO: obsolete, can go to DFA directly
 (defun parse-and-produce-nfa (regex)
-  (let ((element-tree (prepare-regex-tree regex))
-        (root-state (make-instance 'nfa-state)))
-    ;;not interested in returned acceptance state at this point
-    (produce-nfa element-tree root-state)
+  (let* ((element-tree (prepare-regex-tree regex))
+         (root-state (make-instance 'nfa-state))
+         (terminus-nfa-state (produce-nfa element-tree root-state)))
+    (setf (terminus terminus-nfa-state) t)
     root-state))
 
 (defun parse-and-produce-dfa (regex)
-  (let* ((element-tree (prepare-regex-tree regex))
-         (root-nfa-state (make-instance 'nfa-state))
-         (exit-nfa-state (produce-nfa element-tree root-nfa-state))
-         (root-dfa-state (produce-dfa root-nfa-state)))
-    root-dfa-state))
+  (let* ((root-nfa-state (parse-and-produce-nfa regex)))
+    (produce-dfa root-nfa-state)))

@@ -6,20 +6,6 @@
 
 (in-suite :parsex-cl.regex.test-suite)
 
-;;; sample regex: decimal or hexa, the decimal can be negative, and can have fraction
-(defparameter sample-regex '(:or
-                             (:seq
-                              (:? #\-)
-                              (:+ (:char-range #\0 #\9))
-                              #\.
-                              (:+ (:char-range #\0 #\9)))
-                             (:seq "0x" (:+ (:char-range #\0 #\9)))))
-
-(defparameter root-state (parsex-cl.regex::parse-and-produce-nfa sample-regex))
-(defparameter root-closure (parsex-cl.regex::prepare-nfa-state-closure nil root-state))
-(defparameter char-range-splitting-points
-  (parsex-cl.regex::collect-char-range-splitting-points root-closure))
-
 (test char-splitting-test
   (let* ((regex '(:or
                   (:char-range #\a #\d)
@@ -34,71 +20,85 @@
     (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
     (is (equal splitting-points '(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z)))))
 
-(:* (:or
-                      (:char-range #\a #\d)
-                      (:char-range #\b #\e)
-                      "xyz"))
+(defun run-regex-matching-test (regex input-string
+                                &key
+                                  (expected-matching-status :regex-not-matched)
+                                  (expected-accumulator-value input-string)
+                                  (generate-nfa-dotgraphviz t)
+                                  (generate-dfa-dotgraphviz t))
+  "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
+regex (REGEX)."
+  (let* ((input-handler (create-basic-input input-string))
+         (accumulator-handler (create-basic-accumulator))
+         (accumulator-retrieval-fn (nth-value 0 (funcall accumulator-handler)))
+         (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
+         (dfa (parsex-cl.regex:produce-dfa nfa))
+         (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
+         (matching-status (regex-matching-result-status result))
+         (updated-acc (funcall accumulator-retrieval-fn)))
+    (format t "~%Matching the text ~s against the regex ~a..~%" input-string regex)
+    (format t "~%Updated accumulator is ~a~%" updated-acc)
+    (when generate-nfa-dotgraphviz
+      (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
+    (when generate-dfa-dotgraphviz
+      (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot dfa)))
+    (is (equal matching-status expected-matching-status))
+    (is (equal updated-acc expected-accumulator-value))))
 
-(test graphvizdot-generation
-  (let* ((regex '(:* (:or
-                      (:char-range #\a #\d)
-                      (:char-range #\x #\z))))
-         (dfa (parsex-cl.regex::parse-and-produce-dfa regex)))
-    (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.regex::dfa-to-graphvizdot dfa))
-    (is (eq t t))))
 
 ;;; TODO: need to put more tests in a loop (matching token by token)
-(test basic-regex-matching-test
-  (let* ((regex '(:+ (:or
-                      (:seq #\a #\n)
-                      (:seq #\a #\m)
-                      (:seq #\a #\t)
-                      (:seq #\a #\s)
-                      (:char-range #\w #\z))))
-         (input-handler (create-basic-input "anamatasxzwy"))
-         (accumulator-handler (create-basic-accumulator))
-         (accumulator-retrieval-fn (nth-value 0 (funcall accumulator-handler)))
-         (dfa (parsex-cl.regex::parse-and-produce-dfa regex))
-         (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
-         (matching-status (regex-matching-result-status result))
-         (updated-acc (funcall accumulator-retrieval-fn)))
-    (format t "~%Updated accumulator is ~a~%" updated-acc)
-    (is (equal matching-status :regex-matched))
-    (is (equal updated-acc "anamatasxzwy"))))
+(test basic1-regex-matching-test
+  "Tests +, OR, char range, char range splitting."
+  (run-regex-matching-test '(:+ (:or
+                                 (:seq #\a #\n)
+                                 (:seq #\a #\m)
+                                 (:seq #\a #\t)
+                                 (:seq #\a #\s)
+                                 (:char-range #\w #\z)))
+                           "anamatasxzwy"
+                           :expected-matching-status :regex-matched))
 
 (test basic2-regex-matching-test
-  (let* ((regex '(:+ (:or
-                      (:char-range #\a #\d)
-                      (:char-range #\b #\e))))
-         (input-handler (create-basic-input "abcacdaecccaabeadde"))
-         (accumulator-handler (create-basic-accumulator))
-         (accumulator-retrieval-fn (nth-value 0 (funcall accumulator-handler)))
-         (dfa (parsex-cl.regex::parse-and-produce-dfa regex))
-         (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
-         (matching-status (regex-matching-result-status result))
-         (updated-acc (funcall accumulator-retrieval-fn)))
-    (format t "~%Updated accumulator is ~a~%" updated-acc)
-    (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.regex::dfa-to-graphvizdot dfa))
-    (is (equal matching-status :regex-matched))
-    (is (equal updated-acc "abcacdaecccaabeadde"))))
+  "Also tests char splitting. Decide whether to keep or remove (redundant)."
+  (run-regex-matching-test '(:+ (:or
+                                 (:char-range #\a #\d)
+                                 (:char-range #\b #\e)))
+                           "abcacdaecccaabeadde"
+                           :expected-matching-status :regex-matched))
 
 (test basic3-regex-matching-test
-  (let* ((regex '(:+ (:or
-                      (:seq #\a #\n)
-                      (:seq :any-char #\M)
-                      (:seq :any-char #\P)
-                      )))
-         (input-handler (create-basic-input "anxMyManzMvMsPiMan"))
-         (accumulator-handler (create-basic-accumulator))
-         (accumulator-retrieval-fn (nth-value 0 (funcall accumulator-handler)))
-         (dfa (parsex-cl.regex::parse-and-produce-dfa regex))
-         (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
-         (matching-status (regex-matching-result-status result))
-         (updated-acc (funcall accumulator-retrieval-fn)))
-    (format t "~%Updated accumulator is ~a~%" updated-acc)
-    (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.regex::dfa-to-graphvizdot dfa))
-    (is (equal matching-status :regex-matched))
-    (is (equal updated-acc "anxMyManzMvMsPiMan"))))
+  "Tests :any-char"
+  (run-regex-matching-test '(:+ (:or
+                                 (:seq #\a #\n)
+                                 (:seq :any-char #\M)
+                                 (:seq :any-char #\P)))
+                           "anxMyPanzMvPan"
+                           :expected-matching-status :regex-matched))
+
+(test basic31-regex-matching-test
+  "Also tests :any-char. This one is simpler and its DFA is easier to inspect visually."
+  (run-regex-matching-test '(:or
+                             (:seq #\a #\n)
+                             (:seq :any-char #\M)
+                             (:seq :any-char #\P))
+                           "xManxMyPanzMvPan"
+                           :expected-matching-status :regex-matched
+                           :expected-accumulator-value "xM"))
+
+;; (a|b)*abb.
+(test basic4-regex-matching-test
+  "Tests SEQ, OR, Kleene Closure, string."
+  (run-regex-matching-test '(:seq (:* (:or #\a #\b)) "abb")
+                           "abbbababbababbabbbbbabb"
+                           :expected-matching-status :regex-matched))
+
+
+(test basic5-regex-matching-test
+  "Tests stopping at first character that terminates the FSM at a candidate matching point."
+  (run-regex-matching-test '(:seq (:* #\x) #\y)
+                           "xxyz"
+                           :expected-matching-status :regex-matched
+                           :expected-accumulator-value "xxy"))
 
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."

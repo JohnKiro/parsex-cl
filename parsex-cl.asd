@@ -24,12 +24,18 @@
                 ((:file "packages")
                  (:file "parsex-cl")
                  (:file "regex")
+                 (:file "fsm-traversal")
                  (:file "tokenizer-states")
                  (:file "tokenizer-transitions")
                  (:file "tokenizer")
                  (:file "common-atom-matchers")
                  (:file "common-transition-finders")
                  (:file "basic-string-tokenizer")))
+               (:module "util"
+                :pathname "src/util"
+                :components
+                ((:file "packages")
+                 (:file "graphviz-export")))
                (:module "test"
                 :components
                 ((:file "packages")
