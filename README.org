@@ -154,9 +154,9 @@ For example, to visualize the DFA corresponding to the test case described in th
 
 - Save the Dot output for the DFA into a text file:
 
-
 #+begin_example
-$ cat > sample-dfa.dot
+cat > sample-dfa.dot
+
 digraph {
 rankdir = LR;
 
@@ -188,15 +188,26 @@ rankdir = LR;
 - Export the file as SVG:
 
 #+begin_example
-$ dot -Tsvg -Nfontcolor=red -Nshape=circle sample-dfa.dot > sample-dfa.svg
+dot -Tsvg -Nfontcolor=red -Nshape=circle sample-dfa.dot > sample-dfa.svg
 #+end_example
 
-- View the SVG file any modern web browser, or any vector graphics tool that supports opening/importing files in SVG format.
+- View the SVG file in any modern web browser, or any vector graphics tool that supports opening/importing files in SVG format.
 
 #+CAPTION: Sample DFA finite state machine diagram
 #+NAME:   fig:dfa-fsm-diagram
 [[./images/sample-dfa.svg]]
 
+
+* TODO
+
+- For regex like =(+ "AB")=, currently "ABABAC" will not match, and will
+  consume the first 5 characters (which is not wrong), but to be more
+  useful, I need to match "ABAB", and stop there, for the next run. I
+  expect this to be easy, since we already keep track of "candidate
+  matching".
+- Complete the implementation of negation.
+- may split code into multiple packages.
+- There are also some TODOs in the source code (to be added in this section).
 
 * Author
 + John Badie (johnkirollos@gmail.com)

@@ -22,7 +22,7 @@
 
 (defun run-regex-matching-test (regex input-string
                                 &key
-                                  (expected-matching-status :regex-not-matched)
+                                  expected-matching-status
                                   (expected-accumulator-value input-string)
                                   (generate-nfa-dotgraphviz t)
                                   (generate-dfa-dotgraphviz t))
@@ -45,60 +45,76 @@ regex (REGEX)."
     (is (equal matching-status expected-matching-status))
     (is (equal updated-acc expected-accumulator-value))))
 
+(defmacro define-regex-matching-test (test-name
+                                      &key
+                                        (description nil)
+                                        regex
+                                        input-text
+                                        (expected-matching-status :regex-not-matched)
+                                        (expected-accumulator-value input-text))
+  (let ((thefuncall `(run-regex-matching-test
+                      ',regex
+                      ,input-text
+                      :expected-matching-status ,expected-matching-status
+                      :expected-accumulator-value ,expected-accumulator-value)))
+    (if description
+        `(test ,test-name ,description ,thefuncall)
+        `(test ,test-name ,thefuncall))))
+
 
 ;;; TODO: need to put more tests in a loop (matching token by token)
-(test basic1-regex-matching-test
-  "Tests +, OR, char range, char range splitting."
-  (run-regex-matching-test '(:+ (:or
-                                 (:seq #\a #\n)
-                                 (:seq #\a #\m)
-                                 (:seq #\a #\t)
-                                 (:seq #\a #\s)
-                                 (:char-range #\w #\z)))
-                           "anamatasxzwy"
-                           :expected-matching-status :regex-matched))
+(define-regex-matching-test basic1-regex-matching-test
+  :description "Tests +, OR, char range, char range splitting."
+  :regex (:+ (:or
+              (:seq #\a #\n)
+              (:seq #\a #\m)
+              (:seq #\a #\t)
+              (:seq #\a #\s)
+              (:char-range #\w #\z)))
+  :input-text "anamatasxzwy"
+  :expected-matching-status :regex-matched)
 
-(test basic2-regex-matching-test
-  "Also tests char splitting. Decide whether to keep or remove (redundant)."
-  (run-regex-matching-test '(:+ (:or
-                                 (:char-range #\a #\d)
-                                 (:char-range #\b #\e)))
-                           "abcacdaecccaabeadde"
-                           :expected-matching-status :regex-matched))
+(define-regex-matching-test basic2-regex-matching-test
+  :description "Also tests char splitting. May remove it later (redundant)."
+  :regex (:+ (:or
+              (:char-range #\a #\d)
+              (:char-range #\b #\e)))
+  :input-text "abcacdaecccaabeadde"
+  :expected-matching-status :regex-matched)
 
-(test basic3-regex-matching-test
-  "Tests :any-char"
-  (run-regex-matching-test '(:+ (:or
-                                 (:seq #\a #\n)
-                                 (:seq :any-char #\M)
-                                 (:seq :any-char #\P)))
-                           "anxMyPanzMvPan"
-                           :expected-matching-status :regex-matched))
+(define-regex-matching-test basic3-regex-matching-test
+  :description "Tests :any-char"
+  :regex (:+ (:or
+              (:seq #\a #\n)
+              (:seq :any-char #\M)
+              (:seq :any-char #\P)))
+  :input-text "anxMyPanzMvPan"
+  :expected-matching-status :regex-matched)
 
-(test basic31-regex-matching-test
-  "Also tests :any-char. This one is simpler and its DFA is easier to inspect visually."
-  (run-regex-matching-test '(:or
-                             (:seq #\a #\n)
-                             (:seq :any-char #\M)
-                             (:seq :any-char #\P))
-                           "xManxMyPanzMvPan"
-                           :expected-matching-status :regex-matched
-                           :expected-accumulator-value "xM"))
+(define-regex-matching-test basic31-regex-matching-test
+  :description "Also tests :any-char. This one is simpler to inspect visually."
+  :regex (:or
+          (:seq #\a #\n)
+          (:seq :any-char #\M)
+          (:seq :any-char #\P))
+  :input-text "xManxMyPanzMvPan"
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "xM")
 
 ;; (a|b)*abb.
-(test basic4-regex-matching-test
-  "Tests SEQ, OR, Kleene Closure, string."
-  (run-regex-matching-test '(:seq (:* (:or #\a #\b)) "abb")
-                           "abbbababbababbabbbbbabb"
-                           :expected-matching-status :regex-matched))
+(define-regex-matching-test basic4-regex-matching-test
+  :description "Tests SEQ, OR, Kleene Closure, string."
+  :regex (:seq (:* (:or #\a #\b)) "abb")
+  :input-text "abbbababbababbabbbbbabb"
+  :expected-matching-status :regex-matched)
 
 
-(test basic5-regex-matching-test
-  "Tests stopping at first character that terminates the FSM at a candidate matching point."
-  (run-regex-matching-test '(:seq (:* #\x) #\y)
-                           "xxyz"
-                           :expected-matching-status :regex-matched
-                           :expected-accumulator-value "xxy"))
+(define-regex-matching-test basic5-regex-matching-test
+  :description "Tests stopping at candidate matching point."
+  :regex (:seq (:* #\x) #\y)
+  :input-text "xxyz"
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "xxy")
 
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."
