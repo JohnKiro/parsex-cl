@@ -182,32 +182,25 @@ and returns output state as continuation point."))
     (not (null (nfa-state-negated-state state))))
 
 
-;;; Extract E-closure for a certain state (by recursively collecting auto states),
-;;; and combine it with input accumulation of other states' closures.
-;;; Arguments:
-;;; - state: state for which closure is to be computed.
-;;; - initial-accumulator: accumulator of closures to be combined with this one.
 ;;; TODO: may change recursion into iteration.
 ;;; TODO: may change accumulation in list into a hashtable (for perf).
 ;;; NOTE: Since a single instance is created for each state, so address comparison
 ;;; (using EQ) is sufficient.
-(defun prepare-nfa-state-closure (initial-accumulator state)
-  (if (member state initial-accumulator :test #'eq)
-      initial-accumulator ;state has already been traversed
-      (let ((accumul (cons state initial-accumulator))
-            (direct-autos (slot-value state 'auto-transitions)))
-        (etypecase direct-autos
-          (null accumul)
-          (cons (reduce #'prepare-nfa-state-closure
-                        direct-autos
-                        :initial-value accumul))))))
-
-
-;;; Extracts a union of NFA closures for a set of states.
 ;;; NOTE: duplication is automatically handled by prepare-nfa-state-closure.
 (defun prepare-nfa-state-closure-union (states)
-  (let ((result (reduce #'prepare-nfa-state-closure states :initial-value nil)))
-    result))
+  "Extracts a union of NFA closures for a set of states (STATES)."
+  (labels ((prepare-nfa-state-closure (initial-accumulator state)
+             (if (member state initial-accumulator :test #'eq)
+                 initial-accumulator ;state has already been traversed
+                 (let ((accumul (cons state initial-accumulator))
+                       (direct-autos (slot-value state 'auto-transitions)))
+                   (etypecase direct-autos
+                     (null accumul)
+                     (cons (reduce #'prepare-nfa-state-closure
+                                   direct-autos
+                                   :initial-value accumul)))))))
+    (reduce #'prepare-nfa-state-closure states :initial-value nil)))
+
 
 
 ;;; Inserts a character in a sorted list (maintaining ascending order).
@@ -423,7 +416,7 @@ found or newly created."
           (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state)))))
 
 (defun produce-dfa (nfa-root-state)
-  (let ((nfa-root-state-closure (prepare-nfa-state-closure nil nfa-root-state))
+  (let ((nfa-root-state-closure (prepare-nfa-state-closure-union (list nfa-root-state)))
         (dfa-state-set (create-dfa-state-set)))
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
