@@ -192,17 +192,15 @@ and returns output state as continuation point."))
 ;;; NOTE: Since a single instance is created for each state, so address comparison
 ;;; (using EQ) is sufficient.
 (defun prepare-nfa-state-closure (initial-accumulator state)
-  (labels ((nfa-state-closure-recurse (initial-accumul state-iter)
-             (if (member state-iter initial-accumul :test #'eq)
-                 initial-accumul ;state has already been traversed
-                 (let ((accumul (cons state-iter initial-accumul))
-                       (direct-autos (slot-value state-iter 'auto-transitions)))
-                   (etypecase direct-autos
-                     (null accumul)
-                     (cons (reduce #'nfa-state-closure-recurse
-                                   direct-autos
-                                   :initial-value accumul)))))))
-    (nfa-state-closure-recurse initial-accumulator state)))
+  (if (member state initial-accumulator :test #'eq)
+      initial-accumulator ;state has already been traversed
+      (let ((accumul (cons state initial-accumulator))
+            (direct-autos (slot-value state 'auto-transitions)))
+        (etypecase direct-autos
+          (null accumul)
+          (cons (reduce #'prepare-nfa-state-closure
+                        direct-autos
+                        :initial-value accumul))))))
 
 
 ;;; Extracts a union of NFA closures for a set of states.
