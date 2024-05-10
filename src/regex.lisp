@@ -11,11 +11,8 @@ Other element types not needing special class:
 ||#
 
 
-(defclass element () ()
-  (:documentation "Base class for all regex element types."))
-
 ;;; Single character elements (range, any-char, specific char)
-(defclass simple-element (element) ()
+(defclass simple-element () ()
   (:documentation "Base class for single char regex elements (single char and char range)."))
 
 ;;; TODO: probably remove (use character directly). The problem is that I would have two
@@ -43,81 +40,114 @@ Other element types not needing special class:
     (with-slots ((s char-start) (e char-end)) object
       (format stream "(~a - ~a)" s e ))))
 
-(defclass single-element-wrapper-element ()
-  ((element :initarg :element :initform (error "Mandatory"))))
-
-(defclass not-element (single-element-wrapper-element) ())
-
-(defclass zero-or-more-element (single-element-wrapper-element) ())
-
-(defclass zero-or-one-element (single-element-wrapper-element) ())
-
-;;; TODO: for now, not used (decide if needed)
-(defclass one-or-more-element (single-element-wrapper-element) ())
-
-;;; any-char, corresponds to "." in regular expressions.
-;;; not sure whether I pass it as symbol (.) or map to this class (see note below)
-;;; TODO: for now, not used (decide if needed)
-(defclass any-char-element (simple-element) ())
-
-;;; TODO: not currently used (actually instead, it's a parameter in DFA state)
-(defclass any-other-char-element (element) ())
-
-(defclass multiple-elements-wrapper-element (element)
-  ((elements :initarg :elements :initform nil :reader elements :type sequence)))
-
-(defclass sequence-element (multiple-elements-wrapper-element) ())
-
-(defclass or-element (multiple-elements-wrapper-element) ())
-
-
 
 ;;;; NOTE: since the reader will accept only a valid sexp, the "no more input" case is not possible.
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
 ;;;; TODO: accept reversed char range
-;;;; TODO: may split function using other helper functions
+;;;; TODO: may split function using other helper functions (DONE)
 ;;;; TODO: flatten (simplify specific cases such as seq within seq)
 ;;;; TODO: more unit test cases, reorganize packages
-(defun prepare-regex-tree (regex)
-  "Takes an input list as regex element, and recursively constructs an equivalent regex element
- object."
-  (etypecase regex
-    (character (make-instance 'single-char-element :single-char regex))
-    (symbol regex) ;e.g. "." to indicate "any char" (TODO: pass unchanged, or generate any-char-element?)
-    (list (ecase (car regex)
-            (:char-range (make-instance 'char-range-element
-                                       :char-start (second regex)
-                                       :char-end (third regex)))
-	    (:seq (make-instance 'sequence-element
-				:elements (mapcar #'prepare-regex-tree (cdr regex))))
-	    (:or (make-instance 'or-element
-			       :elements (mapcar #'prepare-regex-tree (cdr regex))))
-	    (:* (make-instance 'zero-or-more-element :element (funcall #'prepare-regex-tree
-                                                                      (second regex))))
-            ;;TODO: may use one-or-more-element instead
-	    (:+ (let ((e (funcall #'prepare-regex-tree (second regex))))
-		 (make-instance 'sequence-element
-                                :elements (list e (make-instance 'zero-or-more-element 
-                                                                 :element e)))))
-	    (:? (make-instance 'zero-or-one-element :element (funcall #'prepare-regex-tree
-                                                                     (second regex))))
-	    (:not (make-instance 'not-element :element (funcall #'prepare-regex-tree
-                                                               (second regex))))))
-    (string (make-instance 'sequence-element
-                           :elements (mapcar #'(lambda (ch)
-                                                 (make-instance 'single-char-element
-                                                                :single-char ch))
-                                             (coerce regex 'list))))))
+
+(defgeneric regex-to-nfa (regex input-nfa-state)
+  (:documentation "Parses REGEX and generates corresponding NFA section, starting at
+INPUT-NFA-STATE. In the process, it creates as many states for the element, glues with input state,
+and returns output state as continuation point."))
+
+(defgeneric compound-regex-to-nfa (regex-head regex-tail input-nfa-state)
+  (:documentation "Parses a compound REGEX and generates corresponding NFA section, starting at
+ INPUT-NFA-STATE."))
+
+;;TODO: probably will remove the single-char-element (being almost a useless wrapper)
+(defmethod regex-to-nfa ((regex character) input-nfa-state)
+  (let ((elem (make-instance 'single-char-element :single-char regex))
+        (output-state (make-instance 'nfa-state)))
+    (add-nfa-normal-transition input-nfa-state elem output-state)
+    output-state))
+
+;; NOTE: the only symbol currently supported is :any-char, but I chose to have more generic code
+;; than specializing on (eql :any-char).
+(defmethod regex-to-nfa ((regex symbol) input-nfa-state)
+  (let* ((output-state (make-instance 'nfa-state)))
+    (add-nfa-normal-transition input-nfa-state regex output-state)
+    output-state))
+
+(defmethod regex-to-nfa ((regex cons) input-nfa-state)
+  (compound-regex-to-nfa (car regex) (cdr regex) input-nfa-state))
+
+;;TODO: probably will remove the single-char-element (being almost a useless wrapper)
+(defmethod regex-to-nfa ((regex string) input-nfa-state)
+  (loop for ch across regex
+        for elem = (make-instance 'single-char-element :single-char ch)
+        for in-state = input-nfa-state then out-state
+        for out-state = (make-instance 'nfa-state)
+        do (add-nfa-normal-transition in-state elem out-state)
+        finally (return out-state)))
+
+(defmethod compound-regex-to-nfa ((regex-head (eql :char-range)) regex-tail input-nfa-state)
+  (let* ((output-state (make-instance 'nfa-state)))
+    (destructuring-bind (char-start char-end) regex-tail
+      (add-nfa-normal-transition input-nfa-state
+                                 (make-instance 'char-range-element
+                                                                :char-start char-start
+                                                                :char-end char-end) output-state)
+      output-state)))
+
+(defmethod compound-regex-to-nfa ((regex-head (eql :seq)) regex-tail input-nfa-state)
+  (reduce #'(lambda (previous-output-nfa-state elem)
+              (regex-to-nfa elem previous-output-nfa-state))
+          regex-tail
+          :initial-value input-nfa-state))
+
+(defmethod compound-regex-to-nfa ((regex-head (eql :or)) regex-tail input-nfa-state)
+  (let ((output-state (make-instance 'nfa-state)))
+    (map nil
+         #'(lambda (elem)
+             (let ((out-state-i (regex-to-nfa elem input-nfa-state)))
+               (add-nfa-auto-transition out-state-i output-state)))
+         regex-tail)
+    output-state))
+
+(defmethod compound-regex-to-nfa ((regex-head (eql :?)) regex-tail input-nfa-state)
+  (let* ((actual-regex (first regex-tail))
+         (output-state (regex-to-nfa actual-regex input-nfa-state)))
+    (add-nfa-auto-transition input-nfa-state output-state)
+    output-state))
+
+;;TODO: SIMPLIFY, AS DONE FOR :+ BELOW
+(defmethod compound-regex-to-nfa ((regex-head (eql :*)) regex-tail input-nfa-state)
+  (let* ((s1 (make-instance 'nfa-state))
+         (actual-regex (first regex-tail))
+         (s2 (regex-to-nfa actual-regex s1))
+         (output-state (make-instance 'nfa-state)))
+    (add-nfa-auto-transition input-nfa-state s1)
+    (add-nfa-auto-transition input-nfa-state output-state)
+    (add-nfa-auto-transition s2 s1)
+    (add-nfa-auto-transition s2 output-state)
+    output-state))
+
+(defmethod compound-regex-to-nfa ((regex-head (eql :+)) regex-tail input-nfa-state)
+  (let* ((actual-regex (first regex-tail))
+         (s1 (regex-to-nfa actual-regex input-nfa-state))
+         (s2 (regex-to-nfa actual-regex s1)))
+    (add-nfa-auto-transition s2 s1)
+    (add-nfa-auto-transition s1 s2)
+    s2))
+
+(defmethod compound-regex-to-nfa ((regex-head (eql :not)) regex-tail input-nfa-state)
+  (error "TODO: IMPLEMENT THE NOT-ELEMENT!"))
+
+(defun parse-and-produce-nfa (regex)
+  (let* ((root-state (make-instance 'nfa-state))
+         (terminus-nfa-state (regex-to-nfa regex root-state)))
+    (setf (terminus terminus-nfa-state) t)
+    root-state))
 
 (defclass nfa-state ()
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting incosistency (introduce class hierarchy level)
-   (terminus :initform nil :type (or null t) :accessor terminus)
-   ;(default-transition :initform nil :type nfa-state :accessor default-transition)
-   (transition-on-any-char-REM :initform nil :type (or (cons nfa-state) null)
-                           :accessor transition-on-any-char-REM)))
+   (terminus :initform nil :type (or null t) :accessor terminus)))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
 (defclass negated-nfa-state (nfa-state)
@@ -134,13 +164,6 @@ Other element types not needing special class:
    (next-state :initarg :next-state :initform (error "next-state must be specified!")
                :type (or null nfa-state))))
 
-  ;; (:constructor make-nfa-transition (element next-state))
-  ;;            (:constructor make-nfa-transition-on-any
-  ;;                          (next-state &aux (element 'any-char))))
-  
-
-
-
 (defun add-nfa-normal-transition (orig-state element dest-state)
   (let ((transition (make-instance 'nfa-transition :element element :next-state dest-state)))
     (push transition (normal-transitions orig-state))))
@@ -149,94 +172,6 @@ Other element types not needing special class:
 (defun add-nfa-auto-transition (orig-state dest-state)
   (push dest-state (auto-transitions orig-state)))
 
-;;; Add default transition (on any other input).
-;;; Used in "2nd path" (see text-processing-plan.html)
-;;; TODO: actually it belongs to DFA not NFA!!
-(defun add-nfa-default-transition-REMOVE_IT (state next-state)
-  (if (null (nfa-state-default-transition state))
-      (setf (nfa-state-default-transition state) next-state)
-      (error "Default transition already set!")))
-
-(defun add-nfa-transition-on-any-char-REM (orig-state next-state)
-  (push next-state (transition-on-any-char-REM orig-state)))
-;;; Creates as many states for the element, glues with input-state,
-;;; and returns output-state as continuation point.
-(defgeneric produce-nfa (element input-nfa-state))
-
-(defmethod produce-nfa ((element simple-element) input-nfa-state)
-  (let* ((output-state (make-instance 'nfa-state)))
-    (add-nfa-normal-transition input-nfa-state element output-state)
-    output-state))
-
-;;; TODO: Identical code as for  simple-element (code redundancy)
-;;; I'm removing this, and updating the prepare-regex-tree function accordingly.
-(defmethod produce-nfa ((element character) input-nfa-state)
-  (let* ((output-state (make-instance 'nfa-state)))
-    (add-nfa-normal-transition input-nfa-state element output-state)
-    output-state))
-
-;;; TODO: decide whether to add it to NORMAL TRANSITIONS or separate slot
-(defmethod produce-nfa ((element (eql :any-char)) input-nfa-state)
-  (let* ((output-state (make-instance 'nfa-state)))
-    ;;I think I'll keep it in normal transitions
-    (add-nfa-normal-transition input-nfa-state element output-state)
-    ;;So probably going to remove this (TODO)
-    ;(add-nfa-transition-on-any-char-REM input-nfa-state output-state)
-    output-state))
-
-;;; TODO, for perf, may change to vector, and use iteration instead of recursion.
-;;; for now, I see code assuming list is more readable (typical list recursion)
-(defmethod produce-nfa ((element sequence-element) input-nfa-state)
-  (labels ((produce-nfa-for-seq-elements (remaining-elements in-state)
-             (if (null remaining-elements)
-                 in-state
-                 (let ((out-state (produce-nfa (car remaining-elements) in-state)))
-                   (produce-nfa-for-seq-elements (cdr remaining-elements) out-state)))))
-    (produce-nfa-for-seq-elements (slot-value element 'elements) input-nfa-state)))
-
-(defmethod produce-nfa ((element or-element) input-nfa-state)
-  (let ((inner-elements (slot-value element 'elements))
-        (output-state (make-instance 'nfa-state)))
-    (map nil
-         #'(lambda (e)
-             (let ((out-state-i (produce-nfa e input-nfa-state)))
-               (add-nfa-auto-transition out-state-i output-state)))
-         inner-elements)
-    output-state))
-
-(defmethod produce-nfa ((element zero-or-one-element) input-nfa-state)
-  (let* ((inner-element (slot-value element 'element))
-         (output-state (produce-nfa inner-element input-nfa-state)))
-    (add-nfa-auto-transition input-nfa-state output-state)
-    output-state))
-
-;;;TODO: review!!!
-(defmethod produce-nfa ((element zero-or-more-element) input-nfa-state)
-  (let* ((s1 (make-instance 'nfa-state))
-         (inner-element (slot-value element 'element))
-         (s2 (produce-nfa inner-element s1))
-         (output-state (make-instance 'nfa-state)))
-    (add-nfa-auto-transition input-nfa-state s1)
-    (add-nfa-auto-transition input-nfa-state output-state)
-    (add-nfa-auto-transition s2 s1)
-    (add-nfa-auto-transition s2 output-state)
-    output-state))
-
-;;;TODO: review (currently not used)
-(defmethod produce-nfa ((element one-or-more-element) input-nfa-state)
-  (let* ((inner-element (slot-value element 'element))
-         (output-state-1 (produce-nfa inner-element input-nfa-state))
-         (inner-element1 (make-instance 'zero-or-more-element :element inner-element))
-         (output-state-2 (produce-nfa inner-element1 output-state-1))
-         (output-state-3 (make-instance 'nfa-state)))
-    (add-nfa-auto-transition output-state-2 output-state-3)
-    (add-nfa-auto-transition output-state-2 output-state-1)
-    (add-nfa-auto-transition output-state-1 output-state-3)
-    output-state-3))
-
-(defmethod produce-nfa ((element not-element) input-nfa-state)
-  (error "TODO: IMPLEMENT THE NOT-ELEMENT!"))
-                     
 ;;; NFA state defines a normal transition table (element --> next state), E-transitions (auto),
 ;;; and a default transition (transition on any other input, including case no input). Also it
 ;;; includes a negated-state which is used in case the state is result of expansion of a NOT
@@ -612,14 +547,7 @@ Returns destination DFA state."
     (lambda ()
       (values input-empty-predicate read-input-fn advance-input-fn))))
 
-;;; Public interface function (regex --> NFA root state)
-(defun parse-and-produce-nfa (regex)
-  (let* ((element-tree (prepare-regex-tree regex))
-         (root-state (make-instance 'nfa-state))
-         (terminus-nfa-state (produce-nfa element-tree root-state)))
-    (setf (terminus terminus-nfa-state) t)
-    root-state))
-
+;;; Public interface function (regex --> DFA root state)
 (defun parse-and-produce-dfa (regex)
-  (let* ((root-nfa-state (parse-and-produce-nfa regex)))
+  (let ((root-nfa-state (parse-and-produce-nfa regex)))
     (produce-dfa root-nfa-state)))
