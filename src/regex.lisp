@@ -6,7 +6,7 @@
 Other element types not needing special class:
 - symbols (currently only :any-char (corresponds to . in regex).
 - single character (for now, I'm encapsulating it in single-char-element, mainly to group
-  it together with char-range-element as simple-element).
+it together with char-range-element as simple-element).
 - string (string of character corresponds to a sequence-element where all elements are characters).
 ||#
 
@@ -84,8 +84,8 @@ and returns output state as continuation point."))
     (destructuring-bind (char-start char-end) regex-tail
       (add-nfa-normal-transition input-nfa-state
                                  (make-instance 'char-range-element
-                                                                :char-start char-start
-                                                                :char-end char-end) output-state)
+                                                :char-start char-start
+                                                :char-end char-end) output-state)
       output-state)))
 
 (defmethod compound-regex-to-nfa ((regex-head (eql :seq)) regex-tail input-nfa-state)
@@ -149,7 +149,7 @@ and returns output state as continuation point."))
 (defclass negated-nfa-state (nfa-state)
   ((negated-state :initform (error "Negated state is mandatory!") :type nfa-state)))
 
-  
+
 ;;; defines a normal NFA transition upon matching of ELEMENT, to NEXT-STATE.
 ;;; TODO: for now, element type restricted to one of three types with character hardcoded.
 
@@ -175,7 +175,7 @@ and returns output state as continuation point."))
 
 ;;; predicate - whether NFA state is a result of a NOT 
 (defun negated-nfa-state-p (state)
-    (not (null (nfa-state-negated-state state))))
+  (not (null (nfa-state-negated-state state))))
 
 
 ;;; TODO: may change recursion into iteration.
@@ -344,9 +344,9 @@ iterators on the transitions."
                             :initform nil
                             :type (or null dfa-state))
    (candidate-terminal :initarg :candidate-terminal
-                        :reader candidate-terminal
-                        :type (or (eql t) (eql nil))
-                        :initform nil)))
+                       :reader candidate-terminal
+                       :type (or (eql t) (eql nil))
+                       :initform nil)))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
@@ -374,7 +374,7 @@ when any of the NFA states in the closure is the terminus state produced by the 
   (dolist (s nfa-states nil)
     (when (terminus s)
       (return t))))
-    
+
 (defun find-dfa-state (nfa-states traversed-dfa-states)
   "Look up NFA state closure union provided in NFA-STATES, in the TRAVERSED-DFA-STATES 
 DFA lookup vector. If not found, it creates a new DFA state and appends it to
@@ -412,7 +412,7 @@ found or newly created."
         (dfa-state-set (create-dfa-state-set)))
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
-  
+
 ;;; Note that we cannot pass the state union instead of closure union, and this is
 ;;; is because the same closure union could result from two different state unions,
 ;;; and we need to lookup the same entry for both, in such case.
@@ -509,7 +509,7 @@ Returns destination DFA state."
                                            :adjustable t :fill-pointer 0))
          (retrieve-accumulator-value-fn (lambda () accumul))
          (append-to-accumulator-fn (lambda (char)
-                                        (vector-push-extend char accumul))))
+                                     (vector-push-extend char accumul))))
     (lambda ()
       (values retrieve-accumulator-value-fn append-to-accumulator-fn))))
 
@@ -518,15 +518,15 @@ Returns destination DFA state."
   (declare (string input-text)
            (fixnum initial-reading-index))
   (let* ((index initial-reading-index)
-        (text (if make-copy
-                  (copy-seq input-text)
-                  input-text))
-        (input-empty-predicate (lambda ()
-                                 (>= index (length text))))
-        (read-input-fn (lambda ()
-                         (char text index)))
-        (advance-input-fn (lambda ()
-                            (incf index))))
+         (text (if make-copy
+                   (copy-seq input-text)
+                   input-text))
+         (input-empty-predicate (lambda ()
+                                  (>= index (length text))))
+         (read-input-fn (lambda ()
+                          (char text index)))
+         (advance-input-fn (lambda ()
+                             (incf index))))
     (lambda ()
       (values input-empty-predicate read-input-fn advance-input-fn))))
 
