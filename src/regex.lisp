@@ -57,11 +57,9 @@ and returns output state as continuation point."))
   (:documentation "Parses a compound REGEX and generates corresponding NFA section, starting at
  INPUT-NFA-STATE."))
 
-;;TODO: probably will remove the single-char-element (being almost a useless wrapper)
 (defmethod regex-to-nfa ((regex character) input-nfa-state)
-  (let ((elem (make-instance 'single-char-element :single-char regex))
-        (output-state (make-instance 'nfa-state)))
-    (add-nfa-normal-transition input-nfa-state elem output-state)
+  (let ((output-state (make-instance 'nfa-state)))
+    (add-nfa-normal-transition input-nfa-state regex output-state)
     output-state))
 
 ;; NOTE: the only symbol currently supported is :any-char, but I chose to have more generic code
@@ -74,13 +72,11 @@ and returns output state as continuation point."))
 (defmethod regex-to-nfa ((regex cons) input-nfa-state)
   (compound-regex-to-nfa (car regex) (cdr regex) input-nfa-state))
 
-;;TODO: probably will remove the single-char-element (being almost a useless wrapper)
 (defmethod regex-to-nfa ((regex string) input-nfa-state)
   (loop for ch across regex
-        for elem = (make-instance 'single-char-element :single-char ch)
         for in-state = input-nfa-state then out-state
         for out-state = (make-instance 'nfa-state)
-        do (add-nfa-normal-transition in-state elem out-state)
+        do (add-nfa-normal-transition in-state ch out-state)
         finally (return out-state)))
 
 (defmethod compound-regex-to-nfa ((regex-head (eql :char-range)) regex-tail input-nfa-state)
@@ -250,16 +246,12 @@ and returns output state as continuation point."))
         (dolist (trans normal-transitions)
           (let ((element (slot-value trans 'element)))
             (typecase element
-              (single-char-element (setf result (insert-char-in-order (dec-char
-                                                                       (single-char element))
-                                                                      result))
-                                   (setf result (insert-char-in-order (single-char element)
-                                                                      result)))
-              (char-range-element (setf result (insert-char-in-order (dec-char
-                                                                      (char-start element))
-                                                                     result))
-                                  (setf result (insert-char-in-order (char-end element)
-                                                                     result))))))))))
+              (character
+               (setf result (insert-char-in-order (dec-char element) result))
+               (setf result (insert-char-in-order element result)))
+              (char-range-element
+               (setf result (insert-char-in-order (dec-char (char-start element)) result))
+               (setf result (insert-char-in-order (char-end element) result))))))))))
 
 
 ;;; Splits a char range (specified by start and end) into a number of ranges
@@ -300,12 +292,12 @@ and returns output state as continuation point."))
        (eql (char-end elem) (char-end other-obj))))
 
 (defun single-char-equal (elem other-obj)
-  (and (typep other-obj 'single-char-element)
-       (eql (single-char elem) (single-char other-obj))))
+  (and (typep other-obj 'character)
+       (char= elem other-obj)))
 
 (defun simple-element-equal (element other-obj)
   (etypecase element
-    (single-char-element (single-char-equal element other-obj))
+    (character (single-char-equal element other-obj))
     (char-range-element (char-range-equal element other-obj))
     (symbol (eq element :any-char))))
 
@@ -468,7 +460,7 @@ Returns destination DFA state."
   (or (cdr (assoc char (transitions origin-dfa-state)
                   :test (lambda (ch elem)
                           (etypecase elem
-                            (single-char-element (char= ch (single-char elem)))
+                            (character (char= ch elem))
                             (char-range-element (and (char>= ch (char-start elem))
                                                      (char<= ch (char-end elem))))))))
       (transition-on-any-other origin-dfa-state)))

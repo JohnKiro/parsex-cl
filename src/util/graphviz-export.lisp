@@ -14,7 +14,7 @@
                (concatenate 'string "T" (write-to-string (incf terminal-index))))
              (el-to-string (el)
                (typecase el
-                 (single-char-element (single-char el))
+                 (character el)
                  (char-range-element (format nil "~a - ~a" (char-start el) (char-end el)))
                  (t el)))
              (print-transition (source dest el stream)
@@ -54,8 +54,8 @@
 
 (defgeneric element-to-edge (element))
 
-(defmethod element-to-edge ((element single-char-element))
-  (single-char element))
+(defmethod element-to-edge ((element character))
+  element)
 
 (defmethod element-to-edge ((element char-range-element))
   (format nil "~a - ~a" (char-start element) (char-end element)))
