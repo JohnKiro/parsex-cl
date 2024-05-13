@@ -68,6 +68,8 @@
            #:dfa-state
            #:parse-and-produce-nfa ;wrapper that simplifies the above
            #:parse-and-produce-dfa ;wrapper that simplifies the above
+           #:dfa-state-definitely-terminal-p
+           #:candidate-terminal
            #:match-regex
            #:create-basic-accumulator
            #:create-basic-input
