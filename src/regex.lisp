@@ -168,31 +168,28 @@ and returns output state as continuation point."))
 
 
 
-;;; Inserts a character in a sorted list (maintaining ascending order).
-;;; Used in char range splitting (to remove overlaps).
-;;; NOTE: in case of initial empty list, or insertion at head, returned pointer
-;;; must be used (since the function is non-destructive in this case). So
-;;; in general, need to save the returned pointer.
 ;;; Candidate for move to a utils package!
 ;;; TODO: simplify?
 (defun insert-char-in-order (char chars)
-  (cond
-    ((null chars) (cons char nil))
-    ((char< char (car chars)) (cons char chars))
-    ((char= char (car chars)) chars)
-    (t (labels ((insert-it-recurse (previous-pointer)
-                  ;;NOTE: returned value actually not used
-                  (let ((current-pointer (cdr previous-pointer)))
-                    (if (null current-pointer)
-                        (setf (cdr previous-pointer) (cons char nil))
-                        (let ((char-iter (car current-pointer)))
-                          (cond
-                            ((char> char char-iter) (insert-it-recurse current-pointer))
-                            ((char= char char-iter) current-pointer)
-                            (t (let ((new-cell (cons char current-pointer)))
-                                 (setf (cdr previous-pointer) new-cell)))))))))
-         (insert-it-recurse chars)
-         chars))))
+  "Destructively insert character CHAR in a sorted list CHARS, maintaining ascending order. Since
+CHAR might be inserted ahead of CHARS, the returned pointer must be saved (as is usually the case
+for list-destructive operations)."
+  (labels ((insert-it-recurse (previous-pointer)
+             ;;NOTE: returned value actually not used
+             (let ((current-pointer (cdr previous-pointer)))
+               (if (null current-pointer)
+                   (setf (cdr previous-pointer) (cons char nil))
+                   (let ((char-iter (car current-pointer)))
+                     (cond
+                       ((char> char char-iter) (insert-it-recurse current-pointer))
+                       ((char= char char-iter) current-pointer)
+                       (t (let ((new-cell (cons char current-pointer)))
+                            (setf (cdr previous-pointer) new-cell)))))))))
+    (cond
+      ((null chars) (cons char nil))
+      ((char< char (car chars)) (cons char chars))
+      ((char= char (car chars)) chars)
+      (t (insert-it-recurse chars) chars))))
 
 
 ;;; Prepare ordered list of characters, defining the range splitting points.
