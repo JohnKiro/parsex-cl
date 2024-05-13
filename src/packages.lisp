@@ -94,6 +94,7 @@
            #:char-end
            #:inc-char
            #:dec-char
+           #:insert-char-in-order
            #:split-char-range
            ))
 
