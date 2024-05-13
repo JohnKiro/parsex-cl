@@ -5,23 +5,10 @@
 #||
 Other element types not needing special class:
 - symbols (currently only :any-char (corresponds to . in regex).
-- single character (for now, I'm encapsulating it in single-char-element, mainly to group
-it together with char-range as simple-element).
+- single character.
 - string (string of character corresponds to a sequence-element where all elements are characters).
 ||#
 
-
-;;; Single character elements (range, any-char, specific char)
-(defclass simple-element () ()
-  (:documentation "Base class for single char regex elements (single char and char range)."))
-
-;;; TODO: probably remove (use character directly). The problem is that I would have two
-;;; identical produce-nfa methods :(
-;;; Also may need an object, to include some properties, such as "accepted token" (not sure).
-(defclass single-char-element (simple-element)
-  ((single-char :initarg :single-char :initform (error "Mandatory")
-                :reader single-char :type character))
-  (:documentation "Wrapper object for single-char elements."))
 
 ;; TODO: add constructor that ensures char-end >= char-start
 (defclass char-range ()
@@ -30,10 +17,6 @@ it together with char-range as simple-element).
    (char-end :initarg :char-end :initform (error "Mandatory")
              :reader char-end :type character))
   (:documentation "Char range regex element."))
-
-(defmethod print-object ((object single-char-element) stream)
-  (print-unreadable-object (object stream :type t :identity nil)
-    (format stream "(~a)" (single-char object))))
 
 (defmethod print-object ((object char-range) stream)
   (print-unreadable-object (object stream :type t :identity nil)

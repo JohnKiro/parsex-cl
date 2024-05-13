@@ -85,7 +85,6 @@
            #:transition-on-any-other
            #:element
            #:next-state
-           #:single-char-element
            #:char-range
            #:single-char
            #:char-start
