@@ -24,7 +24,7 @@ it together with char-range as simple-element).
   (:documentation "Wrapper object for single-char elements."))
 
 ;; TODO: add constructor that ensures char-end >= char-start
-(defclass char-range (simple-element)
+(defclass char-range ()
   ((char-start :initarg :char-start :initform (error "Mandatory")
                :reader char-start :type character)
    (char-end :initarg :char-end :initform (error "Mandatory")
@@ -156,7 +156,7 @@ and returns output state as continuation point."))
 ;;; NOTE: currently the any-char transitions are separated and not represented as nfa-transition.
 (defclass nfa-transition ()
   ((element :initarg :element :initform (error "element must be specified!")
-            :type (or simple-element character (eql :any-char)))
+            :type (or character char-range (eql :any-char)))
    (next-state :initarg :next-state :initform (error "next-state must be specified!")
                :type (or null nfa-state))))
 
@@ -334,7 +334,7 @@ iterators on the transitions."
 
 
 ;;; A DFA state contains the union of NFA states that form the DFA state, as well as an
-;;; association of transitions (simple-element --> next DFA state).
+;;; association of transitions (simple element --> next DFA state).
 (defclass dfa-state ()
   ((nfa-states :initarg :nfa-states
                :reader nfa-states
