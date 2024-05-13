@@ -61,7 +61,7 @@
            #:create-matcher-for-char-set))
 
 (defpackage :parsex-cl.regex
-  (:use #:cl #:iterate)
+  (:use #:cl #:iterate #:parsex-cl.chars)
   (:export #:produce-nfa
            #:nfa-state
            #:produce-dfa
@@ -85,10 +85,17 @@
            #:transition-on-any-other
            #:element
            #:next-state
-           #:char-range
-           #:single-char
+           ))
+
+(defpackage :parsex-cl.chars
+  (:use #:cl #:iterate)
+  (:export #:char-range
            #:char-start
-           #:char-end))
+           #:char-end
+           #:inc-char
+           #:dec-char
+           #:split-char-range
+           ))
 
 (defpackage :parsex-cl.fsm-traversal
   (:use #:cl

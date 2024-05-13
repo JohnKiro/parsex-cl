@@ -10,20 +10,6 @@ Other element types not needing special class:
 ||#
 
 
-;; TODO: add constructor that ensures char-end >= char-start
-(defclass char-range ()
-  ((char-start :initarg :char-start :initform (error "Mandatory")
-               :reader char-start :type character)
-   (char-end :initarg :char-end :initform (error "Mandatory")
-             :reader char-end :type character))
-  (:documentation "Char range regex element."))
-
-(defmethod print-object ((object char-range) stream)
-  (print-unreadable-object (object stream :type t :identity nil)
-    (with-slots ((s char-start) (e char-end)) object
-      (format stream "(~a - ~a)" s e ))))
-
-
 ;;;; NOTE: since the reader will accept only a valid sexp, the "no more input" case is not possible.
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
 ;;;; TODO: accept reversed char range
@@ -208,16 +194,6 @@ and returns output state as continuation point."))
          (insert-it-recurse chars)
          chars))))
 
-;;; Utility function to increment a character
-;;; TODO: utils package.
-(defun inc-char (ch)
-  (code-char (1+ (char-code ch))))
-
-;;; Utility function to decrement a character
-;;; TODO: utils package.
-(defun dec-char (ch)
-  (code-char (1- (char-code ch))))
-
 
 ;;; Prepare ordered list of characters, defining the range splitting points.
 ;;; Input: List of NFA states, typically representing a union of state closures
@@ -236,37 +212,6 @@ and returns output state as continuation point."))
                (setf result (insert-char-in-order (dec-char (char-start element)) result))
                (setf result (insert-char-in-order (char-end element) result))))))))))
 
-
-;;; Splits a char range (specified by start and end) into a number of ranges
-;;; based on provided splitting points (list of characters).
-;;; Preconditions: end >= start, splitting points must be a sorted list.
-;;; TODO: may use other data structures later.
-(defun split-char-range (char-range splitting-points)
-  (with-slots ((start char-start) (end char-end)) char-range
-    (labels
-        ((split-range-recurse (next-start splitting-points acc)
-           (cond
-             ((char> next-start end) acc) ;happens only if start and end are mixed up
-             ((null splitting-points) (cons (make-instance 'char-range
-                                                           :char-start next-start
-                                                           :char-end end) acc))
-             (t (let ((next-splitting-pt (car splitting-points))
-                      (subsequent-splitting-pts (cdr splitting-points)))
-                  (cond
-                    ((char>= next-splitting-pt end) (cons (make-instance 'char-range
-                                                                         :char-start next-start
-                                                                         :char-end end) acc))
-                    ((char>= next-splitting-pt next-start) (split-range-recurse
-                                                            (inc-char next-splitting-pt)
-                                                            subsequent-splitting-pts
-                                                            (cons
-                                                             (make-instance
-                                                              'char-range
-                                                              :char-start next-start
-                                                              :char-end next-splitting-pt)
-                                                             acc)))
-                    (t (split-range-recurse next-start subsequent-splitting-pts acc))))))))
-      (split-range-recurse start splitting-points nil))))
 
 ;;; Element comparison functions and methods. The functions are handy when the type is known.
 (defun char-range-equal (elem other-obj)
