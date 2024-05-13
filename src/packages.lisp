@@ -84,7 +84,7 @@
            #:element
            #:next-state
            #:single-char-element
-           #:char-range-element
+           #:char-range
            #:single-char
            #:char-start
            #:char-end))

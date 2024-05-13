@@ -6,7 +6,7 @@
 Other element types not needing special class:
 - symbols (currently only :any-char (corresponds to . in regex).
 - single character (for now, I'm encapsulating it in single-char-element, mainly to group
-it together with char-range-element as simple-element).
+it together with char-range as simple-element).
 - string (string of character corresponds to a sequence-element where all elements are characters).
 ||#
 
@@ -24,7 +24,7 @@ it together with char-range-element as simple-element).
   (:documentation "Wrapper object for single-char elements."))
 
 ;; TODO: add constructor that ensures char-end >= char-start
-(defclass char-range-element (simple-element)
+(defclass char-range (simple-element)
   ((char-start :initarg :char-start :initform (error "Mandatory")
                :reader char-start :type character)
    (char-end :initarg :char-end :initform (error "Mandatory")
@@ -35,7 +35,7 @@ it together with char-range-element as simple-element).
   (print-unreadable-object (object stream :type t :identity nil)
     (format stream "(~a)" (single-char object))))
 
-(defmethod print-object ((object char-range-element) stream)
+(defmethod print-object ((object char-range) stream)
   (print-unreadable-object (object stream :type t :identity nil)
     (with-slots ((s char-start) (e char-end)) object
       (format stream "(~a - ~a)" s e ))))
@@ -83,7 +83,7 @@ and returns output state as continuation point."))
   (let* ((output-state (make-instance 'nfa-state)))
     (destructuring-bind (char-start char-end) regex-tail
       (add-nfa-normal-transition input-nfa-state
-                                 (make-instance 'char-range-element
+                                 (make-instance 'char-range
                                                 :char-start char-start
                                                 :char-end char-end) output-state)
       output-state)))
@@ -249,7 +249,7 @@ and returns output state as continuation point."))
               (character
                (setf result (insert-char-in-order (dec-char element) result))
                (setf result (insert-char-in-order element result)))
-              (char-range-element
+              (char-range
                (setf result (insert-char-in-order (dec-char (char-start element)) result))
                (setf result (insert-char-in-order (char-end element) result))))))))))
 
@@ -258,19 +258,19 @@ and returns output state as continuation point."))
 ;;; based on provided splitting points (list of characters).
 ;;; Preconditions: end >= start, splitting points must be a sorted list.
 ;;; TODO: may use other data structures later.
-(defun split-char-range (char-range-element splitting-points)
-  (with-slots ((start char-start) (end char-end)) char-range-element
+(defun split-char-range (char-range splitting-points)
+  (with-slots ((start char-start) (end char-end)) char-range
     (labels
         ((split-range-recurse (next-start splitting-points acc)
            (cond
              ((char> next-start end) acc) ;happens only if start and end are mixed up
-             ((null splitting-points) (cons (make-instance 'char-range-element
+             ((null splitting-points) (cons (make-instance 'char-range
                                                            :char-start next-start
                                                            :char-end end) acc))
              (t (let ((next-splitting-pt (car splitting-points))
                       (subsequent-splitting-pts (cdr splitting-points)))
                   (cond
-                    ((char>= next-splitting-pt end) (cons (make-instance 'char-range-element
+                    ((char>= next-splitting-pt end) (cons (make-instance 'char-range
                                                                          :char-start next-start
                                                                          :char-end end) acc))
                     ((char>= next-splitting-pt next-start) (split-range-recurse
@@ -278,7 +278,7 @@ and returns output state as continuation point."))
                                                             subsequent-splitting-pts
                                                             (cons
                                                              (make-instance
-                                                              'char-range-element
+                                                              'char-range
                                                               :char-start next-start
                                                               :char-end next-splitting-pt)
                                                              acc)))
@@ -287,7 +287,7 @@ and returns output state as continuation point."))
 
 ;;; Element comparison functions and methods. The functions are handy when the type is known.
 (defun char-range-equal (elem other-obj)
-  (and (typep other-obj 'char-range-element)
+  (and (typep other-obj 'char-range)
        (eql (char-start elem) (char-start other-obj))
        (eql (char-end elem) (char-end other-obj))))
 
@@ -298,7 +298,7 @@ and returns output state as continuation point."))
 (defun simple-element-equal (element other-obj)
   (etypecase element
     (character (single-char-equal element other-obj))
-    (char-range-element (char-range-equal element other-obj))
+    (char-range (char-range-equal element other-obj))
     (symbol (eq element :any-char))))
 
 
@@ -321,10 +321,10 @@ iterators on the transitions."
               (lambda (transition)
                 (with-slots (element next-state) transition
                   (typecase element
-                    (char-range-element (let ((split-ranges
-                                                (split-char-range element range-splitting-points)))
-                                          (dolist (r split-ranges)
-                                            (add-trans r next-state))))
+                    (char-range (let ((split-ranges
+                                        (split-char-range element range-splitting-points)))
+                                  (dolist (r split-ranges)
+                                    (add-trans r next-state))))
                     (t (add-trans element next-state))))))
             (transition-iterator-factory (lambda ()
                                            (let ((list-iter assoc-list))
@@ -461,8 +461,8 @@ Returns destination DFA state."
                   :test (lambda (ch elem)
                           (etypecase elem
                             (character (char= ch elem))
-                            (char-range-element (and (char>= ch (char-start elem))
-                                                     (char<= ch (char-end elem))))))))
+                            (char-range (and (char>= ch (char-start elem))
+                                             (char<= ch (char-end elem))))))))
       (transition-on-any-other origin-dfa-state)))
 
 (defstruct regex-matching-result
