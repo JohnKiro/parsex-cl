@@ -23,7 +23,14 @@
 (defmethod print-object ((object char-range) stream)
   (print-unreadable-object (object stream :type t :identity nil)
     (with-slots ((s char-start) (e char-end)) object
-      (format stream "(~a ---- ~a)" s e ))))
+      (format stream "(~a - ~a)" s e ))))
+
+(defmethod initialize-instance :after ((char-range char-range) &key)
+  (with-slots (char-start char-end) char-range
+    (if (char> char-start char-end)
+        (let ((tmp char-start))
+          (setf char-start char-end)
+          (setf char-end tmp)))))
 
 ;;; TODO: simplify?
 (defun insert-char-in-order (char chars)
