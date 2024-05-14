@@ -338,17 +338,6 @@ found or newly created."
           dfa-state))))
 
 
-(defclass dfa-fsm-operators ()
-  ((input-empty-predicate :initarg :input-empty-predicate
-                          :initform (error "input-empty-predicate is mandatory!"))
-   (read-input-fn :initarg :read-input-fn
-                  :initform (error "read-input-fn is mandatory!"))
-   (advance-input-fn :initarg :advance-input-fn
-                     :initform (error "advance-input-fn is mandatory!"))
-   (append-to-accumulator-fn :initarg :append-to-accumulator-fn
-                             :initform nil)))
-
-
 ;;; Note: currently returning only destination DFA state, may find later that I need
 ;;; the match criterion as well (i.e. not extracting the CDR part).
 (defun find-matching-transition (origin-dfa-state char)
