@@ -1,18 +1,16 @@
 (in-package :parsex-cl.chars)
 
-;;; Utility function to increment a character
+;;;; Utility functions and classes
+
 (defun inc-char (ch)
   "Increment character CH, i.e. find the next one."
   (code-char (1+ (char-code ch))))
 
-;;; Utility function to decrement a character
-;;; TODO: utils package.
 (defun dec-char (ch)
   "Decrement character CH, i.e. find the preceding one."
   (code-char (1- (char-code ch))))
 
 
-;; TODO: add constructor that ensures char-end >= char-start
 (defclass char-range ()
   ((char-start :initarg :char-start :initform (error "Mandatory")
                :reader char-start :type character)
