@@ -61,7 +61,7 @@
            #:create-matcher-for-char-set))
 
 (defpackage :parsex-cl.regex
-  (:use #:cl #:iterate #:parsex-cl.chars)
+  (:use #:cl #:iterate #:parsex-cl.chars :parsex-cl.regex.input)
   (:export #:produce-nfa
            #:nfa-state
            #:produce-dfa
@@ -71,8 +71,6 @@
            #:dfa-state-definitely-terminal-p
            #:candidate-terminal
            #:match-regex
-           #:create-basic-accumulator
-           #:create-basic-input
            #:regex-matching-result
            #:regex-matching-result-accumulator-interface-fn
            #:regex-matching-result-input-interface-fn
@@ -85,6 +83,12 @@
            #:transition-on-any-other
            #:element
            #:next-state
+           ))
+
+(defpackage :parsex-cl.regex.input
+  (:use #:cl #:iterate)
+  (:export #:create-basic-input
+           #:create-basic-accumulator
            ))
 
 (defpackage :parsex-cl.chars

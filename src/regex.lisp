@@ -357,18 +357,27 @@ Returns destination DFA state."
   (status nil :type (or (eql :regex-matched) (eql :regex-not-matched)))
   (token :tokens-not-implemented-yet))
 
-(defun match-regex (input-interface-fn root-dfa-state &key (accumulator-interface-fn nil))
-  (multiple-value-bind (input-empty-p read-input-fn advance-input-fn)
+
+(defun match-regex (input-interface-fn root-dfa-state &key (accumulator-interface-fn nil)
+                    &aux (last-candidate-dfa nil))
+  (multiple-value-bind (input-empty-p read-input-fn advance-input-fn
+                        register-candidate-matching-point-fn
+                        notify-matching-termination-fn)
       (funcall input-interface-fn)
     (labels ((prepare-result (status)
+               ;;putting this here since we need to call it when scanning is terminated
+               (funcall notify-matching-termination-fn)
                (make-regex-matching-result :input-interface-fn input-interface-fn
                                            :accumulator-interface-fn accumulator-interface-fn
                                            :status status))
              (transit (origin-dfa-state)
+               (when (candidate-terminal origin-dfa-state)
+                 (setf last-candidate-dfa origin-dfa-state)
+                 (funcall register-candidate-matching-point-fn))
                (if (dfa-state-definitely-terminal-p origin-dfa-state)
                    (prepare-result :regex-matched)
                    (if (funcall input-empty-p)
-                       (prepare-result (if (candidate-terminal origin-dfa-state)
+                       (prepare-result (if last-candidate-dfa
                                            :regex-matched
                                            :regex-not-matched))
                        (let* ((next-ch (funcall read-input-fn))
@@ -382,39 +391,12 @@ Returns destination DFA state."
                                (and append-to-accumulator-fn
                                     (funcall append-to-accumulator-fn next-ch))
                                (transit dest-dfa-state))
-                             (prepare-result (if (candidate-terminal origin-dfa-state)
+                             (prepare-result (if last-candidate-dfa
                                                  :regex-matched
                                                  :regex-not-matched))))))))
       (transit root-dfa-state))))
 
 
-
-;;; TODO: may make a reusable OOP framework like in PAIP ch. 13
-(defun create-basic-accumulator (&key (initial-size 20))
-  (let* ((accumul (make-array initial-size :element-type 'character
-                                           :adjustable t :fill-pointer 0))
-         (retrieve-accumulator-value-fn (lambda () accumul))
-         (append-to-accumulator-fn (lambda (char)
-                                     (vector-push-extend char accumul))))
-    (lambda ()
-      (values retrieve-accumulator-value-fn append-to-accumulator-fn))))
-
-
-(defun create-basic-input (input-text &key (initial-reading-index 0) (make-copy nil))
-  (declare (string input-text)
-           (fixnum initial-reading-index))
-  (let* ((index initial-reading-index)
-         (text (if make-copy
-                   (copy-seq input-text)
-                   input-text))
-         (input-empty-predicate (lambda ()
-                                  (>= index (length text))))
-         (read-input-fn (lambda ()
-                          (char text index)))
-         (advance-input-fn (lambda ()
-                             (incf index))))
-    (lambda ()
-      (values input-empty-predicate read-input-fn advance-input-fn))))
 
 ;;; Public interface function (regex --> DFA root state)
 (defun parse-and-produce-dfa (regex)

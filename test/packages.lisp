@@ -21,4 +21,6 @@
         #:parsex-cl.test ;package containing root test suite
         #:parsex-cl.regex
         #:parsex-cl.chars
-        #:parsex-cl.graphviz-util))
+        #:parsex-cl.regex.input
+        #:parsex-cl.graphviz-util
+        ))
