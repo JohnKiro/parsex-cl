@@ -247,8 +247,12 @@ iterators on the transitions."
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
-transitions out. It must be used only in regex matching (after DFA is completely constructed)."
-  (null (transitions dfa-state)))
+transitions out. It must be used only in regex matching (after DFA is completely constructed). Note
+that it will also be a candidate terminal."
+  (and (null (transitions dfa-state))
+       (if (candidate-terminal dfa-state)
+           t
+           (error "A definitely terminal DFA that is not also candidate terminal: BUG??!"))))
 
 (defun create-dfa-state-set ()
   (make-array 50 :adjustable t :fill-pointer 0))
