@@ -32,12 +32,10 @@
   "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
 regex (REGEX)."
   (let* ((input-handler (create-basic-input input-string))
-         (accumulator-handler (create-basic-accumulator))
-         (accumulator-retrieval-fn-OBSOLETING (nth-value 0 (funcall accumulator-handler)))
          (accumulator-retrieval-fn (nth-value 5 (funcall input-handler)))
          (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa))
-         (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
+         (result (match-regex input-handler dfa))
          (matching-status (regex-matching-result-status result))
          (updated-acc (funcall accumulator-retrieval-fn)))
     (format t "~%Matching the text ~s against the regex ~a..~%" input-string regex)
@@ -170,11 +168,9 @@ regex (REGEX)."
                                                        #\space
                                                        '(:seq (:? (:seq #\r #\e)) "solved")
                                                        '(:or #\. #\?))
-                                    for acc-handler = (create-basic-accumulator)
-                                    for acc-retrieval-fn = (nth-value 0 (funcall acc-handler))
+                                    for acc-retrieval-fn = (nth-value 5 (funcall input-handler))
                                     for dfa = (parse-and-produce-dfa regex)
-                                    for result = (match-regex input-handler dfa
-                                                              :accumulator-interface-fn acc-handler)
+                                    for result = (match-regex input-handler dfa)
                                     for matching-status = (regex-matching-result-status result)
                                     for updated-acc = (funcall acc-retrieval-fn)
                                     do (format t "~%Updated accumulator is ~a~%" updated-acc)

@@ -23,18 +23,18 @@
                              (when (< index total-length)
                                (incf index))))
          (register-candidate-matching-point-fn (lambda ()
-                                                 (setf last-candidate-matching-point index)))
+                                                 (setf candidate-matching-point index)))
          (notify-matching-termination-fn (lambda ()
                                            (when (>= candidate-matching-point 0)
                                              (setf index candidate-matching-point)
                                              (setf candidate-matching-point -1))))
          (retrieve-last-accumulated-value-fn (lambda ()
-                                               (unless (funcall input-empty-predicate)
-                                                 (let ((result (subseq text
-                                                                       accumulator-start
-                                                                       index)))
-                                                   (setf accumulator-start index)
-                                                   result)))))
+                                               ;; we know that index won't exceed total-length,
+                                               ;; so no need to check
+                                               (prog1
+                                                   (subseq text accumulator-start index)
+                                                 (setf accumulator-start index)))))
+
     (lambda ()
       (values input-empty-predicate
               read-input-fn
@@ -42,19 +42,6 @@
               register-candidate-matching-point-fn
               notify-matching-termination-fn
               retrieve-last-accumulated-value-fn))))
-
-
-;;; TODO: may make a reusable OOP framework like in PAIP ch. 13
-(defun create-basic-accumulator (&key (initial-size 20))
-  (let* ((accumul (make-array initial-size :element-type 'character
-                                           :adjustable t :fill-pointer 0))
-         (last-candidate-matching-point -1)
-         (retrieve-accumulator-value-fn (lambda () accumul))
-         (append-to-accumulator-fn (lambda (char)
-                                     (vector-push-extend char accumul))))
-    (lambda ()
-      (values retrieve-accumulator-value-fn append-to-accumulator-fn))))
-
 
 
 
