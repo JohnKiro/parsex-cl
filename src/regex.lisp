@@ -363,25 +363,27 @@ Returns destination DFA state."
 
 
 (defun match-regex (input-interface-fn root-dfa-state &key (accumulator-interface-fn nil)
-                    &aux (last-candidate-dfa nil))
+                    &aux (last-candidate-terminal-dfa nil))
   (multiple-value-bind (input-empty-p read-input-fn advance-input-fn
                         register-candidate-matching-point-fn
-                        notify-matching-termination-fn)
+                        notify-matching-termination-fn
+                        retrieve-last-accumulated-value-fn)
       (funcall input-interface-fn)
     (labels ((prepare-result (status)
                ;;putting this here since we need to call it when scanning is terminated
                (funcall notify-matching-termination-fn)
                (make-regex-matching-result :input-interface-fn input-interface-fn
+                                           ;;TODO: probably going to remove it
                                            :accumulator-interface-fn accumulator-interface-fn
                                            :status status))
              (transit (origin-dfa-state)
                (when (candidate-terminal origin-dfa-state)
-                 (setf last-candidate-dfa origin-dfa-state)
+                 (setf last-candidate-terminal-dfa origin-dfa-state)
                  (funcall register-candidate-matching-point-fn))
                (if (dfa-state-definitely-terminal-p origin-dfa-state)
                    (prepare-result :regex-matched)
                    (if (funcall input-empty-p)
-                       (prepare-result (if last-candidate-dfa
+                       (prepare-result (if last-candidate-terminal-dfa
                                            :regex-matched
                                            :regex-not-matched))
                        (let* ((next-ch (funcall read-input-fn))
@@ -395,7 +397,7 @@ Returns destination DFA state."
                                (and append-to-accumulator-fn
                                     (funcall append-to-accumulator-fn next-ch))
                                (transit dest-dfa-state))
-                             (prepare-result (if last-candidate-dfa
+                             (prepare-result (if last-candidate-terminal-dfa
                                                  :regex-matched
                                                  :regex-not-matched))))))))
       (transit root-dfa-state))))

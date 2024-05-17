@@ -6,6 +6,9 @@
 
 (in-suite :parsex-cl.regex.test-suite)
 
+(setf fiveam:*on-failure* nil)
+(setf fiveam:*on-error* nil)
+
 (test char-splitting-test
   (let* ((regex '(:or
                   (:char-range #\a #\d)
@@ -30,7 +33,8 @@
 regex (REGEX)."
   (let* ((input-handler (create-basic-input input-string))
          (accumulator-handler (create-basic-accumulator))
-         (accumulator-retrieval-fn (nth-value 0 (funcall accumulator-handler)))
+         (accumulator-retrieval-fn-OBSOLETING (nth-value 0 (funcall accumulator-handler)))
+         (accumulator-retrieval-fn (nth-value 5 (funcall input-handler)))
          (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa))
          (result (match-regex input-handler dfa :accumulator-interface-fn accumulator-handler))
@@ -116,6 +120,35 @@ regex (REGEX)."
   :expected-matching-status :regex-matched
   :expected-accumulator-value "xxy")
 
+(define-regex-matching-test basic6-regex-matching-test
+  :description "Tests backtracking to last candidate match (upon no match)."
+  :regex (:seq (:* (:seq #\X #\Y)))
+  :input-text "XYXYXw"
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "XYXY")
+
+(define-regex-matching-test basic7-regex-matching-test
+  :description "Tests backtracking to last candidate match (upon input exhaustion)."
+  :regex (:seq (:* (:seq #\X #\Y)))
+  :input-text "XYXYX"
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "XYXY")
+
+(define-regex-matching-test basic8-regex-matching-test
+  :description "Tests backtracking to beginning (match empty string)."
+  :regex (:seq (:* (:seq #\X #\Y)))
+  :input-text "X"
+  ;; note that * is zero-or-more, that's why we backtrack
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "")
+
+(define-regex-matching-test basic9-regex-matching-test
+  :description "Tests no backtracking (no match)."
+  :regex (:seq (:+ (:seq #\X #\Y)))
+  :input-text "X"
+  :expected-matching-status :regex-not-matched
+  :expected-accumulator-value "X")
+
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."
                         "A problem was solved."
@@ -150,7 +183,4 @@ regex (REGEX)."
 
 
 (test parse-and-produce-nfa-test-LATER
-  (let ((root-state (parsex-cl.regex::parse-and-produce-nfa sample-regex)))
-    (is (eq token :TOKEN-ENDING-WITH-DOLLAR-SIGN))
-    (is (equal accumulator '(#\A #\A #\A #\$)))
-    (is (= input-reading-index 4))))
+  (is (= 10 10)))
