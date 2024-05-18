@@ -2,46 +2,85 @@
 
 ;;;; Generic interface for regex source (input), and basic implementation for it
 
-(defun create-basic-input (input-text &key (initial-reading-index 0) (make-copy nil))
-  (declare (string input-text)
-           (fixnum initial-reading-index))
-  (let* ((index initial-reading-index)
-         (accumulator-start initial-reading-index)
-         (total-length (length input-text))
-         (text (if make-copy
-                   (copy-seq input-text)
-                   input-text))
-         ;; I depend on the fact that definite termination is also candidate termination, so we
-         ;; can assume that this will hold value of last matching position (whether last candidate
-         ;; or current position). TODO: may rethink about this later.
-         (candidate-matching-point -1)
-         (input-empty-predicate (lambda ()
-                                  (>= index total-length)))
-         (read-input-fn (lambda ()
-                          (char text index)))
-         (advance-input-fn (lambda ()
-                             (when (< index total-length)
-                               (incf index))))
-         (register-candidate-matching-point-fn (lambda ()
-                                                 (setf candidate-matching-point index)))
-         (notify-matching-termination-fn (lambda ()
-                                           (when (>= candidate-matching-point 0)
-                                             (setf index candidate-matching-point)
-                                             (setf candidate-matching-point -1))))
-         (retrieve-last-accumulated-value-fn (lambda ()
-                                               ;; we know that index won't exceed total-length,
-                                               ;; so no need to check
-                                               (prog1
-                                                   (subseq text accumulator-start index)
-                                                 (setf accumulator-start index)))))
+(defgeneric source-empty-p (source)
+  (:documentation "Predicate that returns t in case no more items could be read from SOURCE."))
 
-    (lambda ()
-      (values input-empty-predicate
-              read-input-fn
-              advance-input-fn
-              register-candidate-matching-point-fn
-              notify-matching-termination-fn
-              retrieve-last-accumulated-value-fn))))
+(defgeneric read-next-item (source)
+  (:documentation "Read next item (e.g. cha) from SOURCE (e.g. string), without advancing reading
+ position. In case source is exhausted, throw an error."))
 
+(defgeneric advance-reading-position (source)
+  (:documentation "Advance reading position in SOURCE."))
 
+(defgeneric notify-match-termination (source)
+  (:documentation "Notify source that current matching operation is terminating. Source should
+prepare itself for upcoming matching operation."))
 
+(defgeneric register-candidate-matching-point (source)
+  (:documentation "Notify source that there is a candidate match at current reading position.
+Source should record this for posible backtracking."))
+
+(defgeneric retrieve-last-accumulated-value (source)
+  (:documentation "Retrieve last accumulated value, which is the last consumed portion of the
+input. In case the accumulated value is not interesting, then the implementation of this method
+could be left out."))
+
+(defclass basic-regex-input ()
+  ((input-text :reader input-text
+               :type string)
+   (reading-position :reader reading-position
+                     :type fixnum)
+   (total-length :reader total-length
+                 :type fixnum)
+   (accumulator-start :reader accumulator-start
+                      :type fixnum)
+   ;; I depend on the fact that definite termination is also candidate termination, so we
+   ;; can assume that this will hold value of last matching position (whether last candidate
+   ;; or current position). TODO: may rethink about this later.
+   (candidate-matching-point :reader candidate-matching-point
+                             :type fixnum
+                             :initform -1))
+  (:documentation "Basic implementation for regex input, based on a string + reading position
+(index). It also includes an accumulator for the current/last matching operation."))
+
+(defmethod initialize-instance :after ((source basic-regex-input) &key
+                                                                    initial-input-text
+                                                                    (initial-reading-position 0)
+                                                                    (make-copy nil))
+  (with-slots (input-text reading-position total-length accumulator-start) source
+    (if initial-input-text
+        (setf input-text (if make-copy
+                             (copy-seq initial-input-text)
+                             initial-input-text))
+        (error "Must provide valid string in INITIAL-INPUT-TEXT"))
+    (setf reading-position initial-reading-position)
+    (setf total-length (length initial-input-text))
+    (setf accumulator-start initial-reading-position)))
+
+(defmethod source-empty-p ((source basic-regex-input))
+  (>= (reading-position source) (length (input-text source))))
+
+(defmethod read-next-item ((source basic-regex-input))
+    (char (input-text source) (reading-position source)))
+
+(defmethod advance-reading-position ((source basic-regex-input))
+  (with-slots (reading-position total-length) source
+    (when (< reading-position total-length)
+      (incf reading-position))))
+
+(defmethod notify-match-termination ((source basic-regex-input))
+  (with-slots (reading-position candidate-matching-point) source
+    (when (>= candidate-matching-point 0)
+      (setf reading-position candidate-matching-point)
+      (setf candidate-matching-point -1))))
+
+(defmethod register-candidate-matching-point ((source basic-regex-input))
+  (setf (slot-value source 'candidate-matching-point)
+        (slot-value source 'reading-position)))
+
+(defmethod retrieve-last-accumulated-value ((source basic-regex-input))
+  (with-slots (input-text accumulator-start reading-position) source
+    (prog1
+        ;; we know that index won't exceed total-length, so no need to check
+        (subseq input-text accumulator-start reading-position)
+      (setf accumulator-start reading-position))))

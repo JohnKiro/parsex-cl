@@ -360,35 +360,31 @@ Returns destination DFA state."
   (token :tokens-not-implemented-yet))
 
 
-(defun match-regex (input-interface-fn root-dfa-state &aux (last-candidate-terminal-dfa nil))
-  (multiple-value-bind (input-empty-p read-input-fn advance-input-fn
-                        register-candidate-matching-point-fn
-                        notify-matching-termination-fn)
-      (funcall input-interface-fn)
-    (labels ((prepare-result (status)
-               ;;putting this here since we need to call it when scanning is terminated
-               (funcall notify-matching-termination-fn)
-               (make-regex-matching-result :status status))
-             (transit (origin-dfa-state)
-               (when (candidate-terminal origin-dfa-state)
-                 (setf last-candidate-terminal-dfa origin-dfa-state)
-                 (funcall register-candidate-matching-point-fn))
-               (if (dfa-state-definitely-terminal-p origin-dfa-state)
-                   (prepare-result :regex-matched)
-                   (if (funcall input-empty-p)
-                       (prepare-result (if last-candidate-terminal-dfa
-                                           :regex-matched
-                                           :regex-not-matched))
-                       (let* ((next-ch (funcall read-input-fn))
-                              (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
-                         (if dest-dfa-state
-                             (progn
-                               (funcall advance-input-fn)
-                               (transit dest-dfa-state))
-                             (prepare-result (if last-candidate-terminal-dfa
-                                                 :regex-matched
-                                                 :regex-not-matched))))))))
-      (transit root-dfa-state))))
+(defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
+  (labels ((prepare-result (status)
+             ;;putting this here since we need to call it when scanning is terminated
+             (notify-match-termination input-source)
+             (make-regex-matching-result :status status))
+           (transit (origin-dfa-state)
+             (when (candidate-terminal origin-dfa-state)
+               (setf last-candidate-terminal-dfa origin-dfa-state)
+               (register-candidate-matching-point input-source))
+             (if (dfa-state-definitely-terminal-p origin-dfa-state)
+                 (prepare-result :regex-matched)
+                 (if (source-empty-p input-source)
+                     (prepare-result (if last-candidate-terminal-dfa
+                                         :regex-matched
+                                         :regex-not-matched))
+                     (let* ((next-ch (read-next-item input-source))
+                            (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
+                       (if dest-dfa-state
+                           (progn
+                             (advance-reading-position input-source)
+                             (transit dest-dfa-state))
+                           (prepare-result (if last-candidate-terminal-dfa
+                                               :regex-matched
+                                               :regex-not-matched))))))))
+    (transit root-dfa-state))))
 
 
 

@@ -87,8 +87,13 @@
 
 (defpackage :parsex-cl.regex.input
   (:use #:cl #:iterate)
-  (:export #:create-basic-input
-           #:create-basic-accumulator
+  (:export #:basic-regex-input
+           #:source-empty-p
+           #:read-next-item
+           #:advance-reading-position
+           #:notify-match-termination
+           #:register-candidate-matching-point
+           #:retrieve-last-accumulated-value
            ))
 
 (defpackage :parsex-cl.chars

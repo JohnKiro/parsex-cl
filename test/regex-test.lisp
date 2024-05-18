@@ -31,13 +31,12 @@
                                   (generate-dfa-dotgraphviz t))
   "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
 regex (REGEX)."
-  (let* ((input-handler (create-basic-input input-string))
-         (accumulator-retrieval-fn (nth-value 5 (funcall input-handler)))
+  (let* ((input-source (make-instance 'basic-regex-input  :initial-input-text input-string))
          (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa))
-         (result (match-regex input-handler dfa))
+         (result (match-regex input-source dfa))
          (matching-status (regex-matching-result-status result))
-         (updated-acc (funcall accumulator-retrieval-fn)))
+         (updated-acc (retrieve-last-accumulated-value input-source)))
     (format t "~%Matching the text ~s against the regex ~a..~%" input-string regex)
     (format t "~%Updated accumulator is ~a~%" updated-acc)
     (when generate-nfa-dotgraphviz
@@ -153,7 +152,7 @@ regex (REGEX)."
                         "A problem is resolved."
                         "The problem is solved?")
         for input in inputs
-        for input-handler = (create-basic-input input)
+        for input-source = (make-instance 'basic-regex-input :initial-input-text input)
         do (is (equal input
                       (reduce #'(lambda (x y) (concatenate 'string x y))
                               (loop for regex in (list '(:+ (:or
@@ -168,11 +167,10 @@ regex (REGEX)."
                                                        #\space
                                                        '(:seq (:? (:seq #\r #\e)) "solved")
                                                        '(:or #\. #\?))
-                                    for acc-retrieval-fn = (nth-value 5 (funcall input-handler))
                                     for dfa = (parse-and-produce-dfa regex)
-                                    for result = (match-regex input-handler dfa)
+                                    for result = (match-regex input-source dfa)
                                     for matching-status = (regex-matching-result-status result)
-                                    for updated-acc = (funcall acc-retrieval-fn)
+                                    for updated-acc = (retrieve-last-accumulated-value input-source)
                                     do (format t "~%Updated accumulator is ~a~%" updated-acc)
                                        (is (eq matching-status :regex-matched))
                                     collect updated-acc))))))
