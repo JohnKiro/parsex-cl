@@ -46,6 +46,31 @@ regex (REGEX)."
     (is (equal matching-status expected-matching-status))
     (is (equal updated-acc expected-accumulator-value))))
 
+(defun run-regex-matching-test-loop (regex
+                                     input-string
+                                     expected-matching-result-details
+                                     &key
+                                       (generate-nfa-dotgraphviz t)
+                                       (generate-dfa-dotgraphviz t))
+  "Reusable function that runs a loop of regex matching operations for the INPUT-STRING against a
+single REGEX, and tests the result of each matching operation. The indication for the loop to stop
+is when nothing is accumulated (NIL). The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list
+having each element in the form (matching-status accumulator-value)."
+  (let* ((input-source (make-instance 'basic-regex-input :initial-input-text input-string))
+         (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
+         (dfa (parsex-cl.regex:produce-dfa nfa)))
+    (when generate-nfa-dotgraphviz
+      (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
+    (when generate-dfa-dotgraphviz
+      (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot dfa)))
+    (loop for result = (match-regex input-source dfa)
+          for matching-status = (regex-matching-result-status result)
+          for updated-acc = (retrieve-last-accumulated-value input-source)
+          for (expected-matching-status expected-acc) in expected-matching-result-details
+          until (null updated-acc)
+          do (is (equal matching-status expected-matching-status))
+          do (is (equal updated-acc expected-acc)))))
+
 (defmacro define-regex-matching-test (test-name
                                       &key
                                         (description nil)
@@ -58,6 +83,20 @@ regex (REGEX)."
                       ,input-text
                       :expected-matching-status ,expected-matching-status
                       :expected-accumulator-value ,expected-accumulator-value)))
+    (if description
+        `(test ,test-name ,description ,thefuncall)
+        `(test ,test-name ,thefuncall))))
+
+(defmacro define-regex-matching-loop-test (test-name
+                                           &key
+                                             (description nil)
+                                             regex
+                                             input-text
+                                             expected-matching-result-details)
+  (let ((thefuncall `(run-regex-matching-test-loop
+                      ',regex
+                      ,input-text
+                      ',expected-matching-result-details)))
     (if description
         `(test ,test-name ,description ,thefuncall)
         `(test ,test-name ,thefuncall))))
@@ -145,6 +184,18 @@ regex (REGEX)."
   :input-text "X"
   :expected-matching-status :regex-not-matched
   :expected-accumulator-value "X")
+
+(define-regex-matching-loop-test regex-matching-loop-test-1
+  :description "Tests a loop of matching operations against a simple regex."
+  :regex (:or
+          (:seq #\X #\Y)
+          (:seq #\A #\B))
+  :input-text "XYABXYABZZZZZ"
+  :expected-matching-result-details ((:regex-matched "XY")
+                                     (:regex-matched "AB")
+                                     (:regex-matched "XY")
+                                     (:regex-matched "AB")
+                                     ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
 
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."
