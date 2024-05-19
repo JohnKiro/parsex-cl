@@ -137,7 +137,7 @@ regex (REGEX)."
   :input-text "X"
   ;; note that * is zero-or-more, that's why we backtrack
   :expected-matching-status :regex-matched
-  :expected-accumulator-value "")
+  :expected-accumulator-value nil)
 
 (define-regex-matching-test basic9-regex-matching-test
   :description "Tests no backtracking (no match)."

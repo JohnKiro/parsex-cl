@@ -22,8 +22,12 @@ Source should record this for posible backtracking."))
 
 (defgeneric retrieve-last-accumulated-value (source)
   (:documentation "Retrieve last accumulated value, which is the last consumed portion of the
-input. In case the accumulated value is not interesting, then the implementation of this method
-could be left out."))
+input. When nothing is accumulated, this method should return NIL, to indicate to the caller that
+the REGEX did not consume any characters, and hence, it's a good indication to stop matching loops,
+to avoid going into infinite loops. This of course does not necessarily mean that the input is
+empty. In case the accumulated value is not interesting, then the implementation of this method
+could return something like SOMETHING or NIL (to distinguish between the case of accumulation/
+no accumulation)."))
 
 (defclass basic-regex-input ()
   ((input-text :reader input-text
@@ -80,7 +84,8 @@ could be left out."))
 
 (defmethod retrieve-last-accumulated-value ((source basic-regex-input))
   (with-slots (input-text accumulator-start reading-position) source
-    (prog1
-        ;; we know that index won't exceed total-length, so no need to check
-        (subseq input-text accumulator-start reading-position)
-      (setf accumulator-start reading-position))))
+    (if (< accumulator-start reading-position)
+        (prog1
+            (subseq input-text accumulator-start reading-position)
+          (setf accumulator-start reading-position))
+        nil)))
