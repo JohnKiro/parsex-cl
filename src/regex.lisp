@@ -370,6 +370,8 @@ Returns destination DFA state."
                (setf last-candidate-terminal-dfa origin-dfa-state)
                (register-candidate-matching-point input-source))
              (if (dfa-state-definitely-terminal-p origin-dfa-state)
+                 ;;TODO: In case match must be exact, I think here we check if input is empty,
+                 ;; and report success only if it is (otherwise, failure: not exact match)
                  (prepare-result :regex-matched)
                  (if (source-empty-p input-source)
                      (prepare-result (if last-candidate-terminal-dfa
@@ -377,14 +379,15 @@ Returns destination DFA state."
                                          :regex-not-matched))
                      (let* ((next-ch (read-next-item input-source))
                             (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
+                       ;; TODO: advancing even in case of no match (see TODO in regex-input)
+                       (advance-reading-position input-source)
                        (if dest-dfa-state
                            (progn
-                             (advance-reading-position input-source)
                              (transit dest-dfa-state))
                            (prepare-result (if last-candidate-terminal-dfa
                                                :regex-matched
                                                :regex-not-matched))))))))
-    (transit root-dfa-state))))
+    (transit root-dfa-state)))
 
 
 

@@ -51,7 +51,9 @@ regex (REGEX)."
                                      expected-matching-result-details
                                      &key
                                        (generate-nfa-dotgraphviz t)
-                                       (generate-dfa-dotgraphviz t))
+                                       (generate-dfa-dotgraphviz t)
+                                       (report-upcoming-char t)
+                                       (report-remaining-input-length t))
   "Reusable function that runs a loop of regex matching operations for the INPUT-STRING against a
 single REGEX, and tests the result of each matching operation. The indication for the loop to stop
 is when nothing is accumulated (NIL). The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list
@@ -67,7 +69,11 @@ having each element in the form (matching-status accumulator-value)."
           for matching-status = (regex-matching-result-status result)
           for updated-acc = (retrieve-last-accumulated-value input-source)
           for (expected-matching-status expected-acc) in expected-matching-result-details
-          until (null updated-acc)
+          until (source-empty-p input-source)
+          when report-remaining-input-length
+            do (format t "~%Remaining characters in input: ~a~%" (remaining-length input-source))
+          when report-upcoming-char
+            do (format t "~%Upcoming character in input: ~a~%" (read-next-item input-source))
           do (is (equal matching-status expected-matching-status))
           do (is (equal updated-acc expected-acc)))))
 
@@ -195,6 +201,23 @@ having each element in the form (matching-status accumulator-value)."
                                      (:regex-matched "AB")
                                      (:regex-matched "XY")
                                      (:regex-matched "AB")
+                                     (:regex-not-matched "Z")
+                                     (:regex-not-matched "Z")
+                                     (:regex-not-matched "Z")
+                                     (:regex-not-matched "Z")
+                                     (:regex-not-matched "Z")
+                                     ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
+
+(define-regex-matching-loop-test regex-matching-loop-test-2
+  :description "Tests a loop of matching operations against a regex, with backtracking."
+  :regex (:+
+          (:seq #\X #\Y))
+  :input-text "XYXYXZZZ"
+  :expected-matching-result-details ((:regex-matched "XYXY")
+                                     (:regex-not-matched "X")
+                                     (:regex-not-matched "Z")
+                                     (:regex-not-matched "Z")
+                                     (:regex-not-matched "Z")
                                      ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
 
 (test detailed-regex-matching-test
