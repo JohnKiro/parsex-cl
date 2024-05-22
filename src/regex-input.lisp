@@ -86,9 +86,7 @@ no accumulation)."))
 
 (defmethod advance-reading-position ((source basic-regex-input))
   (with-slots (reading-position total-length) source
-    ;;TODO: remove this check (it's ok to advance beyond end, as we'll check elsewhere)
-    (when (< reading-position total-length)
-      (incf reading-position))))
+    (incf reading-position)))
 
 (defmethod notify-match-termination ((source basic-regex-input))
   (with-slots (reading-position
