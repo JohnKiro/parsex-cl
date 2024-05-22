@@ -91,11 +91,15 @@ no accumulation)."))
       (incf reading-position))))
 
 (defmethod notify-match-termination ((source basic-regex-input))
-  (with-slots (reading-position candidate-matching-point starting-reference-position) source
-    ;; TODO: I'm now keeping track of starting position of each matching operation, so I set
+  (with-slots (reading-position
+               candidate-matching-point
+               accumulator-start
+               starting-reference-position) source
+    ;; I'm now keeping track of starting position of each matching operation, so I set
     ;; this reference position here: in case of match success, then next operation starts at
     ;; reading pos, otherwise, we start at the current match start + 1 char
-    ;; (rethink it)!!!
+    ;; (TODO: may rethink it)!!!
+    (setf accumulator-start starting-reference-position)
     (if (>= candidate-matching-point 0)
         (progn
           (setf reading-position candidate-matching-point)
@@ -110,7 +114,5 @@ no accumulation)."))
 (defmethod retrieve-last-accumulated-value ((source basic-regex-input))
   (with-slots (input-text accumulator-start reading-position) source
     (if (< accumulator-start reading-position)
-        (prog1
-            (subseq input-text accumulator-start reading-position)
-          (setf accumulator-start reading-position))
+        (subseq input-text accumulator-start reading-position)
         nil)))
