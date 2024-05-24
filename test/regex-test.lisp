@@ -69,13 +69,17 @@ having each element in the form (matching-status accumulator-value)."
           for matching-status = (regex-matching-result-status result)
           for updated-acc = (retrieve-last-accumulated-value input-source)
           for (expected-matching-status expected-acc) in expected-matching-result-details
+          do (format t "~%Upcoming expected acc: ~a~%" expected-acc)
+          do (format t "~%Upcoming expected matching status: ~a~%" expected-matching-status)
+          do (format t "~%Input empty? (~a)~%" (source-empty-p input-source))
+          do (is (equal matching-status expected-matching-status))
+          do (is (equal updated-acc expected-acc))
           until (source-empty-p input-source)
+          ;; note thta the placement of these clauses after the UNTIL clause is important!
           when report-remaining-input-length
             do (format t "~%Remaining characters in input: ~a~%" (remaining-length input-source))
           when report-upcoming-char
-            do (format t "~%Upcoming character in input: ~a~%" (read-next-item input-source))
-          do (is (equal matching-status expected-matching-status))
-          do (is (equal updated-acc expected-acc)))))
+            do (format t "~%Upcoming character in input: ~a~%" (read-next-item input-source)))))
 
 (defmacro define-regex-matching-test (test-name
                                       &key
@@ -219,6 +223,45 @@ having each element in the form (matching-status accumulator-value)."
                                      (:regex-not-matched "Z")
                                      (:regex-not-matched "Z")
                                      ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
+
+(define-regex-matching-loop-test regex-matching-loop-test-3
+  :description "Tests a loop of unsuccessful matching operations, till match (finally)."
+  :regex (:or
+          (:seq #\X #\Y)
+          (:seq #\A #\B))
+  :input-text "XzAcXwAdXXXYooo"
+  :expected-matching-result-details ((:regex-not-matched "X")
+                                     (:regex-not-matched "z")
+                                     (:regex-not-matched "A")
+                                     (:regex-not-matched "c")
+                                     (:regex-not-matched "X")
+                                     (:regex-not-matched "w")
+                                     (:regex-not-matched "A")
+                                     (:regex-not-matched "d")
+                                     (:regex-not-matched "X")
+                                     (:regex-not-matched "X")
+                                     (:regex-matched "XY")
+                                     (:regex-not-matched "o")
+                                     (:regex-not-matched "o")
+                                     (:regex-not-matched "o")
+                                     ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
+
+(define-regex-matching-loop-test regex-matching-loop-test-4
+  :description "Tests correct matching after skipping a series of bad characters. Notice how the BB
+has been matched, although at some point, the cursor was after the AB, thanks to backtracking to
+just after the #\A."
+  :regex (:or
+          (:seq #\A #\B #\C)
+          (:seq #\B #\B)
+          (:seq #\C #\C (:+ #\D)))
+  :input-text "ABBXXXXCCDDDD"
+  :expected-matching-result-details ((:regex-not-matched "A")
+                                     (:regex-matched "BB")
+                                     (:regex-not-matched "X")
+                                     (:regex-not-matched "X")
+                                     (:regex-not-matched "X")
+                                     (:regex-not-matched "X")
+                                     (:regex-matched "CCDDDD")))
 
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."
