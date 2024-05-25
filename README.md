@@ -1,25 +1,145 @@
 
 # Table of Contents
 
-1.  [Status](#orgfe1b28f)
-2.  [Prerequisites](#org4641c12)
-3.  [Installation](#org6d583f1)
-4.  [Usage](#org441d8fa)
-    1.  [Unit Tests ](#org3df94cb)
-    2.  [Visualizing the GraphViz Dot Diagrams](#orgaf1446c)
-5.  [TODO](#orgf4618a0)
-6.  [Author](#orgc570f2e)
+1.  [Purpose of this Project](#orgcd9dae1)
+2.  [Status](#org9da1dee)
+3.  [Features](#org89e08d3)
+    1.  [Regex Format](#org5f65296)
+    2.  [Supported Constructs](#orgbb29cd8)
+4.  [Prerequisites](#org6cf3c70)
+5.  [Installation](#orgbc1fb53)
+6.  [Usage](#orgc3632f3)
+    1.  [Unit Tests ](#org408a2da)
+    2.  [Visualizing the GraphViz Dot Diagrams](#org8a449ec)
+7.  [TODO](#org5c04012)
+8.  [Author](#org3f6853d)
 
 
 
-<a id="orgfe1b28f"></a>
+<a id="orgcd9dae1"></a>
+
+# Purpose of this Project
+
+I started this project as an exercise to practice Common Lisp. It is not meant by any means to compete with the well-established, feature-rich **[CL-PPCRE](https://github.com/edicl/cl-ppcre)**. However, as this one gets more mature, it could become a component of a bigger idea.
+
+
+<a id="org9da1dee"></a>
 
 # Status
 
-This project is still at an early experimental condition. At this stage, it is possible to match strings against **regular expressions** provided in the form of s-expressions. See section entitled "[Unit Tests](#orgc008fd9)" for information about how to experiment with the regex matcher's different unit test cases.
+While it's still at an early experimental condition, it is already capable to match strings against classical **regular expressions**, provided in the form of s-expressions. See section entitled "[Unit Tests](#org0f30dc6)" for information about how to experiment with the regex matcher.
 
 
-<a id="org4641c12"></a>
+<a id="org89e08d3"></a>
+
+# Features
+
+
+<a id="org5f65296"></a>
+
+## Regex Format
+
+I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to define regular expressions, for different reasons:
+
+-   I get regex parsing almost for free, thanks to the \*Common Lisp Reader\*tn. This also allows adding more features in the future, without the need for complicated parser updates.
+-   Ambiguity related to order of evalution is avoided, thanks to the parentheses.
+
+
+<a id="orgbb29cd8"></a>
+
+## Supported Constructs
+
+Regex constructs are either simple (that is, matching a single character), or composed of other constructs.
+
+The following table describes the supported constructs. For brievity, I'm assuming that the reader is already familiar with regular expressions in general.
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Regex Element</th>
+<th scope="col" class="org-left">Description</th>
+<th scope="col" class="org-left">Example</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td class="org-left">Character</td>
+<td class="org-left">Individual characters</td>
+<td class="org-left">#\a</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Any Character</td>
+<td class="org-left">An element matching any single character</td>
+<td class="org-left">:any-char</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Character Range</td>
+<td class="org-left">Character range, based on char-code order</td>
+<td class="org-left">(char-range #\A #\F)</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Sequence</td>
+<td class="org-left">Sequence of one or more elements</td>
+<td class="org-left">(:seq #\x #\y)</td>
+</tr>
+
+
+<tr>
+<td class="org-left">String</td>
+<td class="org-left">Sequence of characters</td>
+<td class="org-left">"xy" (same as previous one)</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Choice</td>
+<td class="org-left">Choice between multiple elements</td>
+<td class="org-left">(:or "Hello" "Hi")</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Zero or More</td>
+<td class="org-left">Zero or more occurrences of a specific element (Kleene closure)</td>
+<td class="org-left">(:* "a")</td>
+</tr>
+
+
+<tr>
+<td class="org-left">One or more</td>
+<td class="org-left">One or more occurrences of a specific element</td>
+<td class="org-left">(:seq "Hell" (:+ #\o) #\!)</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Zero or One</td>
+<td class="org-left">Zero or one occurrence of a specific element</td>
+<td class="org-left">(:? (:or "Mr." "Mrs."))</td>
+</tr>
+</tbody>
+</table>
+
+Note in the previous table that **keyword symbols** are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp **reader**.
+
+
+<a id="org6cf3c70"></a>
 
 # Prerequisites
 
@@ -28,7 +148,7 @@ This project is still at an early experimental condition. At this stage, it is p
 -   Quicklisp
 
 
-<a id="org6d583f1"></a>
+<a id="orgbc1fb53"></a>
 
 # Installation
 
@@ -63,14 +183,14 @@ The project components will be loaded sequentially, as indicated in the followin
 TODO: Enhance.
 
 
-<a id="org441d8fa"></a>
+<a id="orgc3632f3"></a>
 
 # Usage
 
 
-<a id="org3df94cb"></a>
+<a id="org408a2da"></a>
 
-## Unit Tests <a id="orgc008fd9"></a>
+## Unit Tests <a id="org0f30dc6"></a>
 
 Running regex unit test cases selectively can be done by first changing into the regex unit tests package:
 
@@ -81,11 +201,11 @@ The output and updated prompt will indicate the **test** package:
     #<PACKAGE "PARSEX-CL.REGEX.TEST">
     TEST>
 
-Then, any unit test can be executed as follows (for example: **basic2-regex-matching-test**):
+Then, all defined test cases could be executed as follows:
 
-    TEST> (run! 'basic2-regex-matching-test)
+    TEST> (run! :parsex-cl.regex.test-suite)
 
-The output will provide information about the test case, including the following:
+The output will provide information about the test cases, including the following:
 
 -   Text being matched.
 -   Regular expression being matched against.
@@ -94,8 +214,9 @@ The output will provide information about the test case, including the following
 -   GraphViz Dot for the DFA finite state machine diagram.
 -   Test execution status (success/failure).
 
-Here is a sample output for the execution of the above test case:
+Here is a sample output for the execution of one of the test cases:
 
+    ...
     Running test BASIC2-REGEX-MATCHING-TEST 
     Matching the text "abcacdaecccaabeadde" against the regex (+
                                                                (OR (CHAR-RANGE a d)
@@ -148,19 +269,9 @@ Here is a sample output for the execution of the above test case:
         6 -> 3 [label="b - d"];
         6 -> 4 [label="a - a"];
     }
-    
-    ..
-     Did 2 checks.
-        Pass: 2 (100%)
-        Skip: 0 ( 0%)
-        Fail: 0 ( 0%)
-    
-    T
-    NIL
-    NIL
 
 
-<a id="orgaf1446c"></a>
+<a id="org8a449ec"></a>
 
 ## Visualizing the GraphViz Dot Diagrams
 
@@ -168,7 +279,7 @@ In order to inspect the NFA or DFA visually, the **dot** utility provided with *
 
 **Note**: A Graphviz installation is required for this step.
 
-For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#orgc008fd9)), the following commands can be used (assuming a Unix/Linux terminal):
+For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#org0f30dc6)), the following commands can be used (assuming a Unix/Linux terminal):
 
 -   Save the Dot output for the DFA into a text file:
 
@@ -210,21 +321,16 @@ For example, to visualize the DFA corresponding to the test case described in th
 ![img](./images/sample-dfa.svg "Sample DFA finite state machine diagram")
 
 
-<a id="orgf4618a0"></a>
+<a id="org5c04012"></a>
 
 # TODO
 
--   For regex like `(+ "AB")`, currently "ABABAC" will not match, and will
-    consume the first 5 characters (which is not wrong), but to be more
-    useful, I need to match "ABAB", and stop there, for the next run. I
-    expect this to be easy, since we already keep track of "candidate
-    matching".
 -   Complete the implementation of negation.
 -   may split code into multiple packages.
 -   There are also some TODOs in the source code (to be added in this section).
 
 
-<a id="orgc570f2e"></a>
+<a id="org3f6853d"></a>
 
 # Author
 

@@ -1,8 +1,43 @@
 #+title: Parsex-Cl
 #+subtitle: Experimental project for regular expressions, lexer and parser design
 
+* Purpose of this Project
+I started this project as an exercise to practice Common Lisp. It is not meant by any means to compete with the well-established, feature-rich *[[https://github.com/edicl/cl-ppcre][CL-PPCRE]]*. However, as this one gets more mature, it could become a component of a bigger idea.
+
+
 * Status
-This project is still at an early experimental condition. At this stage, it is possible to match strings against *regular expressions* provided in the form of s-expressions. See section entitled "[[unit-tests][Unit Tests]]" for information about how to experiment with the regex matcher's different unit test cases.
+While it's still at an early experimental condition, it is already capable to match strings against classical *regular expressions*, provided in the form of s-expressions. See section entitled "[[unit-tests][Unit Tests]]" for information about how to experiment with the regex matcher.
+
+* Features
+
+** Regex Format
+I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to define regular expressions, for different reasons:
+
+- I get regex parsing almost for free, thanks to the *Common Lisp Reader*tn. This also allows adding more features in the future, without the need for complicated parser updates.
+- Ambiguity related to order of evalution is avoided, thanks to the parentheses.
+
+
+** Supported Constructs
+Regex constructs are either simple (that is, matching a single character), or composed of other constructs.
+
+The following table describes the supported constructs. For brievity, I'm assuming that the reader is already familiar with regular expressions in general.
+
+|-----------------+-----------------------------------------------------------------+-----------------------------|
+| Regex Element   | Description                                                     | Example                     |
+|-----------------+-----------------------------------------------------------------+-----------------------------|
+| Character       | Individual characters                                           | #\a                         |
+| Any Character   | An element matching any single character                        | :any-char                   |
+| Character Range | Character range, based on char-code order                       | (char-range #\A #\F)        |
+| Sequence        | Sequence of one or more elements                                | (:seq #\x #\y)              |
+| String          | Sequence of characters                                          | "xy" (same as previous one) |
+| Choice          | Choice between multiple elements                                | (:or "Hello" "Hi")          |
+| Zero or More    | Zero or more occurrences of a specific element (Kleene closure) | (:* "a")                    |
+| One or more     | One or more occurrences of a specific element                   | (:seq "Hell" (:+ #\o) #\!)  |
+| Zero or One     | Zero or one occurrence of a specific element                    | (:? (:or "Mr." "Mrs."))     |
+|-----------------+-----------------------------------------------------------------+-----------------------------|
+
+Note in the previous table that *keyword symbols* are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp *reader*.
+
 
 * Prerequisites
 - Git
@@ -63,13 +98,13 @@ The output and updated prompt will indicate the *test* package:
 TEST>
 #+end_example
 
-Then, any unit test can be executed as follows (for example: *basic2-regex-matching-test*):
+Then, all defined test cases could be executed as follows:
 
 #+begin_example
-TEST> (run! 'basic2-regex-matching-test)
+TEST> (run! :parsex-cl.regex.test-suite)
 #+end_example
 
-The output will provide information about the test case, including the following:
+The output will provide information about the test cases, including the following:
 - Text being matched.
 - Regular expression being matched against.
 - Text consumed by the matching process (updated accumulator).
@@ -77,9 +112,10 @@ The output will provide information about the test case, including the following
 - GraphViz Dot for the DFA finite state machine diagram.
 - Test execution status (success/failure).
 
-Here is a sample output for the execution of the above test case:
+Here is a sample output for the execution of one of the test cases:
 
 #+begin_example
+...
 Running test BASIC2-REGEX-MATCHING-TEST 
 Matching the text "abcacdaecccaabeadde" against the regex (+
                                                            (OR (CHAR-RANGE a d)
@@ -133,15 +169,6 @@ rankdir = LR;
     6 -> 4 [label="a - a"];
 }
 
-..
- Did 2 checks.
-    Pass: 2 (100%)
-    Skip: 0 ( 0%)
-    Fail: 0 ( 0%)
-
-T
-NIL
-NIL
 #+end_example
 
 ** Visualizing the GraphViz Dot Diagrams
@@ -200,11 +227,6 @@ dot -Tsvg -Nfontcolor=red -Nshape=circle sample-dfa.dot > sample-dfa.svg
 
 * TODO
 
-- For regex like =(+ "AB")=, currently "ABABAC" will not match, and will
-  consume the first 5 characters (which is not wrong), but to be more
-  useful, I need to match "ABAB", and stop there, for the next run. I
-  expect this to be easy, since we already keep track of "candidate
-  matching".
 - Complete the implementation of negation.
 - may split code into multiple packages.
 - There are also some TODOs in the source code (to be added in this section).
