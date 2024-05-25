@@ -25,13 +25,18 @@ prepare itself for upcoming matching operation."))
 Source should record this for posible backtracking."))
 
 (defgeneric retrieve-last-accumulated-value (source)
-  (:documentation "Retrieve last accumulated value, which is the last consumed portion of the
-input. When nothing is accumulated, this method should return NIL, to indicate to the caller that
-the REGEX did not consume any characters, and hence, it's a good indication to stop matching loops,
-to avoid going into infinite loops. This of course does not necessarily mean that the input is
-empty. In case the accumulated value is not interesting, then the implementation of this method
+  (:documentation "Retrieve last accumulated value, which is the portion of input that was last
+matched. When nothing is accumulated, this method should return NIL, to indicate to the caller that
+the REGEX did not consume any characters, and hence, it might be a good indication to stop matching
+loops, to avoid going into infinite loops. This of course does not necessarily mean that the input
+is empty. In case the accumulated value is not interesting, then the implementation of this method
 could return something like SOMETHING or NIL (to distinguish between the case of accumulation/
 no accumulation)."))
+
+(defgeneric retrieve-last-consumed-value (source)
+  (:documentation "Retrieve the last consumed portion of the input. Unlike
+RETRIEVE-LAST-ACCUMULATED-VALUE, this one returns the consumed characters, whether or not they
+correspond to a successful match."))
 
 (defclass basic-regex-input ()
   ((input-text :reader input-text
@@ -43,13 +48,23 @@ no accumulation)."))
    (total-length :reader total-length
                  :type fixnum)
    (accumulator-start :reader accumulator-start
-                      :type fixnum)
+                      :type fixnum
+                      :initform -1)
+   (accumulator-end :reader accumulator-end
+                    :type fixnum
+                    :initform -1)
    ;; I depend on the fact that definite termination is also candidate termination, so we
    ;; can assume that this will hold value of last matching position (whether last candidate
    ;; or current position). TODO: may rethink about this later.
    (candidate-matching-point :reader candidate-matching-point
                              :type fixnum
-                             :initform -1))
+                             :initform -1)
+   (advance-on-no-consumption-on-match :type boolean
+                                       :initarg :advance-on-no-consumption-on-match
+                                       :initform t)
+   (advance-on-no-consumption-on-no-match :type boolean
+                                          :initarg :advance-on-no-consumption-on-no-match
+                                          :initform t))
   (:documentation "Basic implementation for regex input, based on a string + reading position
 (index). It also includes an accumulator for the current/last matching operation."))
 
@@ -62,7 +77,6 @@ no accumulation)."))
   (with-slots (input-text
                reading-position
                total-length
-               accumulator-start
                starting-reference-position) source
     (if initial-input-text
         (setf input-text (if make-copy
@@ -71,8 +85,7 @@ no accumulation)."))
         (error "Must provide valid string in INITIAL-INPUT-TEXT"))
     (setf reading-position initial-reading-position)
     (setf starting-reference-position initial-reading-position)
-    (setf total-length (length initial-input-text))
-    (setf accumulator-start initial-reading-position)))
+    (setf total-length (length initial-input-text))))
 
 (defmethod source-empty-p ((source basic-regex-input))
   (>= (reading-position source) (length (input-text source))))
@@ -92,25 +105,39 @@ no accumulation)."))
   (with-slots (reading-position
                candidate-matching-point
                accumulator-start
-               starting-reference-position) source
-    ;; I'm now keeping track of starting position of each matching operation, so I set
-    ;; this reference position here: in case of match success, then next operation starts at
-    ;; reading pos, otherwise, we start at the current match start + 1 char
-    ;; (TODO: may rethink it)!!!
+               accumulator-end
+               starting-reference-position
+               advance-on-no-consumption-on-match
+               advance-on-no-consumption-on-no-match) source
     (setf accumulator-start starting-reference-position)
+    (setf accumulator-end candidate-matching-point)
+    ;; non-negative candidate-matching-point implies regex match
     (if (>= candidate-matching-point 0)
         (progn
-          (setf reading-position candidate-matching-point)
-          (setf starting-reference-position candidate-matching-point)
+          ;;if no chars consumed
+          (if (= candidate-matching-point starting-reference-position)
+              ;; no char consumed, => inc position conditionally (based on flag)
+              (when advance-on-no-consumption-on-match
+                (incf starting-reference-position))
+              (setf starting-reference-position candidate-matching-point))
           (setf candidate-matching-point -1))
-        (setf reading-position (incf starting-reference-position)))))
+        ;;negative candidate-matching-point implies regex no-match
+        (when advance-on-no-consumption-on-no-match
+          (incf starting-reference-position)))
+    (setf reading-position starting-reference-position)))
 
 (defmethod register-candidate-matching-point ((source basic-regex-input))
   (setf (slot-value source 'candidate-matching-point)
         (slot-value source 'reading-position)))
 
 (defmethod retrieve-last-accumulated-value ((source basic-regex-input))
-  (with-slots (input-text accumulator-start reading-position) source
-    (if (< accumulator-start reading-position)
-        (subseq input-text accumulator-start reading-position)
+  (with-slots (input-text accumulator-start accumulator-end) source
+    (if (< accumulator-start accumulator-end)
+        (subseq input-text accumulator-start accumulator-end)
+        nil)))
+
+(defmethod retrieve-last-consumed-value ((source basic-regex-input))
+  (with-slots (input-text accumulator-start starting-reference-position) source
+    (if (< accumulator-start starting-reference-position)
+        (subseq input-text accumulator-start starting-reference-position)
         nil)))

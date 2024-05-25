@@ -89,11 +89,13 @@
   (:use #:cl #:iterate)
   (:export #:basic-regex-input
            #:source-empty-p
+           #:remaining-length
            #:read-next-item
            #:advance-reading-position
            #:notify-match-termination
            #:register-candidate-matching-point
            #:retrieve-last-accumulated-value
+           #:retrieve-last-consumed-value
            ))
 
 (defpackage :parsex-cl.chars

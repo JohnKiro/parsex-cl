@@ -56,8 +56,8 @@ regex (REGEX)."
                                        (report-remaining-input-length t))
   "Reusable function that runs a loop of regex matching operations for the INPUT-STRING against a
 single REGEX, and tests the result of each matching operation. The indication for the loop to stop
-is when nothing is accumulated (NIL). The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list
-having each element in the form (matching-status accumulator-value)."
+is when input is empty. The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list having each
+element in the form (matching-status accumulator-value consumed-value)."
   (let* ((input-source (make-instance 'basic-regex-input :initial-input-text input-string))
          (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa)))
@@ -68,14 +68,14 @@ having each element in the form (matching-status accumulator-value)."
     (loop for result = (match-regex input-source dfa)
           for matching-status = (regex-matching-result-status result)
           for updated-acc = (retrieve-last-accumulated-value input-source)
-          for (expected-matching-status expected-acc) in expected-matching-result-details
-          do (format t "~%Upcoming expected acc: ~a~%" expected-acc)
-          do (format t "~%Upcoming expected matching status: ~a~%" expected-matching-status)
+          for consumed = (retrieve-last-consumed-value input-source)
+          for (exp-matching-status exp-acc exp-consumed) in expected-matching-result-details
           do (format t "~%Input empty? (~a)~%" (source-empty-p input-source))
-          do (is (equal matching-status expected-matching-status))
-          do (is (equal updated-acc expected-acc))
+          do (is (equal matching-status exp-matching-status))
+          do (is (equal updated-acc exp-acc))
+          do (is (equal consumed exp-consumed))
           until (source-empty-p input-source)
-          ;; note thta the placement of these clauses after the UNTIL clause is important!
+          ;; note that the placement of these clauses after the UNTIL clause is important!
           when report-remaining-input-length
             do (format t "~%Remaining characters in input: ~a~%" (remaining-length input-source))
           when report-upcoming-char
@@ -112,7 +112,6 @@ having each element in the form (matching-status accumulator-value)."
         `(test ,test-name ,thefuncall))))
 
 
-;;; TODO: need to put more tests in a loop (matching token by token)
 (define-regex-matching-test basic1-regex-matching-test
   :description "Tests +, OR, char range, char range splitting."
   :regex (:+ (:or
@@ -193,23 +192,24 @@ having each element in the form (matching-status accumulator-value)."
   :regex (:seq (:+ (:seq #\X #\Y)))
   :input-text "X"
   :expected-matching-status :regex-not-matched
-  :expected-accumulator-value "X")
+  :expected-accumulator-value nil)
 
 (define-regex-matching-loop-test regex-matching-loop-test-1
-  :description "Tests a loop of matching operations against a simple regex."
+  :description "Tests a loop of matching operations against a simple regex. It also tests
+consumption of invalid characters (consumed, but not accumulated)."
   :regex (:or
           (:seq #\X #\Y)
           (:seq #\A #\B))
   :input-text "XYABXYABZZZZZ"
-  :expected-matching-result-details ((:regex-matched "XY")
-                                     (:regex-matched "AB")
-                                     (:regex-matched "XY")
-                                     (:regex-matched "AB")
-                                     (:regex-not-matched "Z")
-                                     (:regex-not-matched "Z")
-                                     (:regex-not-matched "Z")
-                                     (:regex-not-matched "Z")
-                                     (:regex-not-matched "Z")
+  :expected-matching-result-details ((:regex-matched "XY" "XY")
+                                     (:regex-matched "AB" "AB")
+                                     (:regex-matched "XY" "XY")
+                                     (:regex-matched "AB" "AB")
+                                     (:regex-not-matched nil "Z")
+                                     (:regex-not-matched nil "Z")
+                                     (:regex-not-matched nil "Z")
+                                     (:regex-not-matched nil "Z")
+                                     (:regex-not-matched nil "Z")
                                      ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
 
 (define-regex-matching-loop-test regex-matching-loop-test-2
@@ -217,11 +217,11 @@ having each element in the form (matching-status accumulator-value)."
   :regex (:+
           (:seq #\X #\Y))
   :input-text "XYXYXZZZ"
-  :expected-matching-result-details ((:regex-matched "XYXY")
-                                     (:regex-not-matched "X")
-                                     (:regex-not-matched "Z")
-                                     (:regex-not-matched "Z")
-                                     (:regex-not-matched "Z")
+  :expected-matching-result-details ((:regex-matched "XYXY" "XYXY")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "Z")
+                                     (:regex-not-matched nil "Z")
+                                     (:regex-not-matched nil "Z")
                                      ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
 
 (define-regex-matching-loop-test regex-matching-loop-test-3
@@ -230,20 +230,20 @@ having each element in the form (matching-status accumulator-value)."
           (:seq #\X #\Y)
           (:seq #\A #\B))
   :input-text "XzAcXwAdXXXYooo"
-  :expected-matching-result-details ((:regex-not-matched "X")
-                                     (:regex-not-matched "z")
-                                     (:regex-not-matched "A")
-                                     (:regex-not-matched "c")
-                                     (:regex-not-matched "X")
-                                     (:regex-not-matched "w")
-                                     (:regex-not-matched "A")
-                                     (:regex-not-matched "d")
-                                     (:regex-not-matched "X")
-                                     (:regex-not-matched "X")
-                                     (:regex-matched "XY")
-                                     (:regex-not-matched "o")
-                                     (:regex-not-matched "o")
-                                     (:regex-not-matched "o")
+  :expected-matching-result-details ((:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "z")
+                                     (:regex-not-matched nil "A")
+                                     (:regex-not-matched nil "c")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "w")
+                                     (:regex-not-matched nil "A")
+                                     (:regex-not-matched nil "d")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-matched "XY" "XY")
+                                     (:regex-not-matched nil "o")
+                                     (:regex-not-matched nil "o")
+                                     (:regex-not-matched nil "o")
                                      ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
 
 (define-regex-matching-loop-test regex-matching-loop-test-4
@@ -255,13 +255,53 @@ just after the #\A."
           (:seq #\B #\B)
           (:seq #\C #\C (:+ #\D)))
   :input-text "ABBXXXXCCDDDD"
-  :expected-matching-result-details ((:regex-not-matched "A")
-                                     (:regex-matched "BB")
-                                     (:regex-not-matched "X")
-                                     (:regex-not-matched "X")
-                                     (:regex-not-matched "X")
-                                     (:regex-not-matched "X")
-                                     (:regex-matched "CCDDDD")))
+  :expected-matching-result-details ((:regex-not-matched nil "A")
+                                     (:regex-matched "BB" "BB")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-not-matched nil "X")
+                                     (:regex-matched "CCDDDD" "CCDDDD")))
+
+(define-regex-matching-loop-test regex-matching-loop-test-5
+  :description "Another loop test. Notice the difference between it and test-6/test-7 (+ VS *)."
+  :regex (:or
+          (:+ #\X)
+          (:seq #\A #\B))
+  :input-text "XXXXXACABXXXXXZ"
+  :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
+                                     (:regex-not-matched nil "A")
+                                     (:regex-not-matched nil "C")
+                                     (:regex-matched "AB" "AB")
+                                     (:regex-matched "XXXXX" "XXXXX")
+                                     (:regex-not-matched nil "Z")))
+
+(define-regex-matching-loop-test regex-matching-loop-test-6
+  :description "Another loop test. Notice the difference between it and test-5 (+ VS *): effect of
+* is that a match takes place even on invalid characters, which are consumed but not accumulated.
+So regex matches, char is consumed, but not accumulated."
+  :regex (:* #\X)
+  :input-text "XXXXXABC"
+  ;;TODO: note that due to the *, the A matches, but input position does not advance (we're stuck!)
+  ;;probably need to advance in case nothing gets consumed.
+  :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
+                                     (:regex-matched nil "A")
+                                     (:regex-matched nil "B")
+                                     (:regex-matched nil "C")))
+
+
+(define-regex-matching-loop-test regex-matching-loop-test-7
+  :description "Another loop test. Notice the difference between it and test-5 (+ VS *)."
+  :regex (:or
+          (:* #\X)
+          (:seq #\A #\B))
+  :input-text "XXXXXACABXXXXXZ"
+  :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
+                                     (:regex-matched nil "A")
+                                     (:regex-matched nil "C")
+                                     (:regex-matched "AB" "AB")
+                                     (:regex-matched "XXXXX" "XXXXX")
+                                     (:regex-matched nil "Z")))
 
 (test detailed-regex-matching-test
   (loop with inputs = '("The problem was resolved."
