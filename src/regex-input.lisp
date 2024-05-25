@@ -88,10 +88,10 @@ correspond to a successful match."))
     (setf total-length (length initial-input-text))))
 
 (defmethod source-empty-p ((source basic-regex-input))
-  (>= (reading-position source) (length (input-text source))))
+  (>= (reading-position source) (total-length source)))
 
 (defmethod remaining-length ((source basic-regex-input))
-  (let ((remaining (- (length (input-text source)) (reading-position source))))
+  (let ((remaining (- (total-length source) (reading-position source))))
     (max remaining 0)))
 
 (defmethod read-next-item ((source basic-regex-input))
