@@ -250,6 +250,7 @@ iterators on the transitions."
 transitions out. It must be used only in regex matching (after DFA is completely constructed). Note
 that it will also be a candidate terminal."
   (and (null (transitions dfa-state))
+       (null (transition-on-any-other dfa-state))
        (if (candidate-terminal dfa-state)
            t
            (error "A definitely terminal DFA that is not also candidate terminal: BUG??!"))))
