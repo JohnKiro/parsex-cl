@@ -194,6 +194,20 @@ element in the form (matching-status accumulator-value consumed-value)."
   :expected-matching-status :regex-not-matched
   :expected-accumulator-value nil)
 
+(define-regex-matching-test any-char-test-1
+  :description "Tests successful matching of the any-char element."
+  :regex (:or (:seq :any-char #\z) "hello")
+  :input-text "wz"
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "wz")
+
+(define-regex-matching-test any-char-test-2
+  :description "Tests failure matching the any-char element, when the meaning is any other char."
+  :regex (:or (:seq :any-char #\z) "hello")
+  :input-text "hz"
+  :expected-matching-status :regex-not-matched
+  :expected-accumulator-value nil)
+
 (define-regex-matching-loop-test regex-matching-loop-test-1
   :description "Tests a loop of matching operations against a simple regex. It also tests
 consumption of invalid characters (consumed, but not accumulated)."
