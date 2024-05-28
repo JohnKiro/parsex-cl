@@ -13,7 +13,7 @@ While it's still at an early experimental condition, it is already capable to ma
 ** Regex Format
 I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to define regular expressions, for different reasons:
 
-- I get regex parsing almost for free, thanks to the *Common Lisp Reader*tn. This also allows adding more features in the future, without the need for complicated parser updates.
+- I get regex parsing almost for free, thanks to the *Common Lisp Reader*. This also allows adding more features in the future, without the need for complicated parser updates.
 - Ambiguity related to order of evalution is avoided, thanks to the parentheses.
 
 
@@ -38,6 +38,35 @@ The following table describes the supported constructs. For brievity, I'm assumi
 
 Note in the previous table that *keyword symbols* are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp *reader*.
 
+
+** Some Implementation Notes
+
+Here are some assorted implementation details, which need to be addressed by expanding them into architecture document, or that may need to be handled in the code (besides being documented):
+
+*** Backtracking
+Backtracking in case of no match and in case of /candidate match/ are both implemented in the input source. These features are transparent to the regex matching function itself. There are two benefits from this:
+
+1. The contract between the matching function and the input handling is simple.
+2. Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only.
+
+
+*** Any Char Element
+Currently the *:any-char* element (corresponding to the /DOT/ element in Unix/Perl regular expressions) has the effective meaning of "any other char". For example, the regex below will not match the string ="AC"=.
+
+#+begin_src lisp
+  (:or "AB"
+       (:seq :any-char #\C))
+#+end_src
+
+Here is the current NFA generated for it:
+
+[[file:images/any-char-or-nfa.svg]]
+
+And here is the corresponding DFA:
+
+[[file:images/any-char-or-dfa.svg]]
+
+I'm not sure at this point which behavior should be expected. Maybe I would allow both, by controlling the DFA generation using flags, or better, have two separate symbols (e.g. =:dot=, =:any-other=).
 
 * Prerequisites
 - Git

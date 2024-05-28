@@ -1,51 +1,51 @@
 
 # Table of Contents
 
-1.  [Purpose of this Project](#orgcd9dae1)
-2.  [Status](#org9da1dee)
-3.  [Features](#org89e08d3)
-    1.  [Regex Format](#org5f65296)
-    2.  [Supported Constructs](#orgbb29cd8)
-4.  [Prerequisites](#org6cf3c70)
-5.  [Installation](#orgbc1fb53)
-6.  [Usage](#orgc3632f3)
-    1.  [Unit Tests ](#org408a2da)
-    2.  [Visualizing the GraphViz Dot Diagrams](#org8a449ec)
-7.  [TODO](#org5c04012)
-8.  [Author](#org3f6853d)
+1.  [Purpose of this Project](#orgd4aaf60)
+2.  [Status](#orge6f0c6f)
+3.  [Features](#org0467ea6)
+    1.  [Regex Format](#orgef75e25)
+    2.  [Supported Constructs](#org36c4596)
+4.  [Prerequisites](#orgd735430)
+5.  [Installation](#orgc80a244)
+6.  [Usage](#org5f4cc0f)
+    1.  [Unit Tests ](#org957c410)
+    2.  [Visualizing the GraphViz Dot Diagrams](#org9cc6233)
+7.  [TODO](#org0367e46)
+8.  [Author](#org892db74)
 
 
 
-<a id="orgcd9dae1"></a>
+<a id="orgd4aaf60"></a>
 
 # Purpose of this Project
 
 I started this project as an exercise to practice Common Lisp. It is not meant by any means to compete with the well-established, feature-rich **[CL-PPCRE](https://github.com/edicl/cl-ppcre)**. However, as this one gets more mature, it could become a component of a bigger idea.
 
 
-<a id="org9da1dee"></a>
+<a id="orge6f0c6f"></a>
 
 # Status
 
-While it's still at an early experimental condition, it is already capable to match strings against classical **regular expressions**, provided in the form of s-expressions. See section entitled "[Unit Tests](#org0f30dc6)" for information about how to experiment with the regex matcher.
+While it's still at an early experimental condition, it is already capable to match strings against classical **regular expressions**, provided in the form of s-expressions. See section entitled "[Unit Tests](#orge6bd6cf)" for information about how to experiment with the regex matcher.
 
 
-<a id="org89e08d3"></a>
+<a id="org0467ea6"></a>
 
 # Features
 
 
-<a id="org5f65296"></a>
+<a id="orgef75e25"></a>
 
 ## Regex Format
 
 I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to define regular expressions, for different reasons:
 
--   I get regex parsing almost for free, thanks to the \*Common Lisp Reader\*tn. This also allows adding more features in the future, without the need for complicated parser updates.
+-   I get regex parsing almost for free, thanks to the **Common Lisp Reader**. This also allows adding more features in the future, without the need for complicated parser updates.
 -   Ambiguity related to order of evalution is avoided, thanks to the parentheses.
 
 
-<a id="orgbb29cd8"></a>
+<a id="org36c4596"></a>
 
 ## Supported Constructs
 
@@ -139,7 +139,7 @@ The following table describes the supported constructs. For brievity, I'm assumi
 Note in the previous table that **keyword symbols** are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp **reader**.
 
 
-<a id="org6cf3c70"></a>
+<a id="orgd735430"></a>
 
 # Prerequisites
 
@@ -148,7 +148,7 @@ Note in the previous table that **keyword symbols** are used to specify the cons
 -   Quicklisp
 
 
-<a id="orgbc1fb53"></a>
+<a id="orgc80a244"></a>
 
 # Installation
 
@@ -183,14 +183,14 @@ The project components will be loaded sequentially, as indicated in the followin
 TODO: Enhance.
 
 
-<a id="orgc3632f3"></a>
+<a id="org5f4cc0f"></a>
 
 # Usage
 
 
-<a id="org408a2da"></a>
+<a id="org957c410"></a>
 
-## Unit Tests <a id="org0f30dc6"></a>
+## Unit Tests <a id="orge6bd6cf"></a>
 
 Running regex unit test cases selectively can be done by first changing into the regex unit tests package:
 
@@ -271,7 +271,7 @@ Here is a sample output for the execution of one of the test cases:
     }
 
 
-<a id="org8a449ec"></a>
+<a id="org9cc6233"></a>
 
 ## Visualizing the GraphViz Dot Diagrams
 
@@ -279,7 +279,7 @@ In order to inspect the NFA or DFA visually, the **dot** utility provided with *
 
 **Note**: A Graphviz installation is required for this step.
 
-For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#org0f30dc6)), the following commands can be used (assuming a Unix/Linux terminal):
+For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#orge6bd6cf)), the following commands can be used (assuming a Unix/Linux terminal):
 
 -   Save the Dot output for the DFA into a text file:
 
@@ -321,7 +321,7 @@ For example, to visualize the DFA corresponding to the test case described in th
 ![img](./images/sample-dfa.svg "Sample DFA finite state machine diagram")
 
 
-<a id="org5c04012"></a>
+<a id="org0367e46"></a>
 
 # TODO
 
@@ -330,7 +330,7 @@ For example, to visualize the DFA corresponding to the test case described in th
 -   There are also some TODOs in the source code (to be added in this section).
 
 
-<a id="org3f6853d"></a>
+<a id="org892db74"></a>
 
 # Author
 
