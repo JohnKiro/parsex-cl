@@ -103,6 +103,7 @@
   (:export #:char-range
            #:char-start
            #:char-end
+           #:char-range-equal
            #:inc-char
            #:dec-char
            #:insert-char-in-order

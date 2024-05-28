@@ -30,6 +30,10 @@
           (setf char-start char-end)
           (setf char-end tmp)))))
 
+(defun char-range-equal (chr1 chr2)
+  (and (char= (char-start chr1) (char-start chr2))
+       (char= (char-end chr1) (char-end chr2))))
+
 ;;; TODO: simplify?
 (defun insert-char-in-order (char chars)
   "Destructively insert character CHAR in a sorted list CHARS, maintaining ascending order. Since

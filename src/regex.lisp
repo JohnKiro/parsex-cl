@@ -186,17 +186,13 @@ and returns output state as continuation point."))
 
 
 (defun simple-element-equal (element other-obj)
-  (labels ((char-range-equal (elem other-obj)
-             (and (typep other-obj 'char-range)
-                  (eql (char-start elem) (char-start other-obj))
-                  (eql (char-end elem) (char-end other-obj))))
-           (single-char-equal (elem other-obj)
-             (and (typep other-obj 'character)
-                  (char= elem other-obj))))
-    (etypecase element
-      (character (single-char-equal element other-obj))
-      (char-range (char-range-equal element other-obj))
-      (symbol (eq element :any-char)))))
+  "Equality test for all three types of simple elements (character, char-range, symbol)."
+  (or (eq element other-obj)
+      (typecase element
+        (character (and (typep other-obj 'character)
+                        (char= element other-obj)))
+        (char-range (and (typep other-obj 'char-range)
+                         (char-range-equal element other-obj))))))
 
 
 (defun create-nfa-transition-association-collection (range-splitting-points)
