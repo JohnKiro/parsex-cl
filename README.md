@@ -1,41 +1,44 @@
 
 # Table of Contents
 
-1.  [Purpose of this Project](#orgd4aaf60)
-2.  [Status](#orge6f0c6f)
-3.  [Features](#org0467ea6)
-    1.  [Regex Format](#orgef75e25)
-    2.  [Supported Constructs](#org36c4596)
-4.  [Prerequisites](#orgd735430)
-5.  [Installation](#orgc80a244)
-6.  [Usage](#org5f4cc0f)
-    1.  [Unit Tests ](#org957c410)
-    2.  [Visualizing the GraphViz Dot Diagrams](#org9cc6233)
-7.  [TODO](#org0367e46)
-8.  [Author](#org892db74)
+1.  [Purpose of this Project](#orgdf52612)
+2.  [Status](#org2ed9efd)
+3.  [Features](#orgf80925f)
+    1.  [Regex Format](#org5563a4e)
+    2.  [Supported Constructs](#orgfba10bc)
+    3.  [Some Implementation Notes](#org2d7e8f1)
+        1.  [Backtracking](#orgb979d68)
+        2.  [Any Char Element](#org19ab7c0)
+4.  [Prerequisites](#orgfd433fc)
+5.  [Installation](#org1d1caeb)
+6.  [Usage](#orgcf55b26)
+    1.  [Unit Tests ](#orgd89db7f)
+    2.  [Visualizing the GraphViz Dot Diagrams](#orgfe6419f)
+7.  [TODO](#org8a23821)
+8.  [Author](#org60c9f5a)
 
 
 
-<a id="orgd4aaf60"></a>
+<a id="orgdf52612"></a>
 
 # Purpose of this Project
 
 I started this project as an exercise to practice Common Lisp. It is not meant by any means to compete with the well-established, feature-rich **[CL-PPCRE](https://github.com/edicl/cl-ppcre)**. However, as this one gets more mature, it could become a component of a bigger idea.
 
 
-<a id="orge6f0c6f"></a>
+<a id="org2ed9efd"></a>
 
 # Status
 
-While it's still at an early experimental condition, it is already capable to match strings against classical **regular expressions**, provided in the form of s-expressions. See section entitled "[Unit Tests](#orge6bd6cf)" for information about how to experiment with the regex matcher.
+While it's still at an early experimental condition, it is already capable of matching strings against classical **regular expressions**, that are provided in the form of **s-expressions**. See section entitled [Unit Tests](#orgea57309) for information about how to experiment with the regex matcher.
 
 
-<a id="org0467ea6"></a>
+<a id="orgf80925f"></a>
 
 # Features
 
 
-<a id="orgef75e25"></a>
+<a id="org5563a4e"></a>
 
 ## Regex Format
 
@@ -45,7 +48,7 @@ I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to d
 -   Ambiguity related to order of evalution is avoided, thanks to the parentheses.
 
 
-<a id="org36c4596"></a>
+<a id="orgfba10bc"></a>
 
 ## Supported Constructs
 
@@ -139,7 +142,44 @@ The following table describes the supported constructs. For brievity, I'm assumi
 Note in the previous table that **keyword symbols** are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp **reader**.
 
 
-<a id="orgd735430"></a>
+<a id="org2d7e8f1"></a>
+
+## Some Implementation Notes
+
+Here are some assorted implementation details, which need to be addressed by expanding them into architecture document, or that may need to be handled in the code (besides being documented):
+
+
+<a id="orgb979d68"></a>
+
+### Backtracking
+
+Backtracking in case of no match and in case of *candidate match* are both implemented in the input source. These features are transparent to the regex matching function itself. There are two benefits from this:
+
+1.  The contract between the matching function and the input handling is simple.
+2.  Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only.
+
+
+<a id="org19ab7c0"></a>
+
+### Any Char Element
+
+Currently the **:any-char** element (corresponding to the *DOT* element in Unix/Perl regular expressions) has the effective meaning of "any other char". For example, the regex below will not match the string `"AC"`.
+
+    (:or "AB"
+         (:seq :any-char #\C))
+
+Here is the current NFA generated for it:
+
+![img](images/any-char-or-nfa.svg)
+
+And here is the corresponding DFA:
+
+![img](images/any-char-or-dfa.svg)
+
+I'm not sure at this point which behavior should be expected. Maybe I would allow both, by controlling the DFA generation using flags, or better, have two separate symbols (e.g. `:dot`, `:any-other`).
+
+
+<a id="orgfd433fc"></a>
 
 # Prerequisites
 
@@ -148,7 +188,7 @@ Note in the previous table that **keyword symbols** are used to specify the cons
 -   Quicklisp
 
 
-<a id="orgc80a244"></a>
+<a id="org1d1caeb"></a>
 
 # Installation
 
@@ -183,14 +223,14 @@ The project components will be loaded sequentially, as indicated in the followin
 TODO: Enhance.
 
 
-<a id="org5f4cc0f"></a>
+<a id="orgcf55b26"></a>
 
 # Usage
 
 
-<a id="org957c410"></a>
+<a id="orgd89db7f"></a>
 
-## Unit Tests <a id="orge6bd6cf"></a>
+## Unit Tests <a id="orgea57309"></a>
 
 Running regex unit test cases selectively can be done by first changing into the regex unit tests package:
 
@@ -271,7 +311,7 @@ Here is a sample output for the execution of one of the test cases:
     }
 
 
-<a id="org9cc6233"></a>
+<a id="orgfe6419f"></a>
 
 ## Visualizing the GraphViz Dot Diagrams
 
@@ -279,7 +319,7 @@ In order to inspect the NFA or DFA visually, the **dot** utility provided with *
 
 **Note**: A Graphviz installation is required for this step.
 
-For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#orge6bd6cf)), the following commands can be used (assuming a Unix/Linux terminal):
+For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#orgea57309)), the following commands can be used (assuming a Unix/Linux terminal):
 
 -   Save the Dot output for the DFA into a text file:
 
@@ -321,7 +361,7 @@ For example, to visualize the DFA corresponding to the test case described in th
 ![img](./images/sample-dfa.svg "Sample DFA finite state machine diagram")
 
 
-<a id="org0367e46"></a>
+<a id="org8a23821"></a>
 
 # TODO
 
@@ -330,7 +370,7 @@ For example, to visualize the DFA corresponding to the test case described in th
 -   There are also some TODOs in the source code (to be added in this section).
 
 
-<a id="org892db74"></a>
+<a id="org60c9f5a"></a>
 
 # Author
 

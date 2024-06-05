@@ -6,7 +6,7 @@ I started this project as an exercise to practice Common Lisp. It is not meant b
 
 
 * Status
-While it's still at an early experimental condition, it is already capable to match strings against classical *regular expressions*, provided in the form of s-expressions. See section entitled "[[unit-tests][Unit Tests]]" for information about how to experiment with the regex matcher.
+While it's still at an early experimental condition, it is already capable of matching strings against classical *regular expressions*, that are provided in the form of *s-expressions*. See section entitled [[unit-tests][Unit Tests]] for information about how to experiment with the regex matcher.
 
 * Features
 
