@@ -111,7 +111,9 @@ and returns output state as continuation point."))
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
-   ;;prohibiting incosistency (introduce class hierarchy level)
+   ;;prohibiting incosistency (introduce class hierarchy level).
+   ;;However, terminus state is known when the state is constructed, so cannot determine its type
+   ;;beforehand. It's still possible to change CLOS class, but probably not worth the complexity.
    (terminus :initform nil :type (or null t) :accessor terminus)))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
@@ -122,7 +124,6 @@ and returns output state as continuation point."))
 ;;; defines a normal NFA transition upon matching of ELEMENT, to NEXT-STATE.
 ;;; TODO: for now, element type restricted to one of three types with character hardcoded.
 
-;;; NOTE: currently the any-char transitions are separated and not represented as nfa-transition.
 (defclass nfa-transition ()
   ((element :initarg :element :initform (error "element must be specified!")
             :type (or character char-range (eql :any-char)))
@@ -130,11 +131,12 @@ and returns output state as continuation point."))
                :type (or null nfa-state))))
 
 (defun add-nfa-normal-transition (orig-state element dest-state)
+  "Add NFA transition from ORIG-STATE, on ELEMENT (chararcter/char-range/any-char), to DEST-STATE."
   (let ((transition (make-instance 'nfa-transition :element element :next-state dest-state)))
     (push transition (normal-transitions orig-state))))
 
-;;; add auto transition to an NFA state
 (defun add-nfa-auto-transition (orig-state dest-state)
+  "Add NFA auto transition from ORIG-STATE to DEST-STATE."
   (push dest-state (auto-transitions orig-state)))
 
 ;;; NFA state defines a normal transition table (element --> next state), E-transitions (auto),
@@ -149,6 +151,8 @@ and returns output state as continuation point."))
 
 ;;; TODO: may change recursion into iteration.
 ;;; TODO: may change accumulation in list into a hashtable (for perf).
+;;; TODO: actually can combine previous todos by using fsm-traversal function instead (see
+;;; fsm-traversal package.
 ;;; NOTE: Since a single instance is created for each state, so address comparison
 ;;; (using EQ) is sufficient.
 ;;; NOTE: duplication is automatically handled by prepare-nfa-state-closure.
@@ -195,37 +199,6 @@ and returns output state as continuation point."))
                          (char-range-equal element other-obj))))))
 
 
-(defun create-nfa-transition-association-collection (range-splitting-points)
-  "Creates an environment and interface for NFA transition associations, which map simple
-elements (single char, char range, any-char) to set of destination NFA states (representing the
-state's closure). The interface provides two functions: one to add transition (includes splitting
-range into sub-ranges as needed, based on character splitting points), and another to create
-iterators on the transitions."
-  (let ((assoc-list nil))
-    (labels ((add-trans (element next-state)
-               (let* ((entry (assoc element assoc-list
-                                    :test #'simple-element-equal))
-                      (arr (or (cdr entry)
-                               (make-array 10 :adjustable t :fill-pointer 0))))
-                 (vector-push-extend next-state arr)
-                 (unless entry
-                   (push (cons element arr) assoc-list)))))
-      (let ((transition-adder
-              (lambda (transition)
-                (with-slots (element next-state) transition
-                  (typecase element
-                    (char-range (let ((split-ranges
-                                        (split-char-range element range-splitting-points)))
-                                  (dolist (r split-ranges)
-                                    (add-trans r next-state))))
-                    (t (add-trans element next-state))))))
-            (transition-iterator-factory (lambda ()
-                                           (let ((list-iter assoc-list))
-                                             (lambda ()
-                                               (pop list-iter))))))
-        (values transition-adder transition-iterator-factory)))))
-
-
 ;;; A DFA state contains the union of NFA states that form the DFA state, as well as an
 ;;; association of transitions (simple element --> next DFA state).
 (defclass dfa-state ()
@@ -238,7 +211,7 @@ iterators on the transitions."
                             :type (or null dfa-state))
    (candidate-terminal :initarg :candidate-terminal
                        :reader candidate-terminal
-                       :type (or (eql t) (eql nil))
+                       :type boolean
                        :initform nil)))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
@@ -300,7 +273,9 @@ found or newly created."
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))
   (if (eq simple-element :any-char)
-      (setf (transition-on-any-other origin-dfa-state) destination-dfa-state)
+      (if (transition-on-any-other origin-dfa-state)
+          (error "A transition on any other is already present!")
+          (setf (transition-on-any-other origin-dfa-state) destination-dfa-state))
       (if (lookup-dfa-transition simple-element origin-dfa-state)
           (error "Transition already present (BUG?):")
           (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state)))))
@@ -311,33 +286,54 @@ found or newly created."
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
 
+;;;TODO: REFACTOR
+(defun create-nfa-normalized-transition-table (nfa-state-closure-union)
+  "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
+each normalized element to corresponding set of destination NFA states (representing a destination
+state's closure). by normalized, we mean that range elements are split as needed, to remove any
+overlaps. Each element could be single char, char range, any-char, or any-other-char."
+  (let ((assoc-list nil)
+        (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
+    (labels ((add-trans (element next-state)
+               (let* ((entry (assoc element assoc-list :test #'simple-element-equal))
+                      (arr (or (cdr entry)
+                               (make-array 10 :adjustable t :fill-pointer 0))))
+                 (vector-push-extend next-state arr)
+                 (unless entry
+                   (push (cons element arr) assoc-list)))))
+      (dolist (nfa-state nfa-state-closure-union assoc-list)
+        ;; transition on "any char" are covered here
+        (dolist (trans (normal-transitions nfa-state))
+          (with-slots (element next-state) trans
+            (typecase element
+              (char-range (let ((split-ranges (split-char-range element splitting-points)))
+                            (dolist (r split-ranges)
+                              (add-trans r next-state))))
+              (t (add-trans element next-state)))))))))
+
+(defun create-nfa-normalized-transition-table-iterator (nfa-state-closure-union)
+  (let ((table (create-nfa-normalized-transition-table nfa-state-closure-union)))
+    (lambda ()
+      (pop table))))
+
 ;;; Note that we cannot pass the state union instead of closure union, and this is
-;;; is because the same closure union could result from two different state unions,
+;;; because the same closure union could result from two different state unions,
 ;;; and we need to lookup the same entry for both, in such case.
 (defun produce-dfa-rec (nfa-state-closure-union traversed-dfa-states)
   (multiple-value-bind (dfa-state found-or-new) (find-dfa-state nfa-state-closure-union
                                                                 traversed-dfa-states)
     (if (eq found-or-new 'already-found)
         dfa-state
-        (let ((splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
-          (multiple-value-bind (trans-adder-fn trans-iterator-factory-fn)
-              (create-nfa-transition-association-collection splitting-points)
-            (dolist (nfa-state nfa-state-closure-union)
-              ;;; TODO: may consider handling "trans on any char here", but current solution makes
-              ;;; code simpler (though could be slightly less performant due to extra check in
-              ;;; each transition below.
-              (dolist (trans (normal-transitions nfa-state))
-                (funcall trans-adder-fn trans)))
-            ;;replace each entry value with union of state closures (in place of union of states)
-            (loop with iterator-fn = (funcall trans-iterator-factory-fn)
-                  for trans = (funcall iterator-fn)
-                  while trans
-                  for (element . dest-state-union) = trans
-                  for dest-closure-union = (prepare-nfa-state-closure-union dest-state-union)
-                  for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
-                  do (add-dfa-transition dfa-state element dest-dfa)))
+        (let ((nfa-normalized-transition-table-iterator-fn
+                (create-nfa-normalized-transition-table-iterator nfa-state-closure-union)))
+          ;;replace each entry value with union of state closures (in place of union of states)
+          (loop for trans = (funcall nfa-normalized-transition-table-iterator-fn)
+                while trans
+                for (element . dest-state-union) = trans
+                for dest-closure-union = (prepare-nfa-state-closure-union dest-state-union)
+                for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
+                do (add-dfa-transition dfa-state element dest-dfa))
           dfa-state))))
-
 
 ;;; Note: currently returning only destination DFA state, may find later that I need
 ;;; the match criterion as well (i.e. not extracting the CDR part).
