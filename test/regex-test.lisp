@@ -17,9 +17,9 @@
                   #\x
                   #\y
                   #\z))
-         (root-state (parsex-cl.regex-nfa:parse-and-produce-nfa regex))
-         (root-closure (parsex-cl.regex-nfa::prepare-nfa-state-closure-union (list root-state)))
-         (splitting-points (parsex-cl.regex-nfa::collect-char-range-splitting-points root-closure)))
+         (root-state (nfa:parse-and-produce-nfa regex))
+         (root-closure (nfa::prepare-nfa-state-closure-union (list root-state)))
+         (splitting-points (nfa::collect-char-range-splitting-points root-closure)))
     (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
     (is (equal splitting-points '(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z)))))
 
@@ -31,12 +31,12 @@
                                   (generate-dfa-dotgraphviz t))
   "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
 regex (REGEX)."
-  (let* ((input-source (make-instance 'basic-regex-input  :initial-input-text input-string))
-         (nfa (parsex-cl.regex-nfa:parse-and-produce-nfa regex))
+  (let* ((input-source (make-instance 'input:basic-regex-input  :initial-input-text input-string))
+         (nfa (nfa:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa))
          (result (match-regex input-source dfa))
          (matching-status (regex-matching-result-status result))
-         (updated-acc (retrieve-last-accumulated-value input-source)))
+         (updated-acc (input:retrieve-last-accumulated-value input-source)))
     (format t "~%Matching the text ~s against the regex ~a..~%" input-string regex)
     (format t "~%Updated accumulator is ~a~%" updated-acc)
     (when generate-nfa-dotgraphviz
@@ -58,8 +58,8 @@ regex (REGEX)."
 single REGEX, and tests the result of each matching operation. The indication for the loop to stop
 is when input is empty. The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list having each
 element in the form (matching-status accumulator-value consumed-value)."
-  (let* ((input-source (make-instance 'basic-regex-input :initial-input-text input-string))
-         (nfa (parsex-cl.regex-nfa:parse-and-produce-nfa regex))
+  (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input-string))
+         (nfa (nfa:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa)))
     (when generate-nfa-dotgraphviz
       (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
@@ -67,19 +67,21 @@ element in the form (matching-status accumulator-value consumed-value)."
       (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot dfa)))
     (loop for result = (match-regex input-source dfa)
           for matching-status = (regex-matching-result-status result)
-          for updated-acc = (retrieve-last-accumulated-value input-source)
-          for consumed = (retrieve-last-consumed-value input-source)
+          for updated-acc = (input:retrieve-last-accumulated-value input-source)
+          for consumed = (input:retrieve-last-consumed-value input-source)
           for (exp-matching-status exp-acc exp-consumed) in expected-matching-result-details
-          do (format t "~%Input empty? (~a)~%" (source-empty-p input-source))
+          do (format t "~%Input empty? (~a)~%" (input:source-empty-p input-source))
           do (is (equal matching-status exp-matching-status))
           do (is (equal updated-acc exp-acc))
           do (is (equal consumed exp-consumed))
-          until (source-empty-p input-source)
+          until (input:source-empty-p input-source)
           ;; note that the placement of these clauses after the UNTIL clause is important!
           when report-remaining-input-length
-            do (format t "~%Remaining characters in input: ~a~%" (remaining-length input-source))
+            do (format t "~%Remaining characters in input: ~a~%"
+                       (input:remaining-length input-source))
           when report-upcoming-char
-            do (format t "~%Upcoming character in input: ~a~%" (read-next-item input-source)))))
+            do (format t "~%Upcoming character in input: ~a~%"
+                       (input:read-next-item input-source)))))
 
 (defmacro define-regex-matching-test (test-name
                                       &key
@@ -323,7 +325,7 @@ So regex matches, char is consumed, but not accumulated."
                         "A problem is resolved."
                         "The problem is solved?")
         for input in inputs
-        for input-source = (make-instance 'basic-regex-input :initial-input-text input)
+        for input-source = (make-instance 'input:basic-regex-input :initial-input-text input)
         do (is (equal input
                       (reduce #'(lambda (x y) (concatenate 'string x y))
                               (loop for regex in (list '(:+ (:or
@@ -341,7 +343,8 @@ So regex matches, char is consumed, but not accumulated."
                                     for dfa = (parse-and-produce-dfa regex)
                                     for result = (match-regex input-source dfa)
                                     for matching-status = (regex-matching-result-status result)
-                                    for updated-acc = (retrieve-last-accumulated-value input-source)
+                                    for updated-acc = (input:retrieve-last-accumulated-value
+                                                       input-source)
                                     do (format t "~%Updated accumulator is ~a~%" updated-acc)
                                        (is (eq matching-status :regex-matched))
                                     collect updated-acc))))))

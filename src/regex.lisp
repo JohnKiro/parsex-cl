@@ -62,7 +62,7 @@ that it will also be a candidate terminal."
   "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
 when any of the NFA states in the closure is the terminus state produced by the NFA."
   (dolist (s nfa-states nil)
-    (when (terminus s)
+    (when (nfa:terminus s)
       (return t))))
 
 (defun find-dfa-state (nfa-states traversed-dfa-states)
@@ -87,7 +87,7 @@ found or newly created."
 (defun lookup-dfa-transition (simple-element origin-dfa-state)
   "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE."
   (declare (dfa-state origin-dfa-state))
-  (assoc simple-element (slot-value origin-dfa-state 'transitions) :test #'simple-element-equal))
+  (assoc simple-element (slot-value origin-dfa-state 'transitions) :test #'nfa:simple-element-equal))
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))
@@ -100,7 +100,7 @@ found or newly created."
           (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state)))))
 
 (defun produce-dfa (nfa-root-state)
-  (let ((nfa-root-state-closure (prepare-nfa-state-closure-union (list nfa-root-state)))
+  (let ((nfa-root-state-closure (nfa:prepare-nfa-state-closure-union (list nfa-root-state)))
         (dfa-state-set (create-dfa-state-set)))
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
@@ -114,12 +114,12 @@ found or newly created."
     (if (eq found-or-new 'already-found)
         dfa-state
         (let ((nfa-normalized-transition-table-iterator-fn
-                (create-nfa-normalized-transition-table-iterator nfa-state-closure-union)))
+                (nfa:create-nfa-normalized-transition-table-iterator nfa-state-closure-union)))
           ;;replace each entry value with union of state closures (in place of union of states)
           (loop for trans = (funcall nfa-normalized-transition-table-iterator-fn)
                 while trans
                 for (element . dest-state-union) = trans
-                for dest-closure-union = (prepare-nfa-state-closure-union dest-state-union)
+                for dest-closure-union = (nfa:prepare-nfa-state-closure-union dest-state-union)
                 for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
                 do (add-dfa-transition dfa-state element dest-dfa))
           dfa-state))))
@@ -133,8 +133,8 @@ Returns destination DFA state."
                   :test (lambda (ch elem)
                           (etypecase elem
                             (character (char= ch elem))
-                            (char-range (and (char>= ch (char-start elem))
-                                             (char<= ch (char-end elem))))))))
+                            (chars:char-range (and (char>= ch (chars:char-start elem))
+                                             (char<= ch (chars:char-end elem))))))))
       (transition-on-any-other origin-dfa-state)))
 
 (defstruct regex-matching-result
@@ -145,25 +145,25 @@ Returns destination DFA state."
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   (labels ((prepare-result (status)
              ;;putting this here since we need to call it when scanning is terminated
-             (notify-match-termination input-source)
+             (input:notify-match-termination input-source)
              (make-regex-matching-result :status status))
            (transit (origin-dfa-state)
              (when (candidate-terminal origin-dfa-state)
                (setf last-candidate-terminal-dfa origin-dfa-state)
-               (register-candidate-matching-point input-source))
+               (input:register-candidate-matching-point input-source))
              (if (dfa-state-definitely-terminal-p origin-dfa-state)
                  ;; I'm not checking whether input is empty or not here (e.g. to determine if the
                  ;; match is exact or not. Leaving this up to the caller.
                  (prepare-result :regex-matched)
-                 (if (source-empty-p input-source)
+                 (if (input:source-empty-p input-source)
                      (prepare-result (if last-candidate-terminal-dfa
                                          :regex-matched
                                          :regex-not-matched))
-                     (let* ((next-ch (read-next-item input-source))
+                     (let* ((next-ch (input:read-next-item input-source))
                             (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
                        (if dest-dfa-state
                            (progn
-                             (advance-reading-position input-source)
+                             (input:advance-reading-position input-source)
                              (transit dest-dfa-state))
                            (prepare-result (if last-candidate-terminal-dfa
                                                :regex-matched
@@ -174,5 +174,5 @@ Returns destination DFA state."
 
 ;;; Public interface function (regex --> DFA root state)
 (defun parse-and-produce-dfa (regex)
-  (let ((root-nfa-state (parse-and-produce-nfa regex)))
+  (let ((root-nfa-state (nfa:parse-and-produce-nfa regex)))
     (produce-dfa root-nfa-state)))

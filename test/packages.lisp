@@ -19,9 +19,8 @@
   (:use #:cl
         #:fiveam
         #:parsex-cl.test ;package containing root test suite
-        #:parsex-cl.regex-nfa
         #:parsex-cl.regex
-        #:parsex-cl.chars
-        #:parsex-cl.regex.input
         #:parsex-cl.graphviz-util
-        ))
+        )
+  (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
+                    (:input #:parsex-cl.regex.input)))

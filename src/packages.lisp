@@ -101,8 +101,10 @@
            ))
 
 (defpackage :parsex-cl.regex
-  (:use #:cl #:iterate #:parsex-cl.chars :parsex-cl.regex.input
-        #:parsex-cl.regex-nfa)
+  (:use #:cl #:iterate)
+  (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
+                    (:chars #:parsex-cl.chars)
+                    (:input #:parsex-cl.regex.input))
   (:export #:produce-dfa
            #:dfa-state
            #:parse-and-produce-dfa ;wrapper that simplifies the above
