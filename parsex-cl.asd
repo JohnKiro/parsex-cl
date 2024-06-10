@@ -23,6 +23,9 @@
                 :components
                 ((:file "packages")
                  (:file "parsex-cl")
+                 (:file "regex-input")
+                 (:file "chars")
+                 (:file "regex-nfa")
                  (:file "regex")
                  (:file "fsm-traversal")
                  (:file "tokenizer-states")

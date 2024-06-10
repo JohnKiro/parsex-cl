@@ -17,9 +17,9 @@
                   #\x
                   #\y
                   #\z))
-         (root-state (parsex-cl.regex::parse-and-produce-nfa regex))
-         (root-closure (parsex-cl.regex::prepare-nfa-state-closure nil root-state))
-         (splitting-points (parsex-cl.regex::collect-char-range-splitting-points root-closure)))
+         (root-state (parsex-cl.regex-nfa:parse-and-produce-nfa regex))
+         (root-closure (parsex-cl.regex-nfa::prepare-nfa-state-closure-union (list root-state)))
+         (splitting-points (parsex-cl.regex-nfa::collect-char-range-splitting-points root-closure)))
     (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
     (is (equal splitting-points '(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z)))))
 
@@ -32,7 +32,7 @@
   "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
 regex (REGEX)."
   (let* ((input-source (make-instance 'basic-regex-input  :initial-input-text input-string))
-         (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
+         (nfa (parsex-cl.regex-nfa:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa))
          (result (match-regex input-source dfa))
          (matching-status (regex-matching-result-status result))
@@ -59,7 +59,7 @@ single REGEX, and tests the result of each matching operation. The indication fo
 is when input is empty. The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list having each
 element in the form (matching-status accumulator-value consumed-value)."
   (let* ((input-source (make-instance 'basic-regex-input :initial-input-text input-string))
-         (nfa (parsex-cl.regex:parse-and-produce-nfa regex))
+         (nfa (parsex-cl.regex-nfa:parse-and-produce-nfa regex))
          (dfa (parsex-cl.regex:produce-dfa nfa)))
     (when generate-nfa-dotgraphviz
       (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))

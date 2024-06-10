@@ -19,6 +19,7 @@
   (:use #:cl
         #:fiveam
         #:parsex-cl.test ;package containing root test suite
+        #:parsex-cl.regex-nfa
         #:parsex-cl.regex
         #:parsex-cl.chars
         #:parsex-cl.regex.input
