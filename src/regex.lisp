@@ -75,6 +75,7 @@ found or newly created."
     (if dfa-state
         (values dfa-state 'already-found)
         (let* ((terminal-or-not (terminal-nfa-closure-union-p nfa-states))
+               ;; TODO: refactor: move creation to a separate "create-dfa-state" function
                (new-dfa-state (make-instance 'dfa-state
                                              :nfa-states nfa-states
                                              :candidate-terminal (if terminal-or-not
@@ -138,7 +139,7 @@ Returns destination DFA state."
       (transition-on-any-other origin-dfa-state)))
 
 (defstruct regex-matching-result
-  (status nil :type (or (eql :regex-matched) (eql :regex-not-matched)))
+  (status nil :type (or (eql :regex-matched) (eql :regex-not-matched) nil))
   (token :tokens-not-implemented-yet))
 
 
