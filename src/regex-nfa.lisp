@@ -95,8 +95,9 @@ and returns output state as continuation point."))
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting incosistency (introduce class hierarchy level).
-   ;;However, terminus state is known when the state is constructed, so cannot determine its type
-   ;;beforehand. It's still possible to change CLOS class, but probably not worth the complexity.
+   ;;However, terminus state is not known when the state is constructed, so cannot determine its
+   ;;type beforehand. It's still possible to change CLOS class, but probably not worth the
+   ;;complexity.
    (terminus :initform nil :type (or null t) :accessor terminus)))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)

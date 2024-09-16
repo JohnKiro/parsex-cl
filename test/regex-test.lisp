@@ -298,8 +298,8 @@ just after the #\A."
 So regex matches, char is consumed, but not accumulated."
   :regex (:* #\X)
   :input-text "XXXXXABC"
-  ;;TODO: note that due to the *, the A matches, but input position does not advance (we're stuck!)
-  ;;probably need to advance in case nothing gets consumed.
+  ;;TODO was handled (we consume on no-match) - to be revised later, maybe we need to make advancing
+  ;;optional?
   :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
                                      (:regex-matched nil "A")
                                      (:regex-matched nil "B")
