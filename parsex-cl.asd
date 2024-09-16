@@ -44,7 +44,8 @@
                 ((:file "packages")
                  (:file "test")
                  (:file "tokenizer-test")
-                 (:file "regex-test"))))
+                 (:file "regex-test")
+                 (:file "chars-test"))))
 
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
   :long-description

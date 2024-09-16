@@ -24,3 +24,9 @@
         )
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
                     (:input #:parsex-cl.regex.input)))
+
+(defpackage :parsex-cl.chars.test
+  (:use #:cl
+        #:fiveam
+        #:parsex-cl.test)
+  (:local-nicknames (:chars #:parsex-cl.chars)))

@@ -65,6 +65,7 @@
   (:export #:char-range
            #:char-start
            #:char-end
+           #:make-char-range
            #:char-range-equal
            #:inc-char
            #:dec-char

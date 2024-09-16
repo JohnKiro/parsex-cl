@@ -34,6 +34,11 @@
   (and (char= (char-start chr1) (char-start chr2))
        (char= (char-end chr1) (char-end chr2))))
 
+(defun make-char-range (start end)
+  "Utility function to simplify char-range construction."
+  (make-instance 'char-range :char-start start :char-end end))
+
+;;; TODO: unit test
 ;;; TODO: simplify?
 (defun insert-char-in-order (char chars)
   "Destructively insert character CHAR in a sorted list CHARS, maintaining ascending order. Since
@@ -61,28 +66,23 @@ for list-destructive operations)."
   "Split a char range CHAR-RANGE into a number of ranges based on SPLITTING-POINTS (list of
 characters).
 Preconditions: end >= start, splitting points must be a sorted list."
-  (with-slots ((start char-start) (end char-end)) char-range
-    (labels
-        ((split-range-recurse (next-start splitting-points acc)
-           (cond
-             ((char> next-start end) acc) ;happens only if start and end are mixed up
-             ((null splitting-points) (cons (make-instance 'char-range
-                                                           :char-start next-start
-                                                           :char-end end) acc))
-             (t (let ((next-splitting-pt (car splitting-points))
-                      (subsequent-splitting-pts (cdr splitting-points)))
-                  (cond
-                    ((char>= next-splitting-pt end) (cons (make-instance 'char-range
-                                                                         :char-start next-start
-                                                                         :char-end end) acc))
-                    ((char>= next-splitting-pt next-start) (split-range-recurse
-                                                            (inc-char next-splitting-pt)
-                                                            subsequent-splitting-pts
-                                                            (cons
-                                                             (make-instance
-                                                              'char-range
-                                                              :char-start next-start
-                                                              :char-end next-splitting-pt)
-                                                             acc)))
-                    (t (split-range-recurse next-start subsequent-splitting-pts acc))))))))
-      (split-range-recurse start splitting-points nil))))
+  (let ((slider (char-start char-range))
+        (end (char-end char-range))
+        (acc nil))
+    (dolist (p splitting-points)
+      ;; skip splitting points < slider (effective at start, till splitting points start to
+      ;; overlap with the range at hand, noting that splitting points are assumed sorted).
+      ;; However, since we're doing this check for all splitting points, those that are not in
+      ;; order will be skipped. Alternatively, I may have separate loop to skip points < start.
+      (when (char>= p slider)
+        (if (char< p end)
+            (progn
+              (push (make-instance 'char-range :char-start slider :char-end p) acc)
+              (setf slider (inc-char p)))
+            (progn
+              ;; add last range
+              (push (make-instance 'char-range :char-start slider :char-end end) acc)
+              ;; break loop (since any remaining splitting points will be beyond range
+              (return)))))
+    ;; return accumulator, containing all sub-ranges
+    acc))
