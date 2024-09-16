@@ -87,7 +87,8 @@
            ))
 
 (defpackage :parsex-cl.regex-nfa
-  (:use #:cl #:iterate #:parsex-cl.chars)
+  (:use #:cl #:iterate)
+  (:local-nicknames (:chars :parsex-cl.chars))
   (:export #:nfa-state
            #:normal-transitions
            #:auto-transitions

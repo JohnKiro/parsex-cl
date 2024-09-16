@@ -177,11 +177,12 @@ the following special elements are defined: :any-char, :any-other-char)"
           (let ((element (slot-value trans 'element)))
             (typecase element
               (character
-               (setf result (insert-char-in-order (dec-char element) result))
-               (setf result (insert-char-in-order element result)))
-              (char-range
-               (setf result (insert-char-in-order (dec-char (char-start element)) result))
-               (setf result (insert-char-in-order (char-end element) result))))))))))
+               (setf result (chars:insert-char-in-order (chars:dec-char element) result))
+               (setf result (chars:insert-char-in-order element result)))
+              (chars:char-range
+               (setf result (chars:insert-char-in-order (chars:dec-char (chars:char-start element))
+                                                        result))
+               (setf result (chars:insert-char-in-order (chars:char-end element) result))))))))))
 
 (defun simple-element-equal (element other-obj)
   "Equality test for all three types of simple elements (character, char-range, symbol)."
@@ -189,8 +190,8 @@ the following special elements are defined: :any-char, :any-other-char)"
       (typecase element
         (character (and (typep other-obj 'character)
                         (char= element other-obj)))
-        (char-range (and (typep other-obj 'char-range)
-                         (char-range-equal element other-obj))))))
+        (chars:char-range (and (typep other-obj 'chars:char-range)
+                         (chars:char-range-equal element other-obj))))))
 
 ;;;TODO: REFACTOR
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)
@@ -212,7 +213,8 @@ overlaps. Each element could be single char, char range, any-char, or any-other-
         (dolist (trans (normal-transitions nfa-state))
           (with-slots (element next-state) trans
             (typecase element
-              (char-range (let ((split-ranges (split-char-range element splitting-points)))
+              (chars:char-range (let ((split-ranges (chars:split-char-range element
+                                                                            splitting-points)))
                             (dolist (r split-ranges)
                               (add-trans r next-state))))
               (t (add-trans element next-state)))))))))
