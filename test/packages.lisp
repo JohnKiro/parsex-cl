@@ -29,4 +29,5 @@
   (:use #:cl
         #:fiveam
         #:parsex-cl.test)
-  (:local-nicknames (:chars #:parsex-cl.chars)))
+  (:local-nicknames (:chars #:parsex-cl.chars)
+                    (:nfa #:parsex-cl.regex-nfa)))

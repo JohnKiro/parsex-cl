@@ -35,7 +35,7 @@ and returns output state as continuation point."))
   (let* ((output-state (make-instance 'nfa-state)))
     (destructuring-bind (char-start char-end) regex-tail
       (add-nfa-normal-transition input-nfa-state
-                                 (make-instance 'char-range
+                                 (make-instance 'chars:char-range
                                                 :char-start char-start
                                                 :char-end char-end) output-state)
       output-state)))
