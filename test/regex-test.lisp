@@ -7,7 +7,7 @@
 (in-suite :parsex-cl.regex.test-suite)
 
 (setf fiveam:*on-failure* nil)
-(setf fiveam:*on-error* nil)
+(setf fiveam:*on-error* :debug)
 
 (test char-splitting-test
   (let* ((regex '(:or
