@@ -111,7 +111,7 @@ and returns output state as continuation point."))
 (defclass nfa-transition ()
   ((element :initarg :element
             :initform (error "element must be specified!")
-            :type (or character char-range (eql :any-char))
+            :type (or character chars:char-range (eql :any-char))
             :reader element)
    (next-state :initarg :next-state
                :initform (error "next-state must be specified!")
