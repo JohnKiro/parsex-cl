@@ -215,8 +215,8 @@ overlaps. Each element could be single char, char range, any-char, or any-other-
             (typecase element
               (chars:char-range (let ((split-ranges (chars:split-char-range element
                                                                             splitting-points)))
-                            (dolist (r split-ranges)
-                              (add-trans r next-state))))
+                                  (dolist (r split-ranges)
+                                    (add-trans r next-state))))
               (t (add-trans element next-state)))))))))
 
 (defun create-nfa-normalized-transition-table-iterator (nfa-state-closure-union)
