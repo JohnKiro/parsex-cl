@@ -41,9 +41,10 @@
 ;;; TODO: unit test
 ;;; TODO: simplify?
 (defun insert-char-in-order (char chars)
-  "Destructively insert character CHAR in a sorted list CHARS, maintaining ascending order. Since
-CHAR might be inserted ahead of CHARS, the returned pointer must be saved (as is usually the case
-for list-destructive operations)."
+  "Destructively insert character CHAR in a sorted list CHARS, maintaining ascending order, and also
+while ignoring any duplicates.
+Note: since CHAR might be inserted ahead of CHARS, the returned pointer must be saved (as is usually
+the case for list-destructive operations)."
   (labels ((insert-it-recurse (previous-pointer)
              ;;NOTE: returned value actually not used
              (let ((current-pointer (cdr previous-pointer)))
