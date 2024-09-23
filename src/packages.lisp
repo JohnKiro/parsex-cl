@@ -69,7 +69,7 @@
            #:char-range-equal
            #:inc-char
            #:dec-char
-           #:insert-char-in-order
+           #:insert-chars-in-order
            #:split-char-range
            ))
 

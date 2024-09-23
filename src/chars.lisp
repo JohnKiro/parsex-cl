@@ -62,6 +62,23 @@ the case for list-destructive operations)."
       ((char= char (car chars)) chars)
       (t (insert-it-recurse chars) chars))))
 
+(defun insert-char-range-in-order (ch-start ch-end chars)
+  "Utility (private) function to insert the boundaries of a char range into the sorted list of
+range splitting points, being built."
+  (setf chars (insert-char-in-order (dec-char ch-start) chars))
+  (insert-char-in-order ch-end chars))
+
+(defun insert-chars-in-order (element chars)
+  "Inserts the boundaries of ELEMENT into CHARS in order, by calling INSERT-CHAR-IN-ORDER for the
+two boundary chars. The boundaries are computed differently, depending on the
+ELEMENT'S type (single char or char-range); a single char is handled as a range, with the start and
+end having the same value.
+Note that for :ANY-CHAR, no chars are added (since it extends over the whole character space (i.e.
+whole code points)."
+  (typecase element
+    (character (insert-char-range-in-order element element chars))
+    (char-range (insert-char-range-in-order (char-start element) (char-end element) chars))))
+
 ;;; TODO: may use other data structures later.
 (defun split-char-range (char-range splitting-points)
   "Split a char range CHAR-RANGE into a number of ranges based on SPLITTING-POINTS (list of

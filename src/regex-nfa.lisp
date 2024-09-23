@@ -169,20 +169,15 @@ the following special elements are defined: :any-char, :any-other-char)"
 ;;; Prepare ordered list of characters, defining the range splitting points.
 ;;; Input: List of NFA states, typically representing a union of state closures
 ;;; (on the transition originating side).
+;;; TODO: may change data structure into a vector, but a list is handy since we're growing it
+;;; element by element (so not expecting difference in efficiency).
 (defun collect-char-range-splitting-points (nfa-states)
   (let ((result nil))
     (dolist (nfa-state nfa-states result)
       (let ((normal-transitions (normal-transitions nfa-state)))
         (dolist (trans normal-transitions)
           (let ((element (slot-value trans 'element)))
-            (typecase element
-              (character
-               (setf result (chars:insert-char-in-order (chars:dec-char element) result))
-               (setf result (chars:insert-char-in-order element result)))
-              (chars:char-range
-               (setf result (chars:insert-char-in-order (chars:dec-char (chars:char-start element))
-                                                        result))
-               (setf result (chars:insert-char-in-order (chars:char-end element) result))))))))))
+            (setf result (chars:insert-chars-in-order element result))))))))
 
 (defun simple-element-equal (element other-obj)
   "Equality test for all three types of simple elements (character, char-range, symbol)."
