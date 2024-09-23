@@ -191,7 +191,7 @@ the following special elements are defined: :any-char, :any-other-char)"
         (character (and (typep other-obj 'character)
                         (char= element other-obj)))
         (chars:char-range (and (typep other-obj 'chars:char-range)
-                         (chars:char-range-equal element other-obj))))))
+                               (chars:char-range-equal element other-obj))))))
 
 ;;;TODO: REFACTOR
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)
