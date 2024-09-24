@@ -88,7 +88,8 @@ found or newly created."
 (defun lookup-dfa-transition (simple-element origin-dfa-state)
   "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE."
   (declare (dfa-state origin-dfa-state))
-  (assoc simple-element (slot-value origin-dfa-state 'transitions) :test #'nfa:simple-element-equal))
+  (assoc simple-element (slot-value origin-dfa-state 'transitions)
+         :test #'chars:simple-element-equal))
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))

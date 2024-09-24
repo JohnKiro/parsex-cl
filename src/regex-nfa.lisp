@@ -111,7 +111,7 @@ and returns output state as continuation point."))
 (defclass nfa-transition ()
   ((element :initarg :element
             :initform (error "element must be specified!")
-            :type (or character chars:char-range (eql :any-char))
+            :type (chars:simple-element)
             :reader element)
    (next-state :initarg :next-state
                :initform (error "next-state must be specified!")
@@ -179,15 +179,6 @@ the following special elements are defined: :any-char, :any-other-char)"
           (let ((element (slot-value trans 'element)))
             (setf result (chars:insert-chars-in-order element result))))))))
 
-(defun simple-element-equal (element other-obj)
-  "Equality test for all three types of simple elements (character, char-range, symbol)."
-  (or (eq element other-obj)
-      (typecase element
-        (character (and (typep other-obj 'character)
-                        (char= element other-obj)))
-        (chars:char-range (and (typep other-obj 'chars:char-range)
-                               (chars:char-range-equal element other-obj))))))
-
 ;;;TODO: REFACTOR
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
@@ -197,7 +188,7 @@ overlaps. Each element could be single char, char range, any-char, or any-other-
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
-               (let* ((entry (assoc element assoc-list :test #'simple-element-equal))
+               (let* ((entry (assoc element assoc-list :test #'chars:simple-element-equal))
                       (arr (or (cdr entry)
                                (make-array 10 :adjustable t :fill-pointer 0))))
                  (vector-push-extend next-state arr)

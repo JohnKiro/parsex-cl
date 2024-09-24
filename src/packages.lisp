@@ -71,6 +71,8 @@
            #:dec-char
            #:insert-chars-in-order
            #:split-char-range
+           #:simple-element
+           #:simple-element-equal
            ))
 
 (defpackage :parsex-cl.regex.input

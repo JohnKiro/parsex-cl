@@ -2,6 +2,8 @@
 
 ;;;; Utility functions and classes for character handling
 
+(deftype simple-element () '(or character char-range (eql :any-char)))
+
 (defun inc-char (ch)
   "Increment character CH, i.e. find the following one."
   (code-char (1+ (char-code ch))))
@@ -33,6 +35,15 @@
 (defun char-range-equal (chr1 chr2)
   (and (char= (char-start chr1) (char-start chr2))
        (char= (char-end chr1) (char-end chr2))))
+
+(defun simple-element-equal (element other-obj)
+  "Equality test for all three types of simple elements (character, char-range, symbol)."
+  (or (eq element other-obj)
+      (typecase element
+        (character (and (typep other-obj 'character)
+                        (char= element other-obj)))
+        (char-range (and (typep other-obj 'char-range)
+                               (char-range-equal element other-obj))))))
 
 (defun make-char-range (start end)
   "Utility function to simplify char-range construction."
