@@ -69,7 +69,6 @@
            #:char-range-equal
            #:inc-char
            #:dec-char
-           #:insert-chars-in-order
            #:split-char-range
            #:simple-element
            #:simple-element-equal

@@ -166,18 +166,20 @@ the following special elements are defined: :any-char, :any-other-char)"
     (reduce #'prepare-nfa-state-closure states :initial-value nil)))
 
 
-;;; Prepare ordered list of characters, defining the range splitting points.
-;;; Input: List of NFA states, typically representing a union of state closures
-;;; (on the transition originating side).
-;;; TODO: may change data structure into a vector, but a list is handy since we're growing it
-;;; element by element (so not expecting difference in efficiency).
 (defun collect-char-range-splitting-points (nfa-states)
-  (let ((result nil))
-    (dolist (nfa-state nfa-states result)
-      (let ((normal-transitions (normal-transitions nfa-state)))
-        (dolist (trans normal-transitions)
-          (let ((element (slot-value trans 'element)))
-            (setf result (chars:insert-chars-in-order element result))))))))
+  (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
+    (labels ((append-bounds (char-left char-right)
+               (vector-push-extend (chars:dec-char char-left) result)
+               (vector-push-extend char-right result)))
+      (dolist (nfa-state nfa-states result)
+        (let ((normal-transitions (normal-transitions nfa-state)))
+          (dolist (trans normal-transitions)
+            (let ((element (slot-value trans 'element)))
+              (typecase element
+                (character (append-bounds element element))
+                (chars:char-range (append-bounds (chars:char-start element)
+                                                 (chars:char-end element))))))))
+      (sort (remove-duplicates result :test #'char=) #'char<))))
 
 ;;;TODO: REFACTOR
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)

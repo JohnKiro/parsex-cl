@@ -21,7 +21,7 @@
 
 (test char-range-splitting-test1
   "Test character splitting, including splitting points at boundaries."
-  (let* ((splitting-points '(#\a #\b #\e #\f #\p #\w))
+  (let* ((splitting-points #(#\a #\b #\e #\f #\p #\w))
          (range (make-instance 'chars:char-range :char-start #\b :char-end #\f))
          (expected-ranges (prepare-char-ranges-from-list '((#\b . #\b)
                                                            (#\c . #\e)
@@ -41,7 +41,7 @@
          (root-closure (nfa::prepare-nfa-state-closure-union (list root-state)))
          (splitting-points (nfa::collect-char-range-splitting-points root-closure)))
     (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
-    (is (equal splitting-points '(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z)))))
+    (is (equal splitting-points (coerce #(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z) 'string)))))
 
 (defmacro define-regex-matching-test (test-name
                                       &key
