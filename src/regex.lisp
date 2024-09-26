@@ -115,12 +115,10 @@ found or newly created."
                                                                 traversed-dfa-states)
     (if (eq found-or-new 'already-found)
         dfa-state
-        (let ((nfa-normalized-transition-table-iterator-fn
-                (nfa:create-nfa-normalized-transition-table-iterator nfa-state-closure-union)))
+        (let ((nfa-normalized-transition-table
+                (nfa:create-nfa-normalized-transition-table nfa-state-closure-union)))
           ;;replace each entry value with union of state closures (in place of union of states)
-          (loop for trans = (funcall nfa-normalized-transition-table-iterator-fn)
-                while trans
-                for (element . dest-state-union) = trans
+          (loop for (element . dest-state-union) in nfa-normalized-transition-table
                 for dest-closure-union = (nfa:prepare-nfa-state-closure-union dest-state-union)
                 for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
                 do (add-dfa-transition dfa-state element dest-dfa))

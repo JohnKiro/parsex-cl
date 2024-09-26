@@ -206,8 +206,3 @@ overlaps. Each element could be single char, char range, any-char, or any-other-
                                   (dolist (r split-ranges)
                                     (add-trans r next-state))))
               (t (add-trans element next-state)))))))))
-
-(defun create-nfa-normalized-transition-table-iterator (nfa-state-closure-union)
-  (let ((table (create-nfa-normalized-transition-table nfa-state-closure-union)))
-    (lambda ()
-      (pop table))))

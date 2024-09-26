@@ -98,7 +98,7 @@
            #:terminal-nfa-closure-union-p
            #:prepare-nfa-state-closure-union
            #:terminus
-           #:create-nfa-normalized-transition-table-iterator
+           #:create-nfa-normalized-transition-table
            #:parse-and-produce-nfa
            #:simple-element-equal
            ))
