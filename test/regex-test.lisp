@@ -9,20 +9,6 @@
 (setf fiveam:*on-failure* nil)
 (setf fiveam:*on-error* :debug)
 
-(test char-splitting-test
-  (let* ((regex '(:or
-                  (:char-range #\a #\d)
-                  (:char-range #\c #\f)
-                  "lmn"
-                  #\x
-                  #\y
-                  #\z))
-         (root-state (nfa:parse-and-produce-nfa regex))
-         (root-closure (nfa::prepare-nfa-state-closure-union (list root-state)))
-         (splitting-points (nfa::collect-char-range-splitting-points root-closure)))
-    (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
-    (is (equal splitting-points '(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z)))))
-
 (defun run-regex-matching-test (regex input-string
                                 &key
                                   expected-matching-status

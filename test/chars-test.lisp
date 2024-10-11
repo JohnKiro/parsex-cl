@@ -43,20 +43,4 @@
     (format t "~&Splitting chars for root state's closure: ~a~&" splitting-points)
     (is (equal splitting-points (coerce #(#\` #\b #\d #\f #\k #\l #\w #\x #\y #\z) 'string)))))
 
-(defmacro define-regex-matching-test (test-name
-                                      &key
-                                        (description nil)
-                                        regex
-                                        input-text
-                                        (expected-matching-status :regex-not-matched)
-                                        (expected-accumulator-value input-text))
-  (let ((thefuncall `(run-regex-matching-test
-                      ',regex
-                      ,input-text
-                      :expected-matching-status ,expected-matching-status
-                      :expected-accumulator-value ,expected-accumulator-value)))
-    (if description
-        `(test ,test-name ,description ,thefuncall)
-        `(test ,test-name ,thefuncall))))
-
 
