@@ -2,7 +2,8 @@
   This file is a part of parsex-cl project.
   Copyright (c) 2018 John Badie (johnkirollos@gmail.com)
 |#
-
+;;; NOTE: not used as we define test code in same system as the source code.
+;;; TODO: check.
 (in-package :cl-user)
 (defpackage parsex-cl-test-asd
   (:use :cl :asdf))
