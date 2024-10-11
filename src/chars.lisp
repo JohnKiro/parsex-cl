@@ -27,10 +27,10 @@
 
 (defmethod initialize-instance :after ((char-range char-range) &key)
   (with-slots (char-start char-end) char-range
-    (if (char> char-start char-end)
-        (let ((tmp char-start))
-          (setf char-start char-end)
-          (setf char-end tmp)))))
+    (when (char> char-start char-end)
+      (let ((tmp char-start))
+        (setf char-start char-end)
+        (setf char-end tmp)))))
 
 (defun char-range-equal (chr1 chr2)
   (and (char= (char-start chr1) (char-start chr2))
@@ -43,7 +43,7 @@
         (character (and (typep other-obj 'character)
                         (char= element other-obj)))
         (char-range (and (typep other-obj 'char-range)
-                               (char-range-equal element other-obj))))))
+                         (char-range-equal element other-obj))))))
 
 (defun make-char-range (start end)
   "Utility function to simplify char-range construction."
