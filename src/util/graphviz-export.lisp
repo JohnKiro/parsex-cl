@@ -15,7 +15,8 @@
              (el-to-string (el)
                (typecase el
                  (character el)
-                 (chars:char-range (format nil "~a - ~a" (chars:char-start el) (chars:char-end el)))
+                 (elm:char-range-element (format nil "~a - ~a"
+                                                 (elm:char-start el) (elm:char-end el)))
                  (t el)))
              (print-transition (source dest el stream)
                (when (and source dest)
@@ -57,8 +58,11 @@
 (defmethod element-to-edge ((element character))
   element)
 
-(defmethod element-to-edge ((element chars:char-range))
-  (format nil "~a - ~a" (chars:char-start element) (chars:char-end element)))
+(defmethod element-to-edge ((element elm:single-char-element))
+  (format nil "~a" (elm:single-char element)))
+
+(defmethod element-to-edge ((element elm:char-range-element))
+  (format nil "~a - ~a" (elm:char-start element) (elm:char-end element)))
 
 (defmethod element-to-edge ((element (eql :auto)))
   #\GREEK_SMALL_LETTER_EPSILON)

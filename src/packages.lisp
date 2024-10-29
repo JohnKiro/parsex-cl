@@ -87,9 +87,34 @@
            #:retrieve-last-consumed-value
            ))
 
+(defpackage :parsex-cl.regex-element
+  (:use #:cl #:iterate)
+  (:local-nicknames (:chars #:parsex-cl.chars))
+  (:export #:single-char-element
+           #:char-range-element
+           #:single-char
+           #:char-start
+           #:char-end
+           #:make-char-range-element
+           #:char-range-equal
+           #:match-char-against-simple-element
+           #:split-char-range
+           #:inner-element
+           #:inner-elements
+           #:simple-element
+           #:simple-element-equal
+           #:sequence-element
+           #:or-element
+           #:zero-or-more-element
+           #:zero-or-one-element
+           #:one-or-more-element
+           #:negated-element ; TODO: not yet sure
+           ))
+
 (defpackage :parsex-cl.regex-nfa
   (:use #:cl #:iterate)
-  (:local-nicknames (:chars :parsex-cl.chars))
+  (:local-nicknames (:chars :parsex-cl.chars)
+                    (:elm #:parsex-cl.regex-element))
   (:export #:nfa-state
            #:normal-transitions
            #:auto-transitions
@@ -100,13 +125,21 @@
            #:terminus
            #:create-nfa-normalized-transition-table
            #:parse-and-produce-nfa
-           #:simple-element-equal
+           ))
+
+(defpackage :parsex-cl.regex-sexp
+  (:use #:cl #:iterate)
+  (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
+                    (:elm #:parsex-cl.regex-element)
+                    (:chars #:parsex-cl.chars))
+  (:export #:prepare-regex-tree
            ))
 
 (defpackage :parsex-cl.regex
   (:use #:cl #:iterate)
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
                     (:chars #:parsex-cl.chars)
+                    (:elm #:parsex-cl.regex-element)
                     (:input #:parsex-cl.regex.input))
   (:export #:produce-dfa
            #:dfa-state

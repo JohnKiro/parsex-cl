@@ -86,10 +86,12 @@ found or newly created."
 
 
 (defun lookup-dfa-transition (simple-element origin-dfa-state)
-  "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE."
+  "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE. A simple
+element can be either single char or char range (TODO: need to unify the terminology: :any-char
+included or not?"
   (declare (dfa-state origin-dfa-state))
   (assoc simple-element (slot-value origin-dfa-state 'transitions)
-         :test #'chars:simple-element-equal))
+         :test #'elm:simple-element-equal))
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))
@@ -130,11 +132,7 @@ found or newly created."
   "Find matching transition from ORIGIN-DFA-STATE, based on input CHAR.
 Returns destination DFA state."
   (or (cdr (assoc char (transitions origin-dfa-state)
-                  :test (lambda (ch elem)
-                          (etypecase elem
-                            (character (char= ch elem))
-                            (chars:char-range (and (char>= ch (chars:char-start elem))
-                                             (char<= ch (chars:char-end elem))))))))
+                  :test #'elm:match-char-against-simple-element))
       (transition-on-any-other origin-dfa-state)))
 
 (defstruct regex-matching-result
@@ -153,7 +151,7 @@ Returns destination DFA state."
                (input:register-candidate-matching-point input-source))
              (if (dfa-state-definitely-terminal-p origin-dfa-state)
                  ;; I'm not checking whether input is empty or not here (e.g. to determine if the
-                 ;; match is exact or not. Leaving this up to the caller.
+                 ;; match is exact or not). Leaving this up to the caller.
                  (prepare-result :regex-matched)
                  (if (input:source-empty-p input-source)
                      (prepare-result (if last-candidate-terminal-dfa

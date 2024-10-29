@@ -25,8 +25,10 @@
                  (:file "parsex-cl")
                  (:file "regex-input")
                  (:file "chars")
+                 (:file "regex-element")
                  (:file "regex-nfa")
                  (:file "regex")
+                 (:file "regex-sexp")
                  (:file "fsm-traversal")
                  (:file "tokenizer-states")
                  (:file "tokenizer-transitions")
@@ -45,7 +47,8 @@
                  (:file "test")
                  (:file "tokenizer-test")
                  (:file "regex-test")
-                 (:file "chars-test"))))
+                 (:file "chars-test")
+                 (:file "nfa-element-test"))))
 
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
   :long-description

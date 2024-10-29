@@ -1,15 +1,11 @@
 (in-package :parsex-cl.regex-nfa)
 
 (defgeneric regex-to-nfa (regex input-nfa-state)
-  (:documentation "Parses REGEX and generates corresponding NFA section, starting at
+  (:documentation "Traverses REGEX object tree and generates corresponding NFA section, starting at
 INPUT-NFA-STATE. In the process, it creates as many states for the element, glues with input state,
 and returns output state as continuation point."))
 
-(defgeneric compound-regex-to-nfa (regex-head regex-tail input-nfa-state)
-  (:documentation "Parses a compound REGEX and generates corresponding NFA section, starting at
- INPUT-NFA-STATE."))
-
-(defmethod regex-to-nfa ((regex character) input-nfa-state)
+(defmethod regex-to-nfa ((regex elm:single-char-element) input-nfa-state)
   (let ((output-state (make-instance 'nfa-state)))
     (add-nfa-normal-transition input-nfa-state regex output-state)
     output-state))
@@ -21,51 +17,37 @@ and returns output state as continuation point."))
     (add-nfa-normal-transition input-nfa-state regex output-state)
     output-state))
 
-(defmethod regex-to-nfa ((regex cons) input-nfa-state)
-  (compound-regex-to-nfa (car regex) (cdr regex) input-nfa-state))
-
-(defmethod regex-to-nfa ((regex string) input-nfa-state)
-  (loop for ch across regex
-        for in-state = input-nfa-state then out-state
-        for out-state = (make-instance 'nfa-state)
-        do (add-nfa-normal-transition in-state ch out-state)
-        finally (return out-state)))
-
-(defmethod compound-regex-to-nfa ((regex-head (eql :char-range)) regex-tail input-nfa-state)
+(defmethod regex-to-nfa ((regex elm:char-range-element) input-nfa-state)
   (let* ((output-state (make-instance 'nfa-state)))
-    (destructuring-bind (char-start char-end) regex-tail
-      (add-nfa-normal-transition input-nfa-state
-                                 (make-instance 'chars:char-range
-                                                :char-start char-start
-                                                :char-end char-end) output-state)
-      output-state)))
+    (add-nfa-normal-transition input-nfa-state regex output-state)
+    output-state))
 
-(defmethod compound-regex-to-nfa ((regex-head (eql :seq)) regex-tail input-nfa-state)
+(defmethod regex-to-nfa ((regex elm:sequence-element) input-nfa-state)
   (reduce #'(lambda (previous-output-nfa-state elem)
               (regex-to-nfa elem previous-output-nfa-state))
-          regex-tail
+          (elm:inner-elements regex)
           :initial-value input-nfa-state))
 
-(defmethod compound-regex-to-nfa ((regex-head (eql :or)) regex-tail input-nfa-state)
+(defmethod regex-to-nfa ((regex elm:or-element) input-nfa-state)
   (let ((output-state (make-instance 'nfa-state)))
     (map nil
          #'(lambda (elem)
              (let ((out-state-i (regex-to-nfa elem input-nfa-state)))
                (add-nfa-auto-transition out-state-i output-state)))
-         regex-tail)
+         (elm:inner-elements regex))
     output-state))
 
-(defmethod compound-regex-to-nfa ((regex-head (eql :?)) regex-tail input-nfa-state)
-  (let* ((actual-regex (first regex-tail))
-         (output-state (regex-to-nfa actual-regex input-nfa-state)))
+(defmethod regex-to-nfa ((regex elm:zero-or-one-element) input-nfa-state)
+  (let* ((inner-regex (elm:inner-element regex))
+         (output-state (regex-to-nfa inner-regex input-nfa-state)))
     (add-nfa-auto-transition input-nfa-state output-state)
     output-state))
 
 ;;TODO: SIMPLIFY, AS DONE FOR :+ BELOW
-(defmethod compound-regex-to-nfa ((regex-head (eql :*)) regex-tail input-nfa-state)
+(defmethod regex-to-nfa ((regex elm:zero-or-more-element) input-nfa-state)
   (let* ((s1 (make-instance 'nfa-state))
-         (actual-regex (first regex-tail))
-         (s2 (regex-to-nfa actual-regex s1))
+         (inner-regex (elm:inner-element regex))
+         (s2 (regex-to-nfa inner-regex s1))
          (output-state (make-instance 'nfa-state)))
     (add-nfa-auto-transition input-nfa-state s1)
     (add-nfa-auto-transition input-nfa-state output-state)
@@ -73,18 +55,20 @@ and returns output state as continuation point."))
     (add-nfa-auto-transition s2 output-state)
     output-state))
 
-(defmethod compound-regex-to-nfa ((regex-head (eql :+)) regex-tail input-nfa-state)
-  (let* ((actual-regex (first regex-tail))
-         (s1 (regex-to-nfa actual-regex input-nfa-state))
-         (s2 (regex-to-nfa actual-regex s1)))
+(defmethod regex-to-nfa ((regex elm:one-or-more-element) input-nfa-state)
+  (let* ((inner-regex (elm:inner-element regex))
+         (s1 (regex-to-nfa inner-regex input-nfa-state))
+         (s2 (regex-to-nfa inner-regex s1)))
     (add-nfa-auto-transition s2 s1)
     (add-nfa-auto-transition s1 s2)
     s2))
 
-(defmethod compound-regex-to-nfa ((regex-head (eql :not)) regex-tail input-nfa-state)
+(defmethod regex-to-nfa ((regex elm:negated-element) input-nfa-state)
   (error "TODO: IMPLEMENT THE NOT-ELEMENT!"))
 
 (defun parse-and-produce-nfa (regex)
+  "Produces NFA starting at root regex element. It's importance is to identify the terminus state.
+TODO: after latest changes, it does NOT actually parse, so consider renaming."
   (let* ((root-state (make-instance 'nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
     (setf (terminus terminus-nfa-state) t)
@@ -111,7 +95,7 @@ and returns output state as continuation point."))
 (defclass nfa-transition ()
   ((element :initarg :element
             :initform (error "element must be specified!")
-            :type (chars:simple-element)
+            :type (elm:simple-element)
             :reader element)
    (next-state :initarg :next-state
                :initform (error "next-state must be specified!")
@@ -175,22 +159,26 @@ the following special elements are defined: :any-char, :any-other-char)"
         (let ((normal-transitions (normal-transitions nfa-state)))
           (dolist (trans normal-transitions)
             (let ((element (slot-value trans 'element)))
-              (typecase element
-                (character (append-bounds element element))
-                (chars:char-range (append-bounds (chars:char-start element)
-                                                 (chars:char-end element))))))))
-      (sort (remove-duplicates result :test #'char=) #'char<))))
+              (etypecase element
+                (elm:single-char-element (let ((bound (elm:single-char element)))
+                                           (append-bounds bound bound)))
+                (elm:char-range-element (append-bounds (elm:char-start element)
+                                                       (elm:char-end element)))
+                ;;do nothing
+                (symbol nil)))))))
+    (sort (remove-duplicates result :test #'char=) #'char<)))
 
 ;;;TODO: REFACTOR
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
 each normalized element to corresponding set of destination NFA states (representing a destination
 state's closure). by normalized, we mean that range elements are split as needed, to remove any
-overlaps. Each element could be single char, char range, any-char, or any-other-char."
+overlaps. Each element could be single char, char range, any-char, or any-other-char (currently
+not used)."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
-               (let* ((entry (assoc element assoc-list :test #'chars:simple-element-equal))
+               (let* ((entry (assoc element assoc-list :test #'elm:simple-element-equal))
                       (arr (or (cdr entry)
                                (make-array 10 :adjustable t :fill-pointer 0))))
                  (vector-push-extend next-state arr)
@@ -200,9 +188,9 @@ overlaps. Each element could be single char, char range, any-char, or any-other-
         ;; transition on "any char" are covered here
         (dolist (trans (normal-transitions nfa-state))
           (with-slots (element next-state) trans
-            (typecase element
-              (chars:char-range (let ((split-ranges (chars:split-char-range element
-                                                                            splitting-points)))
-                                  (dolist (r split-ranges)
+            (etypecase element
+              (elm:char-range-element (let ((split-ranges (elm:split-char-range element
+                                                                                splitting-points)))
+                                        (dolist (r split-ranges)
                                     (add-trans r next-state))))
               (t (add-trans element next-state)))))))))

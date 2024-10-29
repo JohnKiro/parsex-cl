@@ -18,7 +18,8 @@
   "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
 regex (REGEX)."
   (let* ((input-source (make-instance 'input:basic-regex-input  :initial-input-text input-string))
-         (nfa (nfa:parse-and-produce-nfa regex))
+         (regex-obj-tree (sexp:prepare-regex-tree regex))
+         (nfa (nfa:parse-and-produce-nfa regex-obj-tree))
          (dfa (parsex-cl.regex:produce-dfa nfa))
          (result (match-regex input-source dfa))
          (matching-status (regex-matching-result-status result))
@@ -45,7 +46,8 @@ single REGEX, and tests the result of each matching operation. The indication fo
 is when input is empty. The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list having each
 element in the form (matching-status accumulator-value consumed-value)."
   (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input-string))
-         (nfa (nfa:parse-and-produce-nfa regex))
+         (regex-obj-tree (sexp:prepare-regex-tree regex))
+         (nfa (nfa:parse-and-produce-nfa regex-obj-tree))
          (dfa (parsex-cl.regex:produce-dfa nfa)))
     (when generate-nfa-dotgraphviz
       (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
@@ -137,6 +139,18 @@ element in the form (matching-status accumulator-value consumed-value)."
   :input-text "xManxMyPanzMvPan"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "xM")
+
+(define-regex-matching-test basic32-regex-matching-test
+  :description "Tests :or (another test)"
+  :regex (:+ (:or
+              (:char-range #\a #\d)
+              (:char-range #\c #\f)
+              "lmn"
+              #\x
+              #\y
+              #\z))
+  :input-text "adcflmnxzlmn"
+  :expected-matching-status :regex-matched)
 
 ;; (a|b)*abb.
 (define-regex-matching-test basic4-regex-matching-test
@@ -326,7 +340,8 @@ So regex matches, char is consumed, but not accumulated."
                                                        #\space
                                                        '(:seq (:? (:seq #\r #\e)) "solved")
                                                        '(:or #\. #\?))
-                                    for dfa = (parse-and-produce-dfa regex)
+                                    for regex-obj-tree = (sexp:prepare-regex-tree regex)
+                                    for dfa = (parse-and-produce-dfa regex-obj-tree)
                                     for result = (match-regex input-source dfa)
                                     for matching-status = (regex-matching-result-status result)
                                     for updated-acc = (input:retrieve-last-accumulated-value
