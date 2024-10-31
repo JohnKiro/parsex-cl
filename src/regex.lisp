@@ -58,13 +58,6 @@ that it will also be a candidate terminal."
                (return-from lookup-dfa-state dfa-state))))
   nil)
 
-(defun terminal-nfa-closure-union-p (nfa-states)
-  "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
-when any of the NFA states in the closure is the terminus state produced by the NFA."
-  (dolist (s nfa-states nil)
-    (when (nfa:terminus s)
-      (return t))))
-
 (defun find-dfa-state (nfa-states traversed-dfa-states)
   "Look up NFA state closure union provided in NFA-STATES, in the TRAVERSED-DFA-STATES 
 DFA lookup vector. If not found, it creates a new DFA state and appends it to
@@ -74,7 +67,7 @@ found or newly created."
   (let ((dfa-state (lookup-dfa-state nfa-states traversed-dfa-states)))
     (if dfa-state
         (values dfa-state 'already-found)
-        (let* ((terminal-or-not (terminal-nfa-closure-union-p nfa-states))
+        (let* ((terminal-or-not (nfa:terminal-nfa-closure-union-p nfa-states))
                ;; TODO: refactor: move creation to a separate "create-dfa-state" function
                (new-dfa-state (make-instance 'dfa-state
                                              :nfa-states nfa-states

@@ -149,6 +149,12 @@ the following special elements are defined: :any-char, :any-other-char)"
                                    :initial-value accumul)))))))
     (reduce #'prepare-nfa-state-closure states :initial-value nil)))
 
+(defun terminal-nfa-closure-union-p (nfa-states)
+  "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
+when any of the NFA states in the closure is the terminus state produced by the NFA."
+  (dolist (s nfa-states nil)
+    (when (terminus s)
+      (return t))))
 
 (defun collect-char-range-splitting-points (nfa-states)
   (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
