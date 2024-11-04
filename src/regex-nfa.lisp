@@ -72,7 +72,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
   (let* ((root-state (make-instance 'nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
     (setf (terminus terminus-nfa-state) t)
-    root-state))
+    (values root-state terminus-nfa-state)))
 
 (defclass nfa-state ()
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
