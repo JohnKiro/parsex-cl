@@ -67,7 +67,7 @@ and returns output state as continuation point."))
   (error "TODO: IMPLEMENT THE NOT-ELEMENT!"))
 
 (defun parse-and-produce-nfa (regex)
-  "Produces NFA starting at root regex element. It's importance is to identify the terminus state.
+  "Produces NFA starting at root regex element. Its importance is in identifying the terminus state.
 TODO: after latest changes, it does NOT actually parse, so consider renaming."
   (let* ((root-state (make-instance 'nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
