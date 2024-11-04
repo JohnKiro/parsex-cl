@@ -157,8 +157,9 @@
            ))
 
 (defpackage :parsex-cl.fsm-traversal
-  (:use #:cl
-        #:parsex-cl.regex)
+  (:use #:cl)
+  (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
+                    (:regex #:parsex-cl.regex))
   (:export #:object-lookup-factory-fn
            #:traverse-fsm-transitions
            ))
