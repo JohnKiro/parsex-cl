@@ -87,7 +87,7 @@ ROOT-FSM-STATE."
                                   (get-state-index src)
                                   (get-state-index dst)
                                   (element-to-edge elem))))
-                 (traverse-fsm-transitions root-fsm-state #'transition-to-dot)))))
+                 (fsm:traverse-fsm-transitions root-fsm-state #'transition-to-dot)))))
     (with-output-to-string (output-stream)
       (format output-stream "digraph \{~%")
       (format output-stream "rankdir = LR;~%")

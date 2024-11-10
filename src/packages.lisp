@@ -111,10 +111,18 @@
            #:negated-element ; TODO: not yet sure
            ))
 
+(defpackage :parsex-cl.regex-fsm
+  (:use #:cl)
+  (:local-nicknames )
+  (:export #:traverse-fsm-transitions
+           #:fsm-acceptance-state-p
+           ))
+
 (defpackage :parsex-cl.regex-nfa
   (:use #:cl #:iterate)
   (:local-nicknames (:chars :parsex-cl.chars)
-                    (:elm #:parsex-cl.regex-element))
+                    (:elm #:parsex-cl.regex-element)
+                    (:fsm #:parsex-cl.regex-fsm))
   (:export #:nfa-state
            #:normal-transitions
            #:auto-transitions
@@ -139,6 +147,7 @@
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
                     (:chars #:parsex-cl.chars)
                     (:elm #:parsex-cl.regex-element)
+                    (:fsm #:parsex-cl.regex-fsm)
                     (:input #:parsex-cl.regex.input))
   (:export #:produce-dfa
            #:dfa-state
@@ -156,10 +165,3 @@
            #:transition-on-any-other
            ))
 
-(defpackage :parsex-cl.fsm-traversal
-  (:use #:cl)
-  (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
-                    (:regex #:parsex-cl.regex))
-  (:export #:object-lookup-factory-fn
-           #:traverse-fsm-transitions
-           ))

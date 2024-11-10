@@ -171,3 +171,22 @@ Returns destination DFA state."
 (defun parse-and-produce-dfa (regex)
   (let ((root-nfa-state (nfa:parse-and-produce-nfa regex)))
     (produce-dfa root-nfa-state)))
+
+(defmethod fsm:fsm-acceptance-state-p ((fsm-state dfa-state))
+  (candidate-terminal fsm-state))
+
+(defmethod fsm:traverse-fsm-transitions ((root-state dfa-state) traversal-fn)
+  "Traverse all transitions in the DFA state machine, starting from ROOT-STATE. This includes
+both normal and transitions on any other char. TRAVERSAL-FN is called for each transition."
+  (let ((traversal-mark-lookup-table (make-hash-table)))
+    (labels ((iter (dfa-state)
+               (unless (gethash dfa-state traversal-mark-lookup-table)
+                 (setf (gethash dfa-state traversal-mark-lookup-table) t)
+                 (loop for (elem . next-state) in (transitions dfa-state)
+                       do (funcall traversal-fn dfa-state elem next-state)
+                          (iter next-state))
+                 (let ((dest-on-any-other (transition-on-any-other dfa-state)))
+                   (when dest-on-any-other
+                     (funcall traversal-fn dfa-state :any-other-char dest-on-any-other)
+                     (iter dest-on-any-other))))))
+      (iter root-state))))

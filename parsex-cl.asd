@@ -29,7 +29,7 @@
                  (:file "regex-nfa")
                  (:file "regex")
                  (:file "regex-sexp")
-                 (:file "fsm-traversal")
+                 (:file "regex-fsm")
                  (:file "tokenizer-states")
                  (:file "tokenizer-transitions")
                  (:file "tokenizer")
