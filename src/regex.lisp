@@ -28,10 +28,20 @@ Other element types not needing special class:
    (transition-on-any-other :accessor transition-on-any-other
                             :initform nil
                             :type (or null dfa-state))
-   (candidate-terminal :initarg :candidate-terminal
-                       :reader candidate-terminal
-                       :type boolean
-                       :initform nil)))
+   (candidate-terminal :reader candidate-terminal
+                       :type boolean))
+  (:documentation "DFA state is identified by the following information:
+NFA-STATES - list of NFA states represented by this DFA state;
+TRANSITIONS - list of transitions to other DFA states, based on single char/char range;
+TRANSITION-ON-ANY-OTHER - destination DFA state for any other char;
+CANDIDATE-TERMINAL - whether this is accepting state. It is derived from NFA-STATES, but included
+as separate slot to avoid computation each time it is needed."))
+
+(defmethod initialize-instance :after ((dfa-state dfa-state) &key)
+  "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
+  (with-slots (nfa-states candidate-terminal) dfa-state
+    (let ((terminal-or-not (nfa:terminal-nfa-closure-union-p nfa-states)))
+      (setf candidate-terminal terminal-or-not))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
@@ -67,13 +77,7 @@ found or newly created."
   (let ((dfa-state (lookup-dfa-state nfa-states traversed-dfa-states)))
     (if dfa-state
         (values dfa-state 'already-found)
-        (let* ((terminal-or-not (nfa:terminal-nfa-closure-union-p nfa-states))
-               ;; TODO: refactor: move creation to a separate "create-dfa-state" function
-               (new-dfa-state (make-instance 'dfa-state
-                                             :nfa-states nfa-states
-                                             :candidate-terminal (if terminal-or-not
-                                                                     t
-                                                                     nil))))
+        (let ((new-dfa-state (make-instance 'dfa-state :nfa-states nfa-states)))
           (vector-push-extend new-dfa-state traversed-dfa-states)
           (values new-dfa-state 'newly-created)))))
 
