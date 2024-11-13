@@ -45,13 +45,25 @@ as separate slot to avoid computation each time it is needed."))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
-transitions out. It must be used only in regex matching (after DFA is completely constructed). Note
-that it will also be a candidate terminal."
+transitions out, besides being candidate terminal (i.e. acceptance). It must be used only in regex
+matching (after DFA is completely constructed).
+NOTE: with the implementation of regex negation, and hence the introduction of dead-end states (that
+have no transitions out, but also are not acceptance), it's not sufficient to identify acceptance
+by just having no transitions out, hence, we're also checking the candidate terminal status. I'm
+still not sure if we'll have such case in DFA, will revise if we need this change."
   (and (null (transitions dfa-state))
        (null (transition-on-any-other dfa-state))
-       (if (candidate-terminal dfa-state)
-           t
-           (error "A definitely terminal DFA that is not also candidate terminal: BUG??!"))))
+       (candidate-terminal dfa-state)))
+
+(defun dfa-state-dead-end-p (dfa-state)
+  "Indicate whether the DFA state DFA-STATE is dead-end, in other words, having no
+transitions out, but not candidate terminal (i.e. non-accepting). It must be used only in regex
+matching (after DFA is completely constructed).
+These states are ones that were negated by an outer negation element. Currently not used, and may
+remove it (see DFA-STATE-DEFINITELY-TERMINAL-P)."
+  (and (null (transitions dfa-state))
+       (null (transition-on-any-other dfa-state))
+       (not (candidate-terminal dfa-state))))
 
 (defun create-dfa-state-set ()
   (make-array 50 :adjustable t :fill-pointer 0))
