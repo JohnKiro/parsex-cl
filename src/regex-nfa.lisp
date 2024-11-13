@@ -111,12 +111,13 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
   (push dest-state (auto-transitions orig-state)))
 
-#+nil(defun add-nfa-special-transition (orig-state element dest-state)
-       "Add NFA transition from ORIG-STATE, on special (symbol-based) ELEMENT, to DEST-STATE. Currently,
+#+nil
+(defun add-nfa-special-transition (orig-state element dest-state)
+  "Add NFA transition from ORIG-STATE, on special (symbol-based) ELEMENT, to DEST-STATE. Currently,
 the following special elements are defined: :any-char, :any-other-char)"
-       (ecase element
-         (:any-char (push dest-state (transitions-on-any-char orig-state)))
-         (:any-other-char (push dest-state (transitions-on-any-other-char orig-state)))))
+  (ecase element
+    (:any-char (push dest-state (transitions-on-any-char orig-state)))
+    (:any-other-char (push dest-state (transitions-on-any-other-char orig-state)))))
 
 ;;; NFA state defines a normal transition table (element --> next state), E-transitions (auto),
 ;;; and a default transition (transition on any other input, including case no input). Also it
