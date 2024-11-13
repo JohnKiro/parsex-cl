@@ -73,19 +73,31 @@
 (defmethod element-to-edge ((element (eql :any-other-char)))
   "ANY-OTHER")
 
-(defun fsm-to-graphvizdot (root-fsm-state &key (output-file nil) (output-stream nil) (regex nil))
+(defun fsm-to-graphvizdot (root-fsm-state &key (output-file nil) (output-stream nil) (regex nil)
+                                            (use-address-as-label nil))
   "Generate a Graphviz DOT string for an NFA or DFA state machine, starting at ROOT-FSM-STATE. The
 generated string is returned, and is also optionally dumped to specified output file and/or output
 stream. The optional REGEX parameter is also included in the diagram as a description for the regex.
 Two keyword options also control the dumping:
 OUTPUT-FILE specifies the output file path, and is NIL by default (no dumping to output file).
 OUTPUT-STREAM specifies a stream to dump to (besides the output file). If T is passed, standard
-output is used. NIL (default) disables the dumping."
+output is used. NIL (default) disables the dumping.
+Finally, a keyword flag indicates whether to use last 4 digits of state object's memory address as
+DOT node label, rather than the default, which is a numerical index."
   (labels ((fsm-transitions-to-dot (output-stream)
              (let ((state-index -1)
                    (state-lookup (make-hash-table)))
                (labels ((get-state-index (state)
-                          (or (gethash state state-lookup)
+                          (or (and use-address-as-label
+                                   (let ((addr-as-str #+sbcl(write-to-string
+                                                             (sb-kernel:get-lisp-obj-address
+                                                              state))))
+                                     (when addr-as-str
+                                       (let* ((addr-length (length addr-as-str))
+                                              (node-label (subseq addr-as-str (- addr-length 4)
+                                                                  addr-length)))
+                                         node-label))))
+                              (gethash state state-lookup)
                               (setf (gethash state state-lookup) (incf state-index))))
                         (transition-to-dot (src elem dst)
                           ;;TODO: REFACTOR!!
@@ -118,11 +130,14 @@ output is used. NIL (default) disables the dumping."
         (format output-stream "Generated DOT output:~%~a" result))
       result)))
 
-(defun generate-graphviz-dot-diagram (root-fsm-state output-file &optional regex)
+(defun generate-graphviz-dot-diagram (root-fsm-state output-file &key regex use-address-as-label)
   "Generate diagram for an FSM (whether NFA or DFA), given its root state (ROOT-FSM-STATE). The
-output is written to a file whose path is specified by the OUTPUT-FILE. An optional argument REGEX
-may be used to describe the regex, to be displayed in the diagram."
-  (let* ((dot (fsm-to-graphvizdot root-fsm-state :regex regex))
+output is written to a file whose path is specified by the OUTPUT-FILE. An optional keyword argument
+REGEX may be used to describe the regex, to be displayed in the diagram. Another optional keyword
+USE-ADDRESS-AS-LABEL specifies whether the state label will be based on the state object's address,
+or a numerical index."
+  (let* ((dot (fsm-to-graphvizdot root-fsm-state :regex regex
+                                                 :use-address-as-label use-address-as-label))
          (command (format nil "echo ~s | dot  -Tsvg -Nfontcolor=red -Nshape=circle -o ~a"
                           dot output-file)))
     (uiop:run-program command :output *standard-output*)))
