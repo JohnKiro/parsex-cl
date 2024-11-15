@@ -84,6 +84,20 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
    ;;complexity.
    (terminus :initform nil :type (or null t) :accessor terminus)))
 
+(defparameter *verbose-printing* nil "Enable/disable verbose object printing.")
+
+(defmethod print-object ((object nfa-state) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (when *verbose-printing*
+      (with-slots (normal-transitions auto-transitions terminus) object
+        (if normal-transitions
+            (princ "Normal transitions on: ")
+            (princ "No normal transitions, "))
+        (loop for nt in normal-transitions
+              do (princ (element nt))
+              do (princ ", "))
+        (format t "~a auto transitions, " (length auto-transitions))
+        (format t "terminus: ~a " terminus)))))
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
 (defclass negated-nfa-state (nfa-state)
   ((negated-state :initform (error "Negated state is mandatory!") :type nfa-state)))
