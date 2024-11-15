@@ -68,10 +68,10 @@
   #\GREEK_SMALL_LETTER_EPSILON)
 
 (defmethod element-to-edge ((element (eql :any-char)))
-  "OTHER")
+  "[any other]")
 
 (defmethod element-to-edge ((element (eql :any-other-char)))
-  "ANY-OTHER")
+  "[any other]")
 
 (defun fsm-to-graphvizdot (root-fsm-state &key (output-file nil) (output-stream nil) (regex nil)
                                             (use-address-as-label nil))
