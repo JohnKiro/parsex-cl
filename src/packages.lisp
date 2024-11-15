@@ -90,7 +90,8 @@
 (defpackage :parsex-cl.regex-element
   (:use #:cl #:iterate)
   (:local-nicknames (:chars #:parsex-cl.chars))
-  (:export #:single-char-element
+  (:export #:+any-char-element+
+           #:single-char-element
            #:char-range-element
            #:single-char
            #:char-start

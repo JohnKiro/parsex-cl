@@ -10,6 +10,12 @@ Other element types not needing special class:
 - string (string of character corresponds to a sequence-element where all elements are characters).
 ||#
 
+(defconstant +any-char-element+ :any-char
+  "Centralized reference to any ANY-CHAR element. This corresponds to '.' (dot) in conventional
+regular expressions. In this implementation, this is usually interpreted as any other char. For
+example, for the regex fragment (:or (:seq #\a #\b) :any-char), the :any-char would match any char
+other than #\a.")
+
 ;; TODO: remove (no need for base abstract)
 (defclass element () ()
   (:documentation "Base class for all regex element types."))
