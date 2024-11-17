@@ -32,15 +32,21 @@ and returns output state as continuation point."))
   (let ((output-state (make-instance 'nfa-state)))
     (map nil
          #'(lambda (elem)
-             (let ((out-state-i (regex-to-nfa elem input-nfa-state)))
+             (let* ((input-state-i (make-instance 'nfa-state))
+                    (out-state-i (regex-to-nfa elem input-state-i)))
+               (add-nfa-auto-transition input-nfa-state input-state-i)
                (add-nfa-auto-transition out-state-i output-state)))
          (elm:inner-elements regex))
     output-state))
 
 (defmethod regex-to-nfa ((regex elm:zero-or-one-element) input-nfa-state)
-  (let* ((inner-regex (elm:inner-element regex))
-         (output-state (regex-to-nfa inner-regex input-nfa-state)))
+  (let* ((s1 (make-instance 'nfa-state))
+         (inner-regex (elm:inner-element regex))
+         (s2 (regex-to-nfa inner-regex s1))
+         (output-state (make-instance 'nfa-state)))
+    (add-nfa-auto-transition input-nfa-state s1)
     (add-nfa-auto-transition input-nfa-state output-state)
+    (add-nfa-auto-transition s2 output-state)
     output-state))
 
 ;;TODO: SIMPLIFY, AS DONE FOR :+ BELOW
@@ -58,13 +64,72 @@ and returns output state as continuation point."))
 (defmethod regex-to-nfa ((regex elm:one-or-more-element) input-nfa-state)
   (let* ((inner-regex (elm:inner-element regex))
          (s1 (regex-to-nfa inner-regex input-nfa-state))
-         (s2 (regex-to-nfa inner-regex s1)))
+         (s2 (regex-to-nfa inner-regex s1))
+         (output-state (make-instance 'nfa-state)))
     (add-nfa-auto-transition s2 s1)
     (add-nfa-auto-transition s1 s2)
-    s2))
+    (add-nfa-auto-transition s2 output-state)
+    output-state))
 
 (defmethod regex-to-nfa ((regex elm:negated-element) input-nfa-state)
-  (error "TODO: IMPLEMENT THE NOT-ELEMENT!"))
+  (let* ((inner-regex (elm:inner-element regex))
+         (output-state-inner (regex-to-nfa inner-regex input-nfa-state))
+         (glue-state (make-instance 'nfa-state))
+         (negation-exit-elem (make-instance 'elm:one-or-more-element
+                                            :element elm:+any-char-element+))
+         (output-state (regex-to-nfa negation-exit-elem glue-state)))
+    (multiple-value-bind (inner-dead-ends inner-absolutely-dead-ends continuation-points)
+        (collect-nfa-non-acceptance-states input-nfa-state output-state-inner)
+      (declare (ignorable continuation-points))
+      ;; traverse NFA sub-tree, and connect each dead-end state to the new (+ any-char) element,
+      ;; then to output state
+      ;; actually for now, we separated the traversal (above) from the connecting (below)
+      (loop for dead-end in inner-dead-ends
+            do (add-nfa-auto-transition dead-end glue-state))
+      ;; absolute dead-ends are connected directly to output state
+      (loop for dead-end in inner-absolutely-dead-ends
+            do (add-nfa-auto-transition dead-end output-state))
+      output-state)))
+
+;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
+;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
+;;; states as a useful by-product.
+(defun collect-nfa-non-acceptance-states (start-state end-state)
+  "Traverse a portion of the NFA, starting at START-STATE, and collect all states that are not
+connected to END-STATE, neither directly nor via a series of auto transitions. These states are
+non-acceptance states, that will eventually be handled by a parent negation element by converting
+them into continuation points.
+TODO: in later version, this function should also do the connecting, but I'm starting with the most
+simple version."
+  (let ((dead-ends nil)
+        (absolutely-dead-ends nil)
+        (continuation-points nil)
+        (traversed nil))
+    (labels ((recurse (state)
+               "Recursively handle state and all states reachable from it, and return indication of
+its type (T -> continuation point, NIL -> dead-end)."
+               (if (member state traversed :test #'eq)
+                   (member state continuation-points :test #'eq)
+                   (progn
+                     (push state traversed)
+                     (loop for normal-trans-i in (normal-transitions state)
+                           for state-i = (next-state normal-trans-i)
+                           do (recurse state-i))
+                     (let ((is-acceptance nil))
+                       (when (eq state end-state)
+                         (setf is-acceptance t))
+                       (dolist (state-i (auto-transitions state))
+                         (when (recurse state-i)
+                           ;;if state-i is acceptance, then so is the one leading to it
+                           (setf is-acceptance t)))
+                       (if is-acceptance
+                           (pushnew state continuation-points :test #'eq)
+                           (if (normal-transitions state)
+                               (pushnew state dead-ends :test #'eq)
+                               (pushnew state absolutely-dead-ends :test #'eq)))
+                       is-acceptance)))))
+      (recurse start-state)
+      (values dead-ends absolutely-dead-ends continuation-points))))
 
 (defun parse-and-produce-nfa (regex)
   "Produces NFA starting at root regex element. Its importance is in identifying the terminus state.
@@ -98,6 +163,8 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
               do (princ ", "))
         (format t "~a auto transitions, " (length auto-transitions))
         (format t "terminus: ~a " terminus)))))
+
+
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
 (defclass negated-nfa-state (nfa-state)
   ((negated-state :initform (error "Negated state is mandatory!") :type nfa-state)))
@@ -139,6 +206,7 @@ the following special elements are defined: :any-char, :any-other-char)"
 ;;; element
 
 ;;; predicate - whether NFA state is a result of a NOT
+#+nil
 (defun negated-nfa-state-p (state)
   (not (null (nfa-state-negated-state state))))
 
