@@ -75,19 +75,28 @@ and returns output state as continuation point."))
   (let* ((inner-regex (elm:inner-element regex))
          (output-state-inner (regex-to-nfa inner-regex input-nfa-state))
          (glue-state (make-instance 'nfa-state))
-         (negation-exit-elem (make-instance 'elm:one-or-more-element
+         (negation-exit-elem (make-instance 'elm:zero-or-more-element
                                             :element elm:+any-char-element+))
          (output-state (regex-to-nfa negation-exit-elem glue-state)))
-    (multiple-value-bind (inner-dead-ends inner-absolutely-dead-ends continuation-points)
+    (multiple-value-bind (inner-dead-ends inner-absolutely-dead-ends inner-continuation-points)
         (collect-nfa-non-acceptance-states input-nfa-state output-state-inner)
-      (declare (ignorable continuation-points))
       ;; traverse NFA sub-tree, and connect each dead-end state to the new (+ any-char) element,
       ;; then to output state
       ;; actually for now, we separated the traversal (above) from the connecting (below)
-      (loop for dead-end in inner-dead-ends
-            do (add-nfa-auto-transition dead-end glue-state))
+      (loop for continuation-point in inner-continuation-points
+            do (set-dead-end continuation-point))
+      (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
+                                                      inner-continuation-points)
+            for dead-end in inner-dead-ends
+            do (unset-dead-end dead-end)
+            when (member dead-end inner-continuation-point-closures :test #'eql)
+              ;; TODO: give user the choice (greedy/non-greedy)
+              do (add-nfa-normal-transition dead-end elm:+ANY-CHAR-ELEMENT+ glue-state)
+            else
+              do (add-nfa-auto-transition dead-end glue-state))
       ;; absolute dead-ends are connected directly to output state
       (loop for dead-end in inner-absolutely-dead-ends
+            do (unset-dead-end dead-end)
             do (add-nfa-auto-transition dead-end output-state))
       output-state)))
 
@@ -142,6 +151,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
 (defclass nfa-state ()
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
+   (is-dead-end :initform nil :type boolean :reader is-dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
    ;;However, terminus state is not known when the state is constructed, so cannot determine its
@@ -164,6 +174,11 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
         (format t "~a auto transitions, " (length auto-transitions))
         (format t "terminus: ~a " terminus)))))
 
+(defun set-dead-end (state)
+  (setf (slot-value state 'is-dead-end) t))
+
+(defun unset-dead-end (state)
+  (setf (slot-value state 'is-dead-end) nil))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
 (defclass negated-nfa-state (nfa-state)
