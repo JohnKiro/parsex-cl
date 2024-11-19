@@ -78,7 +78,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
-   ;;prohibiting incosistency (introduce class hierarchy level).
+   ;;prohibiting inconsistency (introduce class hierarchy level).
    ;;However, terminus state is not known when the state is constructed, so cannot determine its
    ;;type beforehand. It's still possible to change CLOS class, but probably not worth the
    ;;complexity.
