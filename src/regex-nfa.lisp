@@ -150,9 +150,6 @@ the following special elements are defined: :any-char, :any-other-char)"
 ;;; NOTE: Since a single instance is created for each state, so address comparison
 ;;; (using EQ) is sufficient.
 ;;; NOTE: duplication is automatically handled by prepare-nfa-state-closure.
-;;; TODO: I think this function does not handle cycles well! I think I need to add separate list
-;;;       to keep track of traversal, rather than searching the accumulator.
-;;;       Need to change to ITERATION anyway!
 (defun prepare-nfa-state-closure-union (states)
   "Extracts a union of NFA closures for a set of states (STATES)."
   (labels ((prepare-nfa-state-closure (initial-accumulator state)
@@ -160,11 +157,7 @@ the following special elements are defined: :any-char, :any-other-char)"
                  initial-accumulator ;state has already been traversed
                  (let ((accumul (cons state initial-accumulator))
                        (direct-autos (slot-value state 'auto-transitions)))
-                   (etypecase direct-autos
-                     (null accumul)
-                     (cons (reduce #'prepare-nfa-state-closure
-                                   direct-autos
-                                   :initial-value accumul)))))))
+                   (reduce #'prepare-nfa-state-closure direct-autos :initial-value accumul)))))
     (reduce #'prepare-nfa-state-closure states :initial-value nil)))
 
 (defun terminal-nfa-closure-union-p (nfa-states)
