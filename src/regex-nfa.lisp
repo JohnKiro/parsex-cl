@@ -210,7 +210,7 @@ not used)."
               (elm:char-range-element (let ((split-ranges (elm:split-char-range element
                                                                                 splitting-points)))
                                         (dolist (r split-ranges)
-                                    (add-trans r next-state))))
+                                          (add-trans r next-state))))
               (t (add-trans element next-state)))))))))
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
