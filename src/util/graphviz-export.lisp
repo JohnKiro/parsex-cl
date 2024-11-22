@@ -67,8 +67,8 @@
 (defmethod element-to-edge ((element (eql :auto)))
   #\GREEK_SMALL_LETTER_EPSILON)
 
-(defmethod element-to-edge ((element (eql :any-char)))
-  "[any other]")
+(defmethod element-to-edge ((element (eql elm:+ANY-CHAR-ELEMENT+)))
+  "<any char>")
 
 (defmethod element-to-edge ((element (eql :any-other-char)))
   "[any other]")

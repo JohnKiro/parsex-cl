@@ -10,11 +10,9 @@ and returns output state as continuation point."))
     (add-nfa-normal-transition input-nfa-state regex output-state)
     output-state))
 
-;; NOTE: the only symbol currently supported is :any-char, but I chose to have more generic code
-;; than specializing on (eql :any-char).
-(defmethod regex-to-nfa ((regex symbol) input-nfa-state)
+(defmethod regex-to-nfa ((regex (eql elm:+ANY-CHAR-ELEMENT+)) input-nfa-state)
   (let* ((output-state (make-instance 'nfa-state)))
-    (add-nfa-normal-transition input-nfa-state regex output-state)
+    (add-nfa-transition-on-any-char input-nfa-state output-state)
     output-state))
 
 (defmethod regex-to-nfa ((regex elm:char-range-element) input-nfa-state)
@@ -151,6 +149,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
 (defclass nfa-state ()
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
+   (transitions-on-any-char :initform nil :type list :accessor transitions-on-any-char)
    (is-dead-end :initform nil :type boolean :reader is-dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
@@ -164,7 +163,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
 (defmethod print-object ((object nfa-state) stream)
   (print-unreadable-object (object stream :type t :identity t)
     (when *verbose-printing*
-      (with-slots (normal-transitions auto-transitions terminus) object
+      (with-slots (normal-transitions auto-transitions transitions-on-any-char terminus) object
         (if normal-transitions
             (princ "Normal transitions on: ")
             (princ "No normal transitions, "))
@@ -172,6 +171,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
               do (princ (element nt))
               do (princ ", "))
         (format t "~a auto transitions, " (length auto-transitions))
+        (format t "~a transitions on any char, " (length transitions-on-any-char))
         (format t "terminus: ~a " terminus)))))
 
 (defun set-dead-end (state)
@@ -198,10 +198,22 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
                :type (or null nfa-state)
                :reader next-state)))
 
+(defmethod initialize-instance :after ((transition nfa-transition) &key)
+  "Transition constructor for element type validation."
+  (with-slots (element) transition
+    (let ((required-element-type 'elm:simple-element))
+      (unless (typep element required-element-type)
+        (error "Invalid transition element type for transition ~a. Expecting ~a, got ~a!"
+               transition required-element-type element)))))
+
 (defun add-nfa-normal-transition (orig-state element dest-state)
-  "Add NFA transition from ORIG-STATE, on ELEMENT (chararcter/char-range/any-char), to DEST-STATE."
+  "Add NFA transition from ORIG-STATE, on ELEMENT (chararcter/char-range), to DEST-STATE."
   (let ((transition (make-instance 'nfa-transition :element element :next-state dest-state)))
     (push transition (normal-transitions orig-state))))
+
+(defun add-nfa-transition-on-any-char (orig-state dest-state)
+  "Add NFA transition on any char from ORIG-STATE to DEST-STATE."
+  (push dest-state (transitions-on-any-char orig-state)))
 
 (defun add-nfa-auto-transition (orig-state dest-state)
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
@@ -264,9 +276,7 @@ terminus state indicates matching success, then terminal also means acceptance."
                 (elm:single-char-element (let ((bound (elm:single-char element)))
                                            (append-bounds bound bound)))
                 (elm:char-range-element (append-bounds (elm:char-start element)
-                                                       (elm:char-end element)))
-                ;;do nothing
-                (symbol nil)))))))
+                                                       (elm:char-end element)))))))))
     (sort (remove-duplicates result :test #'char=) #'char<)))
 
 ;;;TODO: REFACTOR
@@ -274,27 +284,40 @@ terminus state indicates matching success, then terminal also means acceptance."
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
 each normalized element to corresponding set of destination NFA states (representing a destination
 state's closure). by normalized, we mean that range elements are split as needed, to remove any
-overlaps. Each element could be single char, char range, any-char, or any-other-char (currently
-not used)."
+overlaps. Each element could be single char, char range, any-char. We also add all destination
+states of the transition on any-char to the destination states of the normal transition being
+handled. This is since all normal elements are implicitly part of the any-char space."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
+               "Add unique transition on ELEMENT to NEXT-STATE."
                (let* ((entry (assoc element assoc-list :test #'elm:simple-element-equal))
                       (arr (or (cdr entry)
                                (make-array 10 :adjustable t :fill-pointer 0))))
                  (vector-push-extend next-state arr)
                  (unless entry
-                   (push (cons element arr) assoc-list)))))
+                   (push (cons element arr) assoc-list))))
+             (add-trans-on-any-char (orig-closure-union element)
+               "Add all transitions on any-char to the transitions on ELEMENT."
+               (dolist (orig-state orig-closure-union)
+                 (dolist (next-state-on-any-char (transitions-on-any-char orig-state))
+                   (add-trans element next-state-on-any-char)))))
+      ;; handle normal transitions
       (dolist (nfa-state nfa-state-closure-union assoc-list)
-        ;; transition on "any char" are covered here
         (dolist (trans (normal-transitions nfa-state))
           (with-slots (element next-state) trans
             (etypecase element
-              (elm:char-range-element (let ((split-ranges (elm:split-char-range element
-                                                                                splitting-points)))
-                                        (dolist (r split-ranges)
-                                          (add-trans r next-state))))
-              (t (add-trans element next-state)))))))))
+              (elm:char-range-element
+               (let ((split-ranges (elm:split-char-range element splitting-points)))
+                 (dolist (r split-ranges)
+                   (add-trans r next-state)
+                   (add-trans-on-any-char nfa-state-closure-union r))))
+              (elm:single-char-element
+               (add-trans element next-state)
+               (add-trans-on-any-char nfa-state-closure-union element)))))
+        ;; handle transitions on any-char
+        (dolist (next-state-on-any-char (transitions-on-any-char nfa-state))
+          (add-trans elm:+ANY-CHAR-ELEMENT+ next-state-on-any-char))))))
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
   (terminus fsm-state))
@@ -303,8 +326,8 @@ not used)."
 ;; TODO: a macro would be more convenient
 (defmethod fsm:traverse-fsm-transitions ((root-state nfa-state) traversal-fn)
   "Traverse all transitions in the NFA state machine, starting from an initial state ROOT-STATE.
-This includes both normal and auto transitions. TRAVERSAL-FN is called for each transition. Note
-that initial state does not necessarily have to be the FSM root state."
+This includes both normal, transitions on any-char, and auto transitions. TRAVERSAL-FN is called for
+each transition. Note that initial state does not necessarily have to be the FSM root state."
   (let ((traversal-mark-lookup-table (make-hash-table)))
     (labels ((iter (nfa-state)
                (unless (gethash nfa-state traversal-mark-lookup-table)
@@ -314,6 +337,9 @@ that initial state does not necessarily have to be the FSM root state."
                        for next-state = (next-state trans)
                        do (funcall traversal-fn nfa-state elem next-state)
                           (iter next-state))
+                 (loop for dest in (transitions-on-any-char nfa-state)
+                       do (funcall traversal-fn nfa-state elm:+ANY-CHAR-ELEMENT+ dest)
+                          (iter dest))
                  (loop for dest in (auto-transitions nfa-state)
                        do (funcall traversal-fn nfa-state :auto dest)
                           (iter dest)))))

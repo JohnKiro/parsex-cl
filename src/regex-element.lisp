@@ -61,29 +61,21 @@ other than #\a.")
        (char= (char-end chr1) (char-end chr2))))
 
 (defun match-char-against-simple-element (ch elem)
-  "Matches a character CH against a simple element (single char/char range/any char).
-Note that only 'any char' is accepted as a symbol, and it matches against any character CH. Also
-note that actually this function is used only when ELEM is either single char or char range, since
-it's used with normal transitions, not with transition on any other char. However, I'm including
-the SYMBOL clause for completeness (to make the function more general and useful)."
+  "Matches a character CH against a simple element (single char/char range)."
   (etypecase elem
     (single-char-element (char= ch (single-char elem)))
     (char-range-element (and (char>= ch (char-start elem))
-                             (char<= ch (char-end elem))))
-    (symbol (or (eq elem :any-char) (error "Invalid symbol ~a!" elem)))))
+                             (char<= ch (char-end elem))))))
 
 ;; TODO: cleanup/simplify
 (defun simple-element-equal (element other-obj)
-  "Equality test for all three types of simple elements (single char, char-range, symbol).
-Note: the symbol equality is caught (using EQ), before an ETYPECASE is evaluated."
+  "Equality test for all types of simple elements (single char, char-range)."
   (or (eq element other-obj)
       (etypecase element
         (single-char-element (and (typep other-obj 'single-char-element)
                                   (char= (single-char element) (single-char other-obj))))
         (char-range-element (and (typep other-obj 'char-range-element)
-                                 (char-range-equal element other-obj)))
-        ;; since the above EQ evaluated to nil, we're sure other-obj is not a symbol 
-        (symbol nil))))
+                                 (char-range-equal element other-obj))))))
 
 (defun make-char-range (start end)
   "Utility function to simplify char-range-element construction."

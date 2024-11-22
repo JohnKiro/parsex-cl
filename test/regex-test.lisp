@@ -204,11 +204,11 @@ element in the form (matching-status accumulator-value consumed-value)."
   :expected-accumulator-value "wz")
 
 (define-regex-matching-test any-char-test-2
-  :description "Tests failure matching the any-char element, when the meaning is any other char."
+  :description "Tests successful matching the any-char element, even in presence of OR."
   :regex (:or (:seq :any-char #\z) "hello")
   :input-text "hz"
-  :expected-matching-status :regex-not-matched
-  :expected-accumulator-value nil)
+  :expected-matching-status :regex-matched
+  :expected-accumulator-value "hz")
 
 (define-regex-matching-loop-test regex-matching-loop-test-1
   :description "Tests a loop of matching operations against a simple regex. It also tests
