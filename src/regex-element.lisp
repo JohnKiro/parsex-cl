@@ -12,9 +12,14 @@ Other element types not needing special class:
 
 (defconstant +any-char-element+ :any-char
   "Centralized reference to any ANY-CHAR element. This corresponds to '.' (dot) in conventional
-regular expressions. In this implementation, this is usually interpreted as any other char. For
-example, for the regex fragment (:or (:seq #\a #\b) :any-char), the :any-char would match any char
-other than #\a.")
+regular expressions. For example, for the regex fragment (:or (:seq #\a #\b) (seq :any-char #\x)),
+the :any-char would match any char, including #\a.")
+
+(defconstant +any-other-char-element+ :any-other-char
+  "Centralized reference to any ANY-OTHER-CHAR element. This element is usually generated during
+negation, and for now, I'm not allowing at for the user. Later, I may allow it, so that user could
+define a regex like (or #\a (seq any-other-char #\x)). In such case, 'bx' would match, but not
+'ax'.")
 
 ;; TODO: remove (no need for base abstract)
 (defclass element () ()

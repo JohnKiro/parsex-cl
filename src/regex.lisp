@@ -104,7 +104,8 @@ included or not?"
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))
-  (if (eq simple-element :any-char)
+  ;; TODO: revise later (these are element types or transition types?)
+  (if (or (eq simple-element :any-char) (eq simple-element elm::+ANY-OTHER-CHAR-ELEMENT+))
       (if (transition-on-any-other origin-dfa-state)
           (error "A transition on any other is already present!")
           (setf (transition-on-any-other origin-dfa-state) destination-dfa-state))

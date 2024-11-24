@@ -87,11 +87,10 @@ and returns output state as continuation point."))
                                                       inner-continuation-points)
             for dead-end in inner-dead-ends
             do (unset-dead-end dead-end)
-            when (member dead-end inner-continuation-point-closures :test #'eql)
-              ;; TODO: give user the choice (greedy/non-greedy)
-              do (add-nfa-normal-transition dead-end elm:+ANY-CHAR-ELEMENT+ glue-state)
-            else
-              do (add-nfa-auto-transition dead-end glue-state))
+               ;; TODO: give user the choice (greedy/non-greedy)
+            do (set-nfa-transition-on-any-other dead-end glue-state)
+            unless (member dead-end inner-continuation-point-closures :test #'eql)
+              do (add-nfa-auto-transition dead-end output-state))
       ;; absolute dead-ends are connected directly to output state
       (loop for dead-end in inner-absolutely-dead-ends
             do (unset-dead-end dead-end)
@@ -106,6 +105,8 @@ and returns output state as continuation point."))
 connected to END-STATE, neither directly nor via a series of auto transitions. These states are
 non-acceptance states, that will eventually be handled by a parent negation element by converting
 them into continuation points.
+TODO: handling of any-char and any-other-char!!!
+TODO: update doc string (including all returned values)!
 TODO: in later version, this function should also do the connecting, but I'm starting with the most
 simple version."
   (let ((dead-ends nil)
@@ -150,6 +151,7 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    (transitions-on-any-char :initform nil :type list :accessor transitions-on-any-char)
+   (transition-on-any-other :initform nil :type (or null nfa-state) :reader transition-on-any-other)
    (is-dead-end :initform nil :type boolean :reader is-dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
@@ -195,6 +197,8 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
             :reader element)
    (next-state :initarg :next-state
                :initform (error "next-state must be specified!")
+               ;; TODO: It's not possible for a transition to lead to a null state, adjust type
+               ;; accordingly.
                :type (or null nfa-state)
                :reader next-state)))
 
@@ -218,6 +222,12 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
 (defun add-nfa-auto-transition (orig-state dest-state)
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
   (push dest-state (auto-transitions orig-state)))
+
+(defun set-nfa-transition-on-any-other (orig-state dest-state)
+  "Set the NFA transition on any char from ORIG-STATE to DEST-STATE."
+  (if (transition-on-any-other orig-state)
+      (error "Transition on any other char already set for ~a!" orig-state)
+      (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
 
 #+nil
 (defun add-nfa-special-transition (orig-state element dest-state)
@@ -315,9 +325,16 @@ handled. This is since all normal elements are implicitly part of the any-char s
               (elm:single-char-element
                (add-trans element next-state)
                (add-trans-on-any-char nfa-state-closure-union element)))))
+        ;; TODO: probably no reason to keep the following types of transitions in the same assoc
+        ;;       table. Consider separating, and consider creating a class for normalized transition
+        ;;       table.
         ;; handle transitions on any-char
         (dolist (next-state-on-any-char (transitions-on-any-char nfa-state))
-          (add-trans elm:+ANY-CHAR-ELEMENT+ next-state-on-any-char))))))
+          (add-trans elm:+ANY-CHAR-ELEMENT+ next-state-on-any-char))
+        ;; handle transitions on any-other-char
+        (let ((next-state-on-any-other-char (transition-on-any-other nfa-state)))
+          (when next-state-on-any-other-char
+            (add-trans elm::+ANY-OTHER-CHAR-ELEMENT+ next-state-on-any-other-char)))))))
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
   (terminus fsm-state))
@@ -342,5 +359,9 @@ each transition. Note that initial state does not necessarily have to be the FSM
                           (iter dest))
                  (loop for dest in (auto-transitions nfa-state)
                        do (funcall traversal-fn nfa-state :auto dest)
-                          (iter dest)))))
+                          (iter dest))
+                 (let ((next-state-on-any-other-char (transition-on-any-other nfa-state)))
+                   (when next-state-on-any-other-char
+                     (funcall traversal-fn nfa-state :any-other-char next-state-on-any-other-char)
+                     (iter next-state-on-any-other-char))))))
       (iter root-state))))
