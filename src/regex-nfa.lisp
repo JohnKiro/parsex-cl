@@ -82,13 +82,14 @@ and returns output state as continuation point."))
       ;; then to output state
       ;; actually for now, we separated the traversal (above) from the connecting (below)
       (loop for continuation-point in inner-continuation-points
-            do (set-dead-end continuation-point))
+            do (set-dead-end continuation-point)
+            do (unset-nfa-transition-on-any-other continuation-point))
       (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
                                                       inner-continuation-points)
             for dead-end in inner-dead-ends
             do (unset-dead-end dead-end)
                ;; TODO: give user the choice (greedy/non-greedy)
-            do (set-nfa-transition-on-any-other dead-end glue-state)
+            do (toggle-nfa-transition-on-any-other dead-end glue-state)
             unless (member dead-end inner-continuation-point-closures :test #'eql)
               do (add-nfa-auto-transition dead-end output-state))
       ;; absolute dead-ends are connected directly to output state
@@ -224,9 +225,23 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
   (push dest-state (auto-transitions orig-state)))
 
 (defun set-nfa-transition-on-any-other (orig-state dest-state)
-  "Set the NFA transition on any char from ORIG-STATE to DEST-STATE."
+  "Set the NFA transition on any char from ORIG-STATE to DEST-STATE, unless it's already set, in
+which case, an error is thrown."
   (if (transition-on-any-other orig-state)
       (error "Transition on any other char already set for ~a!" orig-state)
+      (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
+
+(defun unset-nfa-transition-on-any-other (orig-state)
+  "Unset the NFA transition on any char from ORIG-STATE, if already set, otherwise, do nothing."
+  (when (transition-on-any-other orig-state)
+    (setf (slot-value orig-state 'transition-on-any-other) nil)))
+
+(defun toggle-nfa-transition-on-any-other (orig-state dest-state)
+  "Set the NFA transition on any char from ORIG-STATE to DEST-STATE, unless it's already set, in
+which case, it is unset. The use case here is to negate a previous negation (where the two negations
+cancel each other)."
+  (if (transition-on-any-other orig-state)
+      (setf (slot-value orig-state 'transition-on-any-other) nil)
       (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
 
 #+nil
