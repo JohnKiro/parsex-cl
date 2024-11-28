@@ -105,10 +105,12 @@ and returns output state as continuation point."))
   "Traverse a portion of the NFA, starting at START-STATE, and collect all states that are not
 connected to END-STATE, neither directly nor via a series of auto transitions. These states are
 non-acceptance states, that will eventually be handled by a parent negation element by converting
-them into continuation points.
-TODO: handling of any-char and any-other-char!!!
-TODO: update doc string (including all returned values)!
-TODO: in later version, this function should also do the connecting, but I'm starting with the most
+them into continuation points. Among these states, those that also have no outgoing transitions of
+any type (other than auto transitions), are called absolute dead-end states, and are returned in a
+separate list. Finally, all other states, namely those that are connected to continuation points are
+also returned in a separate list. The three lists are returned as three values in the following
+order: (VALUES DEAD-ENDS ABSOLUTELY-DEAD-ENDS CONTINUATION-POINTS).
+TODO: in later version, this function may also do the connecting, but I'm starting with the most
 simple version."
   (let ((dead-ends nil)
         (absolutely-dead-ends nil)
@@ -124,6 +126,11 @@ its type (T -> continuation point, NIL -> dead-end)."
                      (loop for normal-trans-i in (normal-transitions state)
                            for state-i = (next-state normal-trans-i)
                            do (recurse state-i))
+                     (dolist (state-i (transitions-on-any-char state))
+                       (recurse state-i))
+                     (let ((next-state-on-any-other-char (transition-on-any-other state)))
+                       (when next-state-on-any-other-char
+                         (recurse next-state-on-any-other-char)))
                      (let ((is-acceptance nil))
                        (when (eq state end-state)
                          (setf is-acceptance t))
@@ -133,7 +140,8 @@ its type (T -> continuation point, NIL -> dead-end)."
                            (setf is-acceptance t)))
                        (if is-acceptance
                            (pushnew state continuation-points :test #'eq)
-                           (if (normal-transitions state)
+                           (if (or (normal-transitions state) (transitions-on-any-char state)
+                                   (transition-on-any-other state))
                                (pushnew state dead-ends :test #'eq)
                                (pushnew state absolutely-dead-ends :test #'eq)))
                        is-acceptance)))))
