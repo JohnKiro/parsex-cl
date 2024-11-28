@@ -178,9 +178,13 @@ TODO: after latest changes, it does NOT actually parse, so consider renaming."
         (format t "terminus: ~a " terminus)))))
 
 (defun set-dead-end (state)
+  "Set dead-end flag for state. This is normally called upon NFA negation, to convert a continuation
+point into a dead-end."
   (setf (slot-value state 'is-dead-end) t))
 
 (defun unset-dead-end (state)
+  "Unset dead-end flag for state. This is normally called upon NFA negation, to convert a dead-end
+into a continuation point."
   (setf (slot-value state 'is-dead-end) nil))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
@@ -239,7 +243,7 @@ which case, an error is thrown."
 (defun toggle-nfa-transition-on-any-other (orig-state dest-state)
   "Set the NFA transition on any char from ORIG-STATE to DEST-STATE, unless it's already set, in
 which case, it is unset. The use case here is to negate a previous negation (where the two negations
-cancel each other)."
+cancel each other). Returns the newly set value (NIL / DEST-STATE)."
   (if (transition-on-any-other orig-state)
       (setf (slot-value orig-state 'transition-on-any-other) nil)
       (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
