@@ -87,14 +87,16 @@ and returns output state as continuation point."))
       (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
                                                       inner-continuation-points)
             for dead-end in inner-dead-ends
-            do (unset-dead-end dead-end)
-               ;; TODO: give user the choice (greedy/non-greedy)
-            do (toggle-nfa-transition-on-any-other dead-end glue-state)
-            unless (member dead-end inner-continuation-point-closures :test #'eql)
-              do (add-nfa-auto-transition dead-end output-state))
+            do (when (and (toggle-nfa-transition-on-any-other dead-end glue-state)
+                          (not (member dead-end inner-continuation-point-closures :test #'eql)))
+                 ;; TODO: give user the choice (greedy/non-greedy)
+                 (add-nfa-auto-transition dead-end output-state)
+                 (unset-dead-end dead-end)))
       ;; absolute dead-ends are connected directly to output state
       (loop for dead-end in inner-absolutely-dead-ends
             do (unset-dead-end dead-end)
+               ;; TODO: rather than creating this transition and creating output-state, check the
+               ;; dead-end that has no auto transitions out, and use it as output state
             do (add-nfa-auto-transition dead-end output-state))
       output-state)))
 
