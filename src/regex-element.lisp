@@ -74,13 +74,15 @@ define a regex like (or #\a (seq any-other-char #\x)). In such case, 'bx' would 
 
 ;; TODO: cleanup/simplify
 (defun simple-element-equal (element other-obj)
-  "Equality test for all types of simple elements (single char, char-range)."
+  "Equality test for all types of simple elements (single char, char-range, symbol)."
   (or (eq element other-obj)
       (etypecase element
         (single-char-element (and (typep other-obj 'single-char-element)
                                   (char= (single-char element) (single-char other-obj))))
         (char-range-element (and (typep other-obj 'char-range-element)
-                                 (char-range-equal element other-obj))))))
+                                 (char-range-equal element other-obj)))
+        ;; since the above EQ evaluated to nil, we're sure no equality
+        (symbol nil))))
 
 (defun make-char-range (start end)
   "Utility function to simplify char-range-element construction."

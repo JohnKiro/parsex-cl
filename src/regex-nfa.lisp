@@ -323,9 +323,10 @@ terminus state indicates matching success, then terminal also means acceptance."
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
 each normalized element to corresponding set of destination NFA states (representing a destination
 state's closure). by normalized, we mean that range elements are split as needed, to remove any
-overlaps. Each element could be single char, char range, any-char. We also add all destination
-states of the transition on any-char to the destination states of the normal transition being
-handled. This is since all normal elements are implicitly part of the any-char space."
+overlaps. Each element could be single char, char range, any-char, or any-other-char. We also add
+all destination states of the transition on any-char to the destination states of the normal
+transition being handled. This is since all normal elements are implicitly part of the any-char
+space."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
