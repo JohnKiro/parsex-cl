@@ -76,53 +76,55 @@ and returns output state as continuation point."))
          (negation-exit-elem (make-instance 'elm:zero-or-more-element
                                             :element elm:+any-char-element+))
          (output-state (regex-to-nfa negation-exit-elem glue-state)))
-    (multiple-value-bind (inner-dead-ends inner-absolutely-dead-ends inner-continuation-points)
-        (collect-nfa-non-acceptance-states input-nfa-state output-state-inner)
+    (multiple-value-bind (inner-continuation-points inner-dead-ends)
+        (analyze-nfa-state-reachability input-nfa-state output-state-inner)
       ;; traverse NFA sub-tree, and connect each dead-end state to the new (+ any-char) element,
       ;; then to output state
       ;; actually for now, we separated the traversal (above) from the connecting (below)
       (loop for continuation-point in inner-continuation-points
             do (set-dead-end continuation-point)
             do (unset-nfa-transition-on-any-other continuation-point))
-      (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
-                                                      inner-continuation-points)
-            for dead-end in inner-dead-ends
-            do (when (and (toggle-nfa-transition-on-any-other dead-end glue-state)
-                          (not (member dead-end inner-continuation-point-closures :test #'eql)))
-                 ;; TODO: give user the choice (greedy/non-greedy)
-                 (add-nfa-auto-transition dead-end output-state)
-                 (unset-dead-end dead-end)))
-      ;; absolute dead-ends are connected directly to output state
-      (loop for dead-end in inner-absolutely-dead-ends
-            do (unset-dead-end dead-end)
-               ;; TODO: rather than creating this transition and creating output-state, check the
-               ;; dead-end that has no auto transitions out, and use it as output state
-            do (add-nfa-auto-transition dead-end output-state))
-      output-state)))
+      (labels ((absolute-dead-end-p (state)
+                 (not (or (normal-transitions state)
+                          (transitions-on-any-char state)
+                          ;; TODO: REVISE!!!!
+                          (transition-on-any-other state)))))
+        (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
+                                                        inner-continuation-points)
+              for dead-end in inner-dead-ends
+              do (if (absolute-dead-end-p dead-end)
+                     (progn
+                       ;; TODO: give user the choice (greedy/non-greedy)
+                       ;; TODO: rather than creating this transition and creating output-state ,
+                       ;; check the dead-end that has no auto transitions out, and use it as output
+                       ;; state
+                       (add-nfa-auto-transition dead-end output-state)
+                       (unset-dead-end dead-end))
+                     (when (and (toggle-nfa-transition-on-any-other dead-end glue-state)
+                                (not (member dead-end inner-continuation-point-closures
+                                             :test #'eql)))
+                       ;; TODO: give user the choice (greedy/non-greedy)
+                       (add-nfa-auto-transition dead-end output-state)
+                       (unset-dead-end dead-end))))))
+    output-state))
 
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
 ;;; states as a useful by-product.
-(defun collect-nfa-non-acceptance-states (start-state end-state)
-  "Traverse a portion of the NFA, starting at START-STATE, and collect all states that are not
-connected to END-STATE, neither directly nor via a series of auto transitions. These states are
-non-acceptance states, that will eventually be handled by a parent negation element by converting
-them into continuation points. Among these states, those that also have no outgoing transitions of
-any type (other than auto transitions), are called absolute dead-end states, and are returned in a
-separate list. Finally, all other states, namely those that are connected to continuation points are
-also returned in a separate list. The three lists are returned as three values in the following
-order: (VALUES DEAD-ENDS ABSOLUTELY-DEAD-ENDS CONTINUATION-POINTS).
-TODO: in later version, this function may also do the connecting, but I'm starting with the most
-simple version."
-  (let ((dead-ends nil)
-        (absolutely-dead-ends nil)
-        (continuation-points nil)
+(defun analyze-nfa-state-reachability (start-state end-state)
+  "Traverse a portion of the NFA, starting at START-STATE, and prepares two separate lists of
+states: 1) All states that have END-STATE in their closures, and 2) All states that do not have
+END-STATE in their closures. The typical usage is in handling the negation regex, where the first
+list corresponds to matching points, while the second corresponds to non-matching points.
+The two lists are returned as two values: (VALUES AUTO-CONNECTED NON-AUTO-CONNECTED)."
+  (let ((non-auto-connected nil)
+        (auto-connected nil)
         (traversed nil))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
-its type (T -> continuation point, NIL -> dead-end)."
+its type (T -> auto-connected, NIL -> non-auto-connected)."
                (if (member state traversed :test #'eq)
-                   (member state continuation-points :test #'eq)
+                   (member state auto-connected :test #'eq)
                    (progn
                      (push state traversed)
                      (loop for normal-trans-i in (normal-transitions state)
@@ -133,22 +135,19 @@ its type (T -> continuation point, NIL -> dead-end)."
                      (let ((next-state-on-any-other-char (transition-on-any-other state)))
                        (when next-state-on-any-other-char
                          (recurse next-state-on-any-other-char)))
-                     (let ((is-acceptance nil))
+                     (let ((is-auto-connected nil))
                        (when (eq state end-state)
-                         (setf is-acceptance t))
+                         (setf is-auto-connected t))
                        (dolist (state-i (auto-transitions state))
                          (when (recurse state-i)
-                           ;;if state-i is acceptance, then so is the one leading to it
-                           (setf is-acceptance t)))
-                       (if is-acceptance
-                           (pushnew state continuation-points :test #'eq)
-                           (if (or (normal-transitions state) (transitions-on-any-char state)
-                                   (transition-on-any-other state))
-                               (pushnew state dead-ends :test #'eq)
-                               (pushnew state absolutely-dead-ends :test #'eq)))
-                       is-acceptance)))))
+                           ;;if state-i is auto-connected, then so is the one leading to it
+                           (setf is-auto-connected t)))
+                       (if is-auto-connected
+                           (pushnew state auto-connected :test #'eq)
+                           (pushnew state non-auto-connected :test #'eq))
+                       is-auto-connected)))))
       (recurse start-state)
-      (values dead-ends absolutely-dead-ends continuation-points))))
+      (values auto-connected non-auto-connected))))
 
 (defun parse-and-produce-nfa (regex)
   "Produces NFA starting at root regex element. Its importance is in identifying the terminus state.
