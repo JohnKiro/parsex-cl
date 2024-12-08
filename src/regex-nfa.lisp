@@ -372,8 +372,9 @@ space."
 ;; TODO: a macro would be more convenient
 (defmethod fsm:traverse-fsm-transitions ((root-state nfa-state) traversal-fn)
   "Traverse all transitions in the NFA state machine, starting from an initial state ROOT-STATE.
-This includes both normal, transitions on any-char, and auto transitions. TRAVERSAL-FN is called for
-each transition. Note that initial state does not necessarily have to be the FSM root state."
+This includes both normal, transitions on any-char, any-other-char, and auto transitions.
+TRAVERSAL-FN is called for each transition. Note that initial state does not necessarily have to be
+the FSM root state."
   (let ((traversal-mark-lookup-table (make-hash-table)))
     (labels ((iter (nfa-state)
                (unless (gethash nfa-state traversal-mark-lookup-table)
