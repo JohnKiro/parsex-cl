@@ -96,8 +96,9 @@ found or newly created."
 
 (defun lookup-dfa-transition (simple-element origin-dfa-state)
   "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE. A simple
-element can be either single char or char range (TODO: need to unify the terminology: :any-char
-included or not?"
+element can be either single char, char range, or any-other-char. Note that during normalized
+transition table preparation, elements any-char and any-other-char are merged (if both found in the
+same NFA closure union. This is because in DFA, both will have the meaning of any-other-char."
   (declare (dfa-state origin-dfa-state))
   (assoc simple-element (slot-value origin-dfa-state 'transitions)
          :test #'elm:simple-element-equal))

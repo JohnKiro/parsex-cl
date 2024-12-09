@@ -339,11 +339,14 @@ state's closure). by normalized, we mean that range elements are split as needed
 overlaps. Each element could be single char, char range, any-char, or any-other-char. We also add
 all destination states of the transition on any-char to the destination states of the normal
 transition being handled. This is since all normal elements are implicitly part of the any-char
-space."
+space. Note that both any-char and any-other-char are merged, and inserted as any-other-char. This
+is since as far as DFA is concerned, both will be handled as any-other-char."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
                "Add unique transition on ELEMENT to NEXT-STATE."
+               (when (eq element elm:+ANY-CHAR-ELEMENT+)
+                 (setf element elm::+ANY-OTHER-CHAR-ELEMENT+))
                (let* ((entry (assoc element assoc-list :test #'elm:simple-element-equal))
                       (arr (or (cdr entry)
                                (make-array 10 :adjustable t :fill-pointer 0))))
