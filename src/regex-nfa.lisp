@@ -81,14 +81,26 @@ and returns output state as continuation point."))
       ;; traverse NFA sub-tree, and connect each dead-end state to the new (+ any-char) element,
       ;; then to output state
       ;; actually for now, we separated the traversal (above) from the connecting (below)
-      (loop for continuation-point in inner-continuation-points
-            do (set-dead-end continuation-point)
-            do (unset-nfa-transition-on-any-other continuation-point))
       (labels ((absolute-dead-end-p (state)
                  (not (or (normal-transitions state)
                           (transitions-on-any-char state)
                           ;; TODO: REVISE!!!!
-                          (transition-on-any-other state)))))
+                          (transition-on-any-other state))))
+               (cleanup-dead-paths-on-any-other-char (orig-state)
+                 "Cleanup transitions on any-other-char, in case destination is continuation point."
+                 ;; TODO: may also cleanup auto-transitions to CT (going to be dead-end)
+                 (with-slots (transition-on-any-other) orig-state
+                   (when (member transition-on-any-other inner-continuation-points)
+                     (setf transition-on-any-other nil))))
+               (cleanup-dead-paths-on-auto (orig-state)
+                 "Cleanup auto transitions, where destination is the output-state-inner."
+                 (with-slots (auto-transitions) orig-state
+                   (setf auto-transitions (delete output-state-inner auto-transitions)))))
+        (loop for continuation-point in inner-continuation-points
+              do (set-dead-end continuation-point)
+              do (progn
+                   (cleanup-dead-paths-on-any-other-char continuation-point)
+                   (cleanup-dead-paths-on-auto continuation-point)))
         (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
                                                         inner-continuation-points)
               for dead-end in inner-dead-ends
@@ -105,7 +117,8 @@ and returns output state as continuation point."))
                                              :test #'eql)))
                        ;; TODO: give user the choice (greedy/non-greedy)
                        (add-nfa-auto-transition dead-end output-state)
-                       (unset-dead-end dead-end))))))
+                       (unset-dead-end dead-end)))
+              do (cleanup-dead-paths-on-any-other-char dead-end))))
     output-state))
 
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
