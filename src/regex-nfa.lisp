@@ -112,7 +112,7 @@ and returns output state as continuation point."))
                        ;; state
                        (add-nfa-auto-transition dead-end output-state)
                        (unset-dead-end dead-end))
-                     (when (and (toggle-nfa-transition-on-any-other dead-end glue-state)
+                     (when (and (set-nfa-transition-on-any-other dead-end glue-state)
                                 (not (member dead-end inner-continuation-point-closures
                                              :test #'eql)))
                        ;; TODO: give user the choice (greedy/non-greedy)
@@ -243,32 +243,33 @@ into a continuation point."
     (push transition (normal-transitions orig-state))))
 
 (defun add-nfa-transition-on-any-char (orig-state dest-state)
-  "Add NFA transition on any char from ORIG-STATE to DEST-STATE."
-  (push dest-state (transitions-on-any-char orig-state)))
+  "Add NFA transition on any char from ORIG-STATE to DEST-STATE. Note that any-char invalidates
+any-other-char (since it accepts any-char, leaving nothing to any-other-char to match. For this
+reason, this function also clears any-other-char transition (if any)."
+  (push dest-state (transitions-on-any-char orig-state))
+  (unset-nfa-transition-on-any-other orig-state))
 
 (defun add-nfa-auto-transition (orig-state dest-state)
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
   (push dest-state (auto-transitions orig-state)))
 
 (defun set-nfa-transition-on-any-other (orig-state dest-state)
-  "Set the NFA transition on any char from ORIG-STATE to DEST-STATE, unless it's already set, in
-which case, an error is thrown."
-  (if (transition-on-any-other orig-state)
-      (error "Transition on any other char already set for ~a!" orig-state)
-      (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
+  "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except in one of two
+cases:
+1) If a transition on any-char is found for ORIG-STATE, then this transition is skipped, since it
+won't be effective anyway (since any-char matches any char, so the path on any-other-char will never
+be used.
+2) If a transition on any other char from ORIG-STATE already exists. This is because we already have
+all required paths (every char is covered). In such case, the existing value is returned."
+  (if (transitions-on-any-char orig-state)
+      nil
+      (or (transition-on-any-other orig-state)
+          (setf (slot-value orig-state 'transition-on-any-other) dest-state))))
 
 (defun unset-nfa-transition-on-any-other (orig-state)
   "Unset the NFA transition on any char from ORIG-STATE, if already set, otherwise, do nothing."
   (when (transition-on-any-other orig-state)
     (setf (slot-value orig-state 'transition-on-any-other) nil)))
-
-(defun toggle-nfa-transition-on-any-other (orig-state dest-state)
-  "Set the NFA transition on any char from ORIG-STATE to DEST-STATE, unless it's already set, in
-which case, it is unset. The use case here is to negate a previous negation (where the two negations
-cancel each other). Returns the newly set value (NIL / DEST-STATE)."
-  (if (transition-on-any-other orig-state)
-      (setf (slot-value orig-state 'transition-on-any-other) nil)
-      (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
 
 #+nil
 (defun add-nfa-special-transition (orig-state element dest-state)
