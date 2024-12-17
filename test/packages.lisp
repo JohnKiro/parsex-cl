@@ -34,7 +34,8 @@
         )
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
                     (:sexp #:parsex-cl.regex-sexp)
-                    (:input #:parsex-cl.regex.input)))
+                    (:input #:parsex-cl.regex.input)
+                    (:elm #:parsex-cl.regex-element)))
 
 (defpackage :parsex-cl.chars.test
   (:use #:cl
