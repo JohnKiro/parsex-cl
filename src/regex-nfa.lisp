@@ -260,11 +260,13 @@ cases:
 won't be effective anyway (since any-char matches any char, so the path on any-other-char will never
 be used.
 2) If a transition on any other char from ORIG-STATE already exists. This is because we already have
-all required paths (every char is covered). In such case, the existing value is returned."
-  (if (transitions-on-any-char orig-state)
+all required paths (every char is covered). NOTE that currently I'm assuming that this transition
+would be eventually cleaned-up, which is not a good assumption, since it assumes a specific
+scenario. TODO: change into a simpler setter.
+The returned value is either the newly-set value, or NIL otherwise."
+  (if (or (transitions-on-any-char orig-state) (transition-on-any-other orig-state))
       nil
-      (or (transition-on-any-other orig-state)
-          (setf (slot-value orig-state 'transition-on-any-other) dest-state))))
+      (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
 
 (defun unset-nfa-transition-on-any-other (orig-state)
   "Unset the NFA transition on any char from ORIG-STATE, if already set, otherwise, do nothing."
