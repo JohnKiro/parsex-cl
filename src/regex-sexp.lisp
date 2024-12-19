@@ -11,7 +11,7 @@
  object."
   (etypecase regex
     (character (make-instance 'elm:single-char-element :single-char regex))
-    (symbol regex) ;"any char" (TODO: pass unchanged, or generate any-char-element?)
+    (keyword regex) ;"any char" (TODO: pass unchanged, or generate any-char-element?)
     (list (ecase (car regex)
             (:char-range (make-instance 'elm:char-range-element
                                         :char-start (second regex)
