@@ -104,86 +104,86 @@ element in the form (matching-status accumulator-value consumed-value)."
 
 (define-regex-matching-test basic1-regex-matching-test
   :description "Tests +, OR, char range, char range splitting."
-  :regex (:+ (:or
-              (:seq #\a #\n)
-              (:seq #\a #\m)
-              (:seq #\a #\t)
-              (:seq #\a #\s)
-              (:char-range #\w #\z)))
+  :regex (+ (or
+             (seq #\a #\n)
+             (seq #\a #\m)
+             (seq #\a #\t)
+             (seq #\a #\s)
+             (char-range #\w #\z)))
   :input-text "anamatasxzwy"
   :expected-matching-status :regex-matched)
 
 (define-regex-matching-test basic2-regex-matching-test
   :description "Also tests char splitting. May remove it later (redundant)."
-  :regex (:+ (:or
-              (:char-range #\a #\d)
-              (:char-range #\b #\e)))
+  :regex (+ (or
+             (char-range #\a #\d)
+             (char-range #\b #\e)))
   :input-text "abcacdaecccaabeadde"
   :expected-matching-status :regex-matched)
 
 (define-regex-matching-test basic3-regex-matching-test
   :description "Tests :any-char"
-  :regex (:+ (:or
-              (:seq #\a #\n)
-              (:seq :any-char #\M)
-              (:seq :any-char #\P)))
+  :regex (+ (or
+             (seq #\a #\n)
+             (seq :any-char #\M)
+             (seq :any-char #\P)))
   :input-text "anxMyPanzMvPan"
   :expected-matching-status :regex-matched)
 
 (define-regex-matching-test basic31-regex-matching-test
   :description "Also tests :any-char. This one is simpler to inspect visually."
-  :regex (:or
-          (:seq #\a #\n)
-          (:seq :any-char #\M)
-          (:seq :any-char #\P))
+  :regex (or
+          (seq #\a #\n)
+          (seq :any-char #\M)
+          (seq :any-char #\P))
   :input-text "xManxMyPanzMvPan"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "xM")
 
 (define-regex-matching-test basic32-regex-matching-test
   :description "Tests :or (another test)"
-  :regex (:+ (:or
-              (:char-range #\a #\d)
-              (:char-range #\c #\f)
-              "lmn"
-              #\x
-              #\y
-              #\z))
+  :regex (+ (or
+             (char-range #\a #\d)
+             (char-range #\c #\f)
+             "lmn"
+             #\x
+             #\y
+             #\z))
   :input-text "adcflmnxzlmn"
   :expected-matching-status :regex-matched)
 
 ;; (a|b)*abb.
 (define-regex-matching-test basic4-regex-matching-test
   :description "Tests SEQ, OR, Kleene Closure, string."
-  :regex (:seq (:* (:or #\a #\b)) "abb")
+  :regex (seq (* (or #\a #\b)) "abb")
   :input-text "abbbababbababbabbbbbabb"
   :expected-matching-status :regex-matched)
 
 
 (define-regex-matching-test basic5-regex-matching-test
   :description "Tests stopping at candidate matching point."
-  :regex (:seq (:* #\x) #\y)
+  :regex (seq (* #\x) #\y)
   :input-text "xxyz"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "xxy")
 
 (define-regex-matching-test basic6-regex-matching-test
   :description "Tests backtracking to last candidate match (upon no match)."
-  :regex (:seq (:* (:seq #\X #\Y)))
+  :regex (seq (* (seq #\X #\Y)))
   :input-text "XYXYXw"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "XYXY")
 
 (define-regex-matching-test basic7-regex-matching-test
   :description "Tests backtracking to last candidate match (upon input exhaustion)."
-  :regex (:seq (:* (:seq #\X #\Y)))
+  :regex (seq (* (seq #\X #\Y)))
   :input-text "XYXYX"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "XYXY")
 
 (define-regex-matching-test basic8-regex-matching-test
   :description "Tests backtracking to beginning (match empty string)."
-  :regex (:seq (:* (:seq #\X #\Y)))
+  :regex (seq (* (seq #\X #\Y)))
   :input-text "X"
   ;; note that * is zero-or-more, that's why we backtrack
   :expected-matching-status :regex-matched
@@ -191,21 +191,21 @@ element in the form (matching-status accumulator-value consumed-value)."
 
 (define-regex-matching-test basic9-regex-matching-test
   :description "Tests no backtracking (no match)."
-  :regex (:seq (:+ (:seq #\X #\Y)))
+  :regex (seq (+ (seq #\X #\Y)))
   :input-text "X"
   :expected-matching-status :regex-not-matched
   :expected-accumulator-value nil)
 
 (define-regex-matching-test any-char-test-1
   :description "Tests successful matching of the any-char element."
-  :regex (:or (:seq :any-char #\z) "hello")
+  :regex (or (seq :any-char #\z) "hello")
   :input-text "wz"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "wz")
 
 (define-regex-matching-test any-char-test-2
   :description "Tests successful matching the any-char element, even in presence of OR."
-  :regex (:or (:seq :any-char #\z) "hello")
+  :regex (or (seq :any-char #\z) "hello")
   :input-text "hz"
   :expected-matching-status :regex-matched
   :expected-accumulator-value "hz")
@@ -213,9 +213,9 @@ element in the form (matching-status accumulator-value consumed-value)."
 (define-regex-matching-loop-test regex-matching-loop-test-1
   :description "Tests a loop of matching operations against a simple regex. It also tests
 consumption of invalid characters (consumed, but not accumulated)."
-  :regex (:or
-          (:seq #\X #\Y)
-          (:seq #\A #\B))
+  :regex (or
+          (seq #\X #\Y)
+          (seq #\A #\B))
   :input-text "XYABXYABZZZZZ"
   :expected-matching-result-details ((:regex-matched "XY" "XY")
                                      (:regex-matched "AB" "AB")
@@ -230,8 +230,8 @@ consumption of invalid characters (consumed, but not accumulated)."
 
 (define-regex-matching-loop-test regex-matching-loop-test-2
   :description "Tests a loop of matching operations against a regex, with backtracking."
-  :regex (:+
-          (:seq #\X #\Y))
+  :regex (+
+          (seq #\X #\Y))
   :input-text "XYXYXZZZ"
   :expected-matching-result-details ((:regex-matched "XYXY" "XYXY")
                                      (:regex-not-matched nil "X")
@@ -242,9 +242,9 @@ consumption of invalid characters (consumed, but not accumulated)."
 
 (define-regex-matching-loop-test regex-matching-loop-test-3
   :description "Tests a loop of unsuccessful matching operations, till match (finally)."
-  :regex (:or
-          (:seq #\X #\Y)
-          (:seq #\A #\B))
+  :regex (or
+          (seq #\X #\Y)
+          (seq #\A #\B))
   :input-text "XzAcXwAdXXXYooo"
   :expected-matching-result-details ((:regex-not-matched nil "X")
                                      (:regex-not-matched nil "z")
@@ -266,10 +266,10 @@ consumption of invalid characters (consumed, but not accumulated)."
   :description "Tests correct matching after skipping a series of bad characters. Notice how the BB
 has been matched, although at some point, the cursor was after the AB, thanks to backtracking to
 just after the #\A."
-  :regex (:or
-          (:seq #\A #\B #\C)
-          (:seq #\B #\B)
-          (:seq #\C #\C (:+ #\D)))
+  :regex (or
+          (seq #\A #\B #\C)
+          (seq #\B #\B)
+          (seq #\C #\C (+ #\D)))
   :input-text "ABBXXXXCCDDDD"
   :expected-matching-result-details ((:regex-not-matched nil "A")
                                      (:regex-matched "BB" "BB")
@@ -281,9 +281,9 @@ just after the #\A."
 
 (define-regex-matching-loop-test regex-matching-loop-test-5
   :description "Another loop test. Notice the difference between it and test-6/test-7 (+ VS *)."
-  :regex (:or
-          (:+ #\X)
-          (:seq #\A #\B))
+  :regex (or
+          (+ #\X)
+          (seq #\A #\B))
   :input-text "XXXXXACABXXXXXZ"
   :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
                                      (:regex-not-matched nil "A")
@@ -296,7 +296,7 @@ just after the #\A."
   :description "Another loop test. Notice the difference between it and test-5 (+ VS *): effect of
 * is that a match takes place even on invalid characters, which are consumed but not accumulated.
 So regex matches, char is consumed, but not accumulated."
-  :regex (:* #\X)
+  :regex (* #\X)
   :input-text "XXXXXABC"
   ;;TODO was handled (we consume on no-match) - to be revised later, maybe we need to make advancing
   ;;optional?
@@ -308,9 +308,9 @@ So regex matches, char is consumed, but not accumulated."
 
 (define-regex-matching-loop-test regex-matching-loop-test-7
   :description "Another loop test. Notice the difference between it and test-5 (+ VS *)."
-  :regex (:or
-          (:* #\X)
-          (:seq #\A #\B))
+  :regex (or
+          (* #\X)
+          (seq #\A #\B))
   :input-text "XXXXXACABXXXXXZ"
   :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
                                      (:regex-matched nil "A")
@@ -328,18 +328,18 @@ So regex matches, char is consumed, but not accumulated."
         for input-source = (make-instance 'input:basic-regex-input :initial-input-text input)
         do (is (equal input
                       (reduce #'(lambda (x y) (concatenate 'string x y))
-                              (loop for regex in (list '(:+ (:or
-                                                             (:seq #\A)
-                                                             "The"))
+                              (loop for regex in (list '(+ (or
+                                                            (seq #\A)
+                                                            "The"))
                                                        #\space
                                                        "problem"
                                                        #\space
-                                                       '(:or
+                                                       '(or
                                                          "is"
                                                          "was")
                                                        #\space
-                                                       '(:seq (:? (:seq #\r #\e)) "solved")
-                                                       '(:or #\. #\?))
+                                                       '(seq (? (seq #\r #\e)) "solved")
+                                                       '(or #\. #\?))
                                     for regex-obj-tree = (sexp:prepare-regex-tree regex)
                                     for dfa = (parse-and-produce-dfa regex-obj-tree)
                                     for result = (match-regex input-source dfa)
