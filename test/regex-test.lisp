@@ -9,347 +9,272 @@
 (setf fiveam:*on-failure* nil)
 (setf fiveam:*on-error* :debug)
 
-(defun run-regex-matching-test (regex input-string
-                                &key
-                                  expected-matching-status
-                                  (expected-accumulator-value input-string)
-                                  (generate-nfa-dotgraphviz t)
-                                  (generate-dfa-dotgraphviz t))
-  "Reusable function that tests matching of specified input (INPUT-STRING) against a specified
-regex (REGEX)."
-  (let* ((input-source (make-instance 'input:basic-regex-input  :initial-input-text input-string))
-         (regex-obj-tree (sexp:prepare-regex-tree regex))
-         (nfa (nfa:parse-and-produce-nfa regex-obj-tree))
-         (dfa (parsex-cl.regex:produce-dfa nfa))
-         (result (match-regex input-source dfa))
-         (matching-status (regex-matching-result-status result))
-         (updated-acc (input:retrieve-last-accumulated-value input-source)))
-    (format t "~%Matching the text ~s against the regex ~a..~%" input-string regex)
-    (format t "~%Updated accumulator is ~a~%" updated-acc)
-    (when generate-nfa-dotgraphviz
-      (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
-    (when generate-dfa-dotgraphviz
-      (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot dfa)))
-    (is (equal matching-status expected-matching-status))
-    (is (equal updated-acc expected-accumulator-value))))
+;;; TODO: EXPORT THESE DYNAMIC PARAMETERS!
+(defparameter *verbose* nil "Switch verbose printing of test progress on/off (for debugging).")
+(defparameter *graphvizdot-nfa* nil "Switch generation of Graphviz Dot diagram for NFA.")
+(defparameter *graphvizdot-dfa* nil "Switch generation of Graphviz Dot diagram for DFA.")
 
-(defun run-regex-matching-test-loop (regex
-                                     input-string
-                                     expected-matching-result-details
-                                     &key
-                                       (generate-nfa-dotgraphviz t)
-                                       (generate-dfa-dotgraphviz t)
-                                       (report-upcoming-char t)
-                                       (report-remaining-input-length t))
-  "Reusable function that runs a loop of regex matching operations for the INPUT-STRING against a
-single REGEX, and tests the result of each matching operation. The indication for the loop to stop
-is when input is empty. The EXPECTED-MATCHING-RESULT-DETAILS is expected as a list having each
-element in the form (matching-status accumulator-value consumed-value)."
-  (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input-string))
+(defmacro deftest (&key name desc regex inp match-details-list)
+  "Define a test case for matching a specific input string (INP) repeatedly against a specific regex
+(REGEX). The test is given the name NAME and the description DESC, which are both expected to be
+literal values. The REGEX should evaluate to a literal regex, since it is quoted in the body. The
+expected matching details are specified in the MATCH-DETAILS-LIST parameter, which is a list of
+tuples, one for each matching iteration. The elements in each tuple are as follows (in order):
+* matching status (T / NIL), specifying whether match should be successful or failing;
+* accumulator value (string or NIL or absent);
+* consumed value (string or NIL or absent);
+Note: only the matching status is mandatory, the accumulated and consumed values are optional, and
+only the present ones will be considered in testing.
+Note: NIL (for either accumulated or consumed) means empty string. I.E. can use \"\" and NIL
+interchangeably, and normalization will take place in a call to MATCH-RESULT.
+Note: it is user's responsibility to ensure no problem caused by the order of arguments passed
+(since we're using keyword arguments,allowing to change order)."
+  `(test ,name ,desc
+     (run-regex-matching-test-loop ',regex ,inp ',(match-results match-details-list))))
+
+(defmacro deftest-1 (&key name desc regex inp match (acc (and match inp)) (consum acc))
+  "Provides a simpler interface to DEFTEST, in case we are testing a single regex matching
+operation. The only change in the arguments is for the match details, with the MATCH specifing the
+expected matching status (T / NIL), the ACC specifing the expected accumulator's value, and CONSUM
+specifies the expected consumed value. The accumulated value defaults to the input
+(INP) in case of match, and NIL in case of no match. The consumed value defaults to the accumulated
+value. These are sensible defaults."
+  `(deftest :name ,name :desc ,desc :regex ,regex :inp ,inp
+     :match-details-list ((,match ,acc ,consum))))
+
+(defun run-regex-matching-test-loop (regex input match-details-list)
+  "Reusable function that runs a loop of regex matching operations for the input string INPUT
+against a single REGEX, and tests the result of each matching operation against successive elements
+of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully traversed."
+  (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
          (nfa (nfa:parse-and-produce-nfa regex-obj-tree))
          (dfa (parsex-cl.regex:produce-dfa nfa)))
-    (when generate-nfa-dotgraphviz
+    (when *graphvizdot-nfa*
       (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
-    (when generate-dfa-dotgraphviz
+    (when *graphvizdot-dfa*
       (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot dfa)))
-    (loop for result = (match-regex input-source dfa)
-          for matching-status = (regex-matching-result-status result)
-          for updated-acc = (input:retrieve-last-accumulated-value input-source)
-          for consumed = (input:retrieve-last-consumed-value input-source)
-          for (exp-matching-status exp-acc exp-consumed) in expected-matching-result-details
-          do (format t "~%Input empty? (~a)~%" (input:source-empty-p input-source))
-          do (is (equal matching-status exp-matching-status))
-          do (is (equal updated-acc exp-acc))
-          do (is (equal consumed exp-consumed))
-          until (input:source-empty-p input-source)
-          ;; note that the placement of these clauses after the UNTIL clause is important!
-          when report-remaining-input-length
-            do (format t "~%Remaining characters in input: ~a~%"
-                       (input:remaining-length input-source))
-          when report-upcoming-char
-            do (format t "~%Upcoming character in input: ~a~%"
-                       (input:read-next-item input-source)))))
+    (dolist (match-details match-details-list)
+      (let* ((result (match-regex input-source dfa))
+             (matching-status (regex-matching-result-status result))
+             (updated-acc (input:retrieve-last-accumulated-value input-source))
+             (consumed (input:retrieve-last-consumed-value input-source)))
+        (assert-match-result match-details (match-result matching-status updated-acc consumed))
+        (when *verbose*
+          (format t "~%Remaining characters in input: ~a~%" (input:remaining-length input-source))
+          (format t "~%Upcoming character in input: ~a~%" (input:read-next-item input-source)))))))
 
-(defmacro define-regex-matching-test (test-name
-                                      &key
-                                        (description nil)
-                                        regex
-                                        input-text
-                                        (expected-matching-status :regex-not-matched)
-                                        (expected-accumulator-value input-text))
-  (let ((thefuncall `(run-regex-matching-test
-                      ',regex
-                      ,input-text
-                      :expected-matching-status ,expected-matching-status
-                      :expected-accumulator-value ,expected-accumulator-value)))
-    (if description
-        `(test ,test-name ,description ,thefuncall)
-        `(test ,test-name ,thefuncall))))
+(defun match-result (match &optional (accumul nil acc-supplied-p) (consum nil cons-supplied-p))
+  "Prepare matching result (whether expected or actual) in the form of a plist (GETF-friendly),
+with only the MATCH value mandatory, and accumulated and consumed values are both optional. Note
+that only the present arguments are included in the returned plist.
+Note: it normalizes the value of MATCH by accepting either boolean or keyword.
+Note: it also normalizes the accumulator and consumed values by changing NIL into empty string.
+This is in order to simplify equality test (within the ASSERT-MATCH-RESULT call)."
+  (declare (type (or boolean (member :regex-matched :regex-not-matched)) match))
+  (append `(:match ,(if (member match '(:regex-matched t))
+                        :regex-matched
+                        :regex-not-matched))
+          (and acc-supplied-p `(:accumulated ,(or accumul "")))
+          (and cons-supplied-p `(:consumed ,(or consum "")))))
 
-(defmacro define-regex-matching-loop-test (test-name
-                                           &key
-                                             (description nil)
-                                             regex
-                                             input-text
-                                             expected-matching-result-details)
-  (let ((thefuncall `(run-regex-matching-test-loop
-                      ',regex
-                      ,input-text
-                      ',expected-matching-result-details)))
-    (if description
-        `(test ,test-name ,description ,thefuncall)
-        `(test ,test-name ,thefuncall))))
+(defun match-results (match-result-list)
+  "Prepares a list of match result plists for the input list of match results (MATCH-RESULT-LIST).
+This is done by applying MATCH-RESULT to each element of the input list."
+  (loop for r in match-result-list
+        collect (apply #'match-result r)))
+
+(defun assert-match-result (expected actual)
+  "Tests equality of two plists of matching result. Equality is satisfied only if the key is found
+in both EXPECTED and ACTUAL plists, and the corresponding values are equal (using EQUAL).
+Note: this function is generic and is not specific to certain keys. Rather, it extracts the keys
+from the EXPECTED plist. TODO: consider moving to generic utils.
+Note: it assumes results are already normalized (for example, empty strings should be represented
+in a single way, such as NIL or \"\"."
+  (loop for (k . _) on expected by #'cddr
+        do (is (equal (getf expected k) (getf actual k '#:not-found)))))
 
 
-(define-regex-matching-test basic1-regex-matching-test
-  :description "Tests +, OR, char range, char range splitting."
-  :regex (+ (or
-             (seq #\a #\n)
-             (seq #\a #\m)
-             (seq #\a #\t)
-             (seq #\a #\s)
-             (char-range #\w #\z)))
-  :input-text "anamatasxzwy"
-  :expected-matching-status :regex-matched)
+(deftest-1 :name single-regex-matching-test-1
+  :desc "Tests +, OR, char range, char range splitting."
+  :regex (+ (or (seq #\a #\n) (seq #\a #\m) (seq #\a #\t) (seq #\a #\s) (char-range #\w #\z)))
+  :inp "anamatasxzwy"
+  :match t)
 
-(define-regex-matching-test basic2-regex-matching-test
-  :description "Also tests char splitting. May remove it later (redundant)."
-  :regex (+ (or
-             (char-range #\a #\d)
-             (char-range #\b #\e)))
-  :input-text "abcacdaecccaabeadde"
-  :expected-matching-status :regex-matched)
+(deftest-1 :name single-regex-matching-test-2
+  :desc "Also tests char splitting. May remove it later (redundant)."
+  :regex (+ (or (char-range #\a #\d) (char-range #\b #\e)))
+  :inp "abcacdaecccaabeadde"
+  :match t)
 
-(define-regex-matching-test basic3-regex-matching-test
-  :description "Tests :any-char"
-  :regex (+ (or
-             (seq #\a #\n)
-             (seq :any-char #\M)
-             (seq :any-char #\P)))
-  :input-text "anxMyPanzMvPan"
-  :expected-matching-status :regex-matched)
+(deftest-1 :name single-regex-matching-test-3
+  :desc "Tests :any-char"
+  :regex (+ (or (seq #\a #\n) (seq :any-char #\M) (seq :any-char #\P)))
+  :inp "anxMyPanzMvPan"
+  :match t)
 
-(define-regex-matching-test basic31-regex-matching-test
-  :description "Also tests :any-char. This one is simpler to inspect visually."
-  :regex (or
-          (seq #\a #\n)
-          (seq :any-char #\M)
-          (seq :any-char #\P))
-  :input-text "xManxMyPanzMvPan"
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value "xM")
+(deftest-1 :name single-regex-matching-test-4
+  :desc "Also tests :any-char. This one is simpler to inspect visually."
+  :regex (or (seq #\a #\n) (seq :any-char #\M) (seq :any-char #\P))
+  :inp "xManxMyPanzMvPan"
+  :match t
+  :acc "xM")
 
-(define-regex-matching-test basic32-regex-matching-test
-  :description "Tests :or (another test)"
-  :regex (+ (or
-             (char-range #\a #\d)
-             (char-range #\c #\f)
-             "lmn"
-             #\x
-             #\y
-             #\z))
-  :input-text "adcflmnxzlmn"
-  :expected-matching-status :regex-matched)
+(deftest-1 :name single-regex-matching-test-5
+  :desc "Tests :or (another test)"
+  :regex (+ (or (char-range #\a #\d) (char-range #\c #\f) "lmn" #\x #\y #\z))
+  :inp "adcflmnxzlmn"
+  :match t)
 
-;; (a|b)*abb.
-(define-regex-matching-test basic4-regex-matching-test
-  :description "Tests SEQ, OR, Kleene Closure, string."
+(deftest-1 :name single-regex-matching-test-6
+  :desc "Tests SEQ, OR, Kleene Closure, string."
   :regex (seq (* (or #\a #\b)) "abb")
-  :input-text "abbbababbababbabbbbbabb"
-  :expected-matching-status :regex-matched)
+  :inp "abbbababbababbabbbbbabb"
+  :match t)
 
-
-(define-regex-matching-test basic5-regex-matching-test
-  :description "Tests stopping at candidate matching point."
+(deftest-1 :name single-regex-matching-test-7
+  :desc "Tests stopping at candidate matching point."
   :regex (seq (* #\x) #\y)
-  :input-text "xxyz"
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value "xxy")
+  :inp "xxyz"
+  :match t
+  :acc "xxy")
 
-(define-regex-matching-test basic6-regex-matching-test
-  :description "Tests backtracking to last candidate match (upon no match)."
+(deftest-1 :name single-regex-matching-test-8
+  :desc "Tests backtracking to last candidate match (upon no match)."
   :regex (seq (* (seq #\X #\Y)))
-  :input-text "XYXYXw"
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value "XYXY")
+  :inp "XYXYXw"
+  :match t
+  :acc "XYXY")
 
-(define-regex-matching-test basic7-regex-matching-test
-  :description "Tests backtracking to last candidate match (upon input exhaustion)."
+(deftest-1 :name single-regex-matching-test-9
+  :desc "Tests backtracking to last candidate match (upon input exhaustion)."
   :regex (seq (* (seq #\X #\Y)))
-  :input-text "XYXYX"
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value "XYXY")
+  :inp "XYXYX"
+  :match t
+  :acc "XYXY")
 
-(define-regex-matching-test basic8-regex-matching-test
-  :description "Tests backtracking to beginning (match empty string)."
+(deftest-1 :name single-regex-matching-test-10
+  :desc "Tests backtracking to beginning (match empty string)."
   :regex (seq (* (seq #\X #\Y)))
-  :input-text "X"
-  ;; note that * is zero-or-more, that's why we backtrack
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value nil)
+  :inp "X"
+  :match t
+  :acc nil
+  :consum "X")
 
-(define-regex-matching-test basic9-regex-matching-test
-  :description "Tests no backtracking (no match)."
+(deftest-1 :name single-regex-matching-test-11
+  :desc "Tests no backtracking (no match)."
   :regex (seq (+ (seq #\X #\Y)))
-  :input-text "X"
-  :expected-matching-status :regex-not-matched
-  :expected-accumulator-value nil)
+  :inp "X"
+  :match nil
+  :acc nil
+  :consum "X")
 
-(define-regex-matching-test any-char-test-1
-  :description "Tests successful matching of the any-char element."
+(deftest-1 :name single-regex-matching-test-12
+  :desc "Tests successful matching of the any-char element."
   :regex (or (seq :any-char #\z) "hello")
-  :input-text "wz"
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value "wz")
+  :inp "wz"
+  :match t
+  :acc "wz")
 
-(define-regex-matching-test any-char-test-2
-  :description "Tests successful matching the any-char element, even in presence of OR."
+(deftest-1 :name single-regex-matching-test-13
+  :desc "Tests successful matching the any-char element, even in presence of OR."
   :regex (or (seq :any-char #\z) "hello")
-  :input-text "hz"
-  :expected-matching-status :regex-matched
-  :expected-accumulator-value "hz")
+  :inp "hz"
+  :match t
+  :acc "hz")
 
-(define-regex-matching-loop-test regex-matching-loop-test-1
-  :description "Tests a loop of matching operations against a simple regex. It also tests
-consumption of invalid characters (consumed, but not accumulated)."
-  :regex (or
-          (seq #\X #\Y)
-          (seq #\A #\B))
-  :input-text "XYABXYABZZZZZ"
-  :expected-matching-result-details ((:regex-matched "XY" "XY")
-                                     (:regex-matched "AB" "AB")
-                                     (:regex-matched "XY" "XY")
-                                     (:regex-matched "AB" "AB")
-                                     (:regex-not-matched nil "Z")
-                                     (:regex-not-matched nil "Z")
-                                     (:regex-not-matched nil "Z")
-                                     (:regex-not-matched nil "Z")
-                                     (:regex-not-matched nil "Z")
-                                     ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
+(deftest-1 :name single-regex-matching-test-14
+  :desc "Tests backtracking to beginning (match empty string)."
+  :regex (seq (* (seq #\X #\Y)))
+  :inp "X"
+  :match t
+  :acc nil
+  :consum "X")
 
-(define-regex-matching-loop-test regex-matching-loop-test-2
-  :description "Tests a loop of matching operations against a regex, with backtracking."
-  :regex (+
-          (seq #\X #\Y))
-  :input-text "XYXYXZZZ"
-  :expected-matching-result-details ((:regex-matched "XYXY" "XYXY")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "Z")
-                                     (:regex-not-matched nil "Z")
-                                     (:regex-not-matched nil "Z")
-                                     ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
+(deftest :name regex-matching-loop-test-1
+  :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."
+  :regex (or (seq #\X #\Y) (seq #\A #\B))
+  :inp "XYABXYABZZZZZ"
+  :match-details-list ((t "XY" "XY")
+                       (t "AB" "AB")
+                       (t "XY" "XY")
+                       (t "AB" "AB")
+                       (nil nil "Z")
+                       (nil nil "Z")
+                       (nil nil "Z")
+                       (nil nil "Z")
+                       (nil nil "Z")))
 
-(define-regex-matching-loop-test regex-matching-loop-test-3
-  :description "Tests a loop of unsuccessful matching operations, till match (finally)."
-  :regex (or
-          (seq #\X #\Y)
-          (seq #\A #\B))
-  :input-text "XzAcXwAdXXXYooo"
-  :expected-matching-result-details ((:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "z")
-                                     (:regex-not-matched nil "A")
-                                     (:regex-not-matched nil "c")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "w")
-                                     (:regex-not-matched nil "A")
-                                     (:regex-not-matched nil "d")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-matched "XY" "XY")
-                                     (:regex-not-matched nil "o")
-                                     (:regex-not-matched nil "o")
-                                     (:regex-not-matched nil "o")
-                                     ('DOES-NOT-MATTER 'DOES-NOT-MATTER)))
+(deftest :name regex-matching-loop-test-2
+  :desc "Tests: ONE-OR-MORE, backtracking."
+  :regex (+ (seq #\X #\Y))
+  :inp "XYXYXZZZ"
+  :match-details-list ((t "XYXY" "XYXY")
+                       (nil nil "X")
+                       (nil nil "Z")
+                       (nil nil "Z")
+                       (nil nil "Z")))
 
-(define-regex-matching-loop-test regex-matching-loop-test-4
-  :description "Tests correct matching after skipping a series of bad characters. Notice how the BB
-has been matched, although at some point, the cursor was after the AB, thanks to backtracking to
-just after the #\A."
-  :regex (or
-          (seq #\A #\B #\C)
-          (seq #\B #\B)
-          (seq #\C #\C (+ #\D)))
-  :input-text "ABBXXXXCCDDDD"
-  :expected-matching-result-details ((:regex-not-matched nil "A")
-                                     (:regex-matched "BB" "BB")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-not-matched nil "X")
-                                     (:regex-matched "CCDDDD" "CCDDDD")))
+(deftest :name regex-matching-loop-test-3
+  :desc "Tests: consumption during unsuccessful matching operations, till match (finally)."
+  :regex (or (seq #\X #\Y) (seq #\A #\B))
+  :inp "XzAcXwAdXXXYooo"
+  :match-details-list ((nil nil "X")
+                       (nil nil "z")
+                       (nil nil "A")
+                       (nil nil "c")
+                       (nil nil "X")
+                       (nil nil "w")
+                       (nil nil "A")
+                       (nil nil "d")
+                       (nil nil "X")
+                       (nil nil "X")
+                       (t "XY" "XY")
+                       (nil nil "o")
+                       (nil nil "o")
+                       (nil nil "o")))
 
-(define-regex-matching-loop-test regex-matching-loop-test-5
-  :description "Another loop test. Notice the difference between it and test-6/test-7 (+ VS *)."
-  :regex (or
-          (+ #\X)
-          (seq #\A #\B))
-  :input-text "XXXXXACABXXXXXZ"
-  :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
-                                     (:regex-not-matched nil "A")
-                                     (:regex-not-matched nil "C")
-                                     (:regex-matched "AB" "AB")
-                                     (:regex-matched "XXXXX" "XXXXX")
-                                     (:regex-not-matched nil "Z")))
+(deftest :name regex-matching-loop-test-4
+  ;; Notice how the BB has been matched, although at some point, the cursor was after the AB,
+  ;; thanks to backtracking to just after the #\A.
+  :desc "Tests: consumption of one bad char, followed by backtracking."
+  :regex (or (seq #\A #\B #\C) (seq #\B #\B) (seq #\C #\C (+ #\D)))
+  :inp "ABBXXXXCCDDDD"
+  :match-details-list ((nil nil "A")
+                       (t "BB" "BB")
+                       (nil nil "X")
+                       (nil nil "X")
+                       (nil nil "X")
+                       (nil nil "X")
+                       (t "CCDDDD" "CCDDDD")))
 
-(define-regex-matching-loop-test regex-matching-loop-test-6
-  :description "Another loop test. Notice the difference between it and test-5 (+ VS *): effect of
-* is that a match takes place even on invalid characters, which are consumed but not accumulated.
-So regex matches, char is consumed, but not accumulated."
+(deftest :name regex-matching-loop-test-5
+  :desc "Notice the difference between it and test-6/test-7 (+ VS *)."
+  :regex (or (+ #\X) (seq #\A #\B))
+  :inp "XXXXXACABXXXXXZ"
+  :match-details-list ((t "XXXXX" "XXXXX")
+                       (nil nil "A")
+                       (nil nil "C")
+                       (t "AB" "AB")
+                       (t "XXXXX" "XXXXX")
+                       (nil nil "Z")))
+
+(deftest :name regex-matching-loop-test-6
+  :desc "Tests: effect of * (invalid characters are matched, consumed, but not accumulated)."
   :regex (* #\X)
-  :input-text "XXXXXABC"
-  ;;TODO was handled (we consume on no-match) - to be revised later, maybe we need to make advancing
-  ;;optional?
-  :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
-                                     (:regex-matched nil "A")
-                                     (:regex-matched nil "B")
-                                     (:regex-matched nil "C")))
+  :inp "XXXXXABC"
+  :match-details-list ((t "XXXXX" "XXXXX")
+                       (t nil "A")
+                       (t nil "B")
+                       (t nil "C")))
 
-
-(define-regex-matching-loop-test regex-matching-loop-test-7
-  :description "Another loop test. Notice the difference between it and test-5 (+ VS *)."
-  :regex (or
-          (* #\X)
-          (seq #\A #\B))
-  :input-text "XXXXXACABXXXXXZ"
-  :expected-matching-result-details ((:regex-matched "XXXXX" "XXXXX")
-                                     (:regex-matched nil "A")
-                                     (:regex-matched nil "C")
-                                     (:regex-matched "AB" "AB")
-                                     (:regex-matched "XXXXX" "XXXXX")
-                                     (:regex-matched nil "Z")))
-
-(test detailed-regex-matching-test
-  (loop with inputs = '("The problem was resolved."
-                        "A problem was solved."
-                        "A problem is resolved."
-                        "The problem is solved?")
-        for input in inputs
-        for input-source = (make-instance 'input:basic-regex-input :initial-input-text input)
-        do (is (equal input
-                      (reduce #'(lambda (x y) (concatenate 'string x y))
-                              (loop for regex in (list '(+ (or
-                                                            (seq #\A)
-                                                            "The"))
-                                                       #\space
-                                                       "problem"
-                                                       #\space
-                                                       '(or
-                                                         "is"
-                                                         "was")
-                                                       #\space
-                                                       '(seq (? (seq #\r #\e)) "solved")
-                                                       '(or #\. #\?))
-                                    for regex-obj-tree = (sexp:prepare-regex-tree regex)
-                                    for dfa = (parse-and-produce-dfa regex-obj-tree)
-                                    for result = (match-regex input-source dfa)
-                                    for matching-status = (regex-matching-result-status result)
-                                    for updated-acc = (input:retrieve-last-accumulated-value
-                                                       input-source)
-                                    do (format t "~%Updated accumulator is ~a~%" updated-acc)
-                                       (is (eq matching-status :regex-matched))
-                                    collect updated-acc))))))
-
-
-(test parse-and-produce-nfa-test-LATER
-  (is (= 10 10)))
+(deftest :name regex-matching-loop-test-7
+  :desc "Notice the difference between this and test-5 (ONE-OR-MORE VS ZERO-OR-MORE)."
+  :regex (or (* #\X) (seq #\A #\B))
+  :inp "XXXXXACABXXXXXZ"
+  :match-details-list ((t "XXXXX" "XXXXX")
+                       (t nil "A")
+                       (t nil "C")
+                       (t "AB" "AB")
+                       (t "XXXXX" "XXXXX")
+                       (t nil "Z")))
