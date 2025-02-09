@@ -3,6 +3,11 @@
         #:iterate)
   (:export #:todo))
 
+(defpackage :parsex-cl.symbols-util
+  (:use #:cl)
+  (:export #:reintern
+           #:with-preserve-symbol-case))
+
 (defpackage :parsex-cl.tokenizer-states
   (:use #:cl)
   (:export #:normal-state
@@ -139,7 +144,8 @@
   (:use #:cl #:iterate)
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
                     (:elm #:parsex-cl.regex-element)
-                    (:chars #:parsex-cl.chars))
+                    (:chars #:parsex-cl.chars)
+                    (:sym #:parsex-cl.symbols-util))
   (:export #:prepare-regex-tree
            ))
 
@@ -166,3 +172,10 @@
            #:transition-on-any-other
            ))
 
+(defpackage :parsex-cl.graphviz-util
+  (:use #:cl)
+  (:local-nicknames (:chars #:parsex-cl.chars)
+                    (:elm #:parsex-cl.regex-element)
+                    (:fsm #:parsex-cl.regex-fsm))
+  (:export #:fsm-to-graphvizdot
+           #:generate-graphviz-dot-diagram))

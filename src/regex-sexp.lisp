@@ -2,24 +2,18 @@
 
 ;;; Handling of regex in the form of sexp (sexp --> regex object tree).
 
-(defconstant +regex-element-tags-package+ (let ((pkg-name :regex.element.tags))
+(defconstant +regex-element-tags-package+ (let ((pkg-name :regex-sexp.element.tags))
                                             (or (find-package pkg-name)
                                                 (make-package pkg-name)))
   "Package dedicated for regex tag names (SEQ, OR, +, etc.).")
 
-;; TODO: reusable utility, or use Alexandria's ENSURE-SYMBOL
-(defun reintern (symbol package)
-  "Intern a symbol SYMBOL into a package PACKAGE, and return the newly interned symbol.
-The difference from the standard INTERN function is that it receives a symbol, not a symbol name. So
-practically it copies a symbol from a package into another one."
-  (intern (symbol-name symbol) (find-package package)))
 
 (defmacro case-list-regex (element-tag &body body)
   (labels ((prepare-body (body)
              (loop for (each-tag . each-clause) in body
-                   collect (cons (reintern each-tag +regex-element-tags-package+) each-clause))))
+                   collect (cons (sym:reintern each-tag +regex-element-tags-package+) each-clause))))
     (let ((reinterned-element-tag (gensym)))
-      `(let ((,reinterned-element-tag (reintern ,element-tag +regex-element-tags-package+)))
+      `(let ((,reinterned-element-tag (sym:reintern ,element-tag +regex-element-tags-package+)))
          (ecase ,reinterned-element-tag
            ,@(prepare-body body))))))
 
