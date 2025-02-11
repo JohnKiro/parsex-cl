@@ -30,7 +30,7 @@ interchangeably, and normalization will take place in a call to MATCH-RESULT.
 Note: it is user's responsibility to ensure no problem caused by the order of arguments passed
 (since we're using keyword arguments,allowing to change order)."
   `(test ,name ,desc
-     (run-regex-matching-test-loop ',regex ,inp ',(match-results match-details-list))))
+     (run-regex-matching-test-loop ',regex ,inp (match-results ',match-details-list))))
 
 (defmacro deftest-1 (&key name desc regex inp match (acc (and match inp)) (consum acc))
   "Provides a simpler interface to DEFTEST, in case we are testing a single regex matching
