@@ -14,7 +14,7 @@
 (defparameter *graphvizdot-nfa* nil "Switch generation of Graphviz Dot diagram for NFA.")
 (defparameter *graphvizdot-dfa* nil "Switch generation of Graphviz Dot diagram for DFA.")
 
-(defmacro deftest (&key name desc regex inp match-details-list)
+(defmacro deftest (name &key desc regex inp match-details-list)
   "Define a test case for matching a specific input string (INP) repeatedly against a specific regex
 (REGEX). The test is given the name NAME and the description DESC, which are both expected to be
 literal values. The REGEX should evaluate to a literal regex, since it is quoted in the body. The
@@ -32,14 +32,14 @@ Note: it is user's responsibility to ensure no problem caused by the order of ar
   `(test ,name ,desc
      (run-regex-matching-test-loop ',regex ,inp (match-results ',match-details-list))))
 
-(defmacro deftest-1 (&key name desc regex inp match (acc (and match inp)) (consum acc))
+(defmacro deftest-1 (name &key desc regex inp match (acc (and match inp)) (consum acc))
   "Provides a simpler interface to DEFTEST, in case we are testing a single regex matching
 operation. The only change in the arguments is for the match details, with the MATCH specifing the
 expected matching status (T / NIL), the ACC specifing the expected accumulator's value, and CONSUM
 specifies the expected consumed value. The accumulated value defaults to the input
 (INP) in case of match, and NIL in case of no match. The consumed value defaults to the accumulated
 value. These are sensible defaults."
-  `(deftest :name ,name :desc ,desc :regex ,regex :inp ,inp
+  `(deftest ,name :desc ,desc :regex ,regex :inp ,inp
      :match-details-list ((,match ,acc ,consum))))
 
 (defun run-regex-matching-test-loop (regex input match-details-list)
@@ -95,65 +95,65 @@ in a single way, such as NIL or \"\"."
         do (is (equal (getf expected k) (getf actual k '#:not-found)))))
 
 
-(deftest-1 :name single-regex-matching-test-1
+(deftest-1 single-regex-matching-test-1
   :desc "Tests +, OR, char range, char range splitting."
   :regex (+ (or (seq #\a #\n) (seq #\a #\m) (seq #\a #\t) (seq #\a #\s) (char-range #\w #\z)))
   :inp "anamatasxzwy"
   :match t)
 
-(deftest-1 :name single-regex-matching-test-2
+(deftest-1 single-regex-matching-test-2
   :desc "Also tests char splitting. May remove it later (redundant)."
   :regex (+ (or (char-range #\a #\d) (char-range #\b #\e)))
   :inp "abcacdaecccaabeadde"
   :match t)
 
-(deftest-1 :name single-regex-matching-test-3
+(deftest-1 single-regex-matching-test-3
   :desc "Tests :any-char"
   :regex (+ (or (seq #\a #\n) (seq :any-char #\M) (seq :any-char #\P)))
   :inp "anxMyPanzMvPan"
   :match t)
 
-(deftest-1 :name single-regex-matching-test-4
+(deftest-1 single-regex-matching-test-4
   :desc "Also tests :any-char. This one is simpler to inspect visually."
   :regex (or (seq #\a #\n) (seq :any-char #\M) (seq :any-char #\P))
   :inp "xManxMyPanzMvPan"
   :match t
   :acc "xM")
 
-(deftest-1 :name single-regex-matching-test-5
+(deftest-1 single-regex-matching-test-5
   :desc "Tests :or (another test)"
   :regex (+ (or (char-range #\a #\d) (char-range #\c #\f) "lmn" #\x #\y #\z))
   :inp "adcflmnxzlmn"
   :match t)
 
-(deftest-1 :name single-regex-matching-test-6
+(deftest-1 single-regex-matching-test-6
   :desc "Tests SEQ, OR, Kleene Closure, string."
   :regex (seq (* (or #\a #\b)) "abb")
   :inp "abbbababbababbabbbbbabb"
   :match t)
 
-(deftest-1 :name single-regex-matching-test-7
+(deftest-1 single-regex-matching-test-7
   :desc "Tests stopping at candidate matching point."
   :regex (seq (* #\x) #\y)
   :inp "xxyz"
   :match t
   :acc "xxy")
 
-(deftest-1 :name single-regex-matching-test-8
+(deftest-1 single-regex-matching-test-8
   :desc "Tests backtracking to last candidate match (upon no match)."
   :regex (seq (* (seq #\X #\Y)))
   :inp "XYXYXw"
   :match t
   :acc "XYXY")
 
-(deftest-1 :name single-regex-matching-test-9
+(deftest-1 single-regex-matching-test-9
   :desc "Tests backtracking to last candidate match (upon input exhaustion)."
   :regex (seq (* (seq #\X #\Y)))
   :inp "XYXYX"
   :match t
   :acc "XYXY")
 
-(deftest-1 :name single-regex-matching-test-10
+(deftest-1 single-regex-matching-test-10
   :desc "Tests backtracking to beginning (match empty string)."
   :regex (seq (* (seq #\X #\Y)))
   :inp "X"
@@ -161,7 +161,7 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "X")
 
-(deftest-1 :name single-regex-matching-test-11
+(deftest-1 single-regex-matching-test-11
   :desc "Tests no backtracking (no match)."
   :regex (seq (+ (seq #\X #\Y)))
   :inp "X"
@@ -169,21 +169,21 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "X")
 
-(deftest-1 :name single-regex-matching-test-12
+(deftest-1 single-regex-matching-test-12
   :desc "Tests successful matching of the any-char element."
   :regex (or (seq :any-char #\z) "hello")
   :inp "wz"
   :match t
   :acc "wz")
 
-(deftest-1 :name single-regex-matching-test-13
+(deftest-1 single-regex-matching-test-13
   :desc "Tests successful matching the any-char element, even in presence of OR."
   :regex (or (seq :any-char #\z) "hello")
   :inp "hz"
   :match t
   :acc "hz")
 
-(deftest-1 :name single-regex-matching-test-14
+(deftest-1 single-regex-matching-test-14
   :desc "Tests backtracking to beginning (match empty string)."
   :regex (seq (* (seq #\X #\Y)))
   :inp "X"
@@ -191,7 +191,7 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "X")
 
-(deftest :name regex-matching-loop-test-1
+(deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."
   :regex (or (seq #\X #\Y) (seq #\A #\B))
   :inp "XYABXYABZZZZZ"
@@ -205,7 +205,7 @@ in a single way, such as NIL or \"\"."
                        (nil nil "Z")
                        (nil nil "Z")))
 
-(deftest :name regex-matching-loop-test-2
+(deftest regex-matching-loop-test-2
   :desc "Tests: ONE-OR-MORE, backtracking."
   :regex (+ (seq #\X #\Y))
   :inp "XYXYXZZZ"
@@ -215,7 +215,7 @@ in a single way, such as NIL or \"\"."
                        (nil nil "Z")
                        (nil nil "Z")))
 
-(deftest :name regex-matching-loop-test-3
+(deftest regex-matching-loop-test-3
   :desc "Tests: consumption during unsuccessful matching operations, till match (finally)."
   :regex (or (seq #\X #\Y) (seq #\A #\B))
   :inp "XzAcXwAdXXXYooo"
@@ -234,7 +234,7 @@ in a single way, such as NIL or \"\"."
                        (nil nil "o")
                        (nil nil "o")))
 
-(deftest :name regex-matching-loop-test-4
+(deftest regex-matching-loop-test-4
   ;; Notice how the BB has been matched, although at some point, the cursor was after the AB,
   ;; thanks to backtracking to just after the #\A.
   :desc "Tests: consumption of one bad char, followed by backtracking."
@@ -248,7 +248,7 @@ in a single way, such as NIL or \"\"."
                        (nil nil "X")
                        (t "CCDDDD" "CCDDDD")))
 
-(deftest :name regex-matching-loop-test-5
+(deftest regex-matching-loop-test-5
   :desc "Notice the difference between it and test-6/test-7 (+ VS *)."
   :regex (or (+ #\X) (seq #\A #\B))
   :inp "XXXXXACABXXXXXZ"
@@ -259,7 +259,7 @@ in a single way, such as NIL or \"\"."
                        (t "XXXXX" "XXXXX")
                        (nil nil "Z")))
 
-(deftest :name regex-matching-loop-test-6
+(deftest regex-matching-loop-test-6
   :desc "Tests: effect of * (invalid characters are matched, consumed, but not accumulated)."
   :regex (* #\X)
   :inp "XXXXXABC"
@@ -268,7 +268,7 @@ in a single way, such as NIL or \"\"."
                        (t nil "B")
                        (t nil "C")))
 
-(deftest :name regex-matching-loop-test-7
+(deftest regex-matching-loop-test-7
   :desc "Notice the difference between this and test-5 (ONE-OR-MORE VS ZERO-OR-MORE)."
   :regex (or (* #\X) (seq #\A #\B))
   :inp "XXXXXACABXXXXXZ"
