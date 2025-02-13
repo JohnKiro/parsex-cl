@@ -2,16 +2,24 @@
 
 ;;; Handling of regex in the form of sexp (sexp --> regex object tree).
 
+;;; TODO: check alternatives to define var / func for use in the macro, and ensure no error during
+;;; expansion for "unknown var / func"!!!
 (defconstant +regex-element-tags-package+ (let ((pkg-name :regex-sexp.element.tags))
                                             (or (find-package pkg-name)
                                                 (make-package pkg-name)))
-  "Package dedicated for regex tag names (SEQ, OR, +, etc.).")
-
+  "Package dedicated for regex tag names (SEQ, OR, +, etc.), for local use only.")
 
 (defmacro case-list-regex (element-tag &body body)
+  "Expands into an ECASE clause, with case variable evaluating into the value of ELEMENT-TAG, but
+after being reinterned into the package specified in +REGEX-ELEMENT-TAGS-PACKAGE+. The BODY should
+be in the form of an ECASE body. The idea is to be able to do equality tests on symbols that are
+possibly coming from different packages, by reintering the two operands of the EQ function into
+the package specified in +REGEX-ELEMENT-TAGS-PACKAGE+. This allows to specify regex tags in any
+package."
   (labels ((prepare-body (body)
              (loop for (each-tag . each-clause) in body
-                   collect (cons (sym:reintern each-tag +regex-element-tags-package+) each-clause))))
+                   collect (cons (sym:reintern each-tag +regex-element-tags-package+)
+                                 each-clause))))
     (let ((reinterned-element-tag (gensym)))
       `(let ((,reinterned-element-tag (sym:reintern ,element-tag +regex-element-tags-package+)))
          (ecase ,reinterned-element-tag
