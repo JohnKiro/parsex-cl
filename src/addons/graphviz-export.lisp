@@ -25,13 +25,13 @@
                          (get-dfa-index dest)
                          (el-to-string el))))
              (print-terminal-transition (source stream)
-               (when (and source (not (dfa-state-definitely-terminal-p source)))
+               (when (and source (not (regex:dfa-state-definitely-terminal-p source)))
                  (format stream "~%~a -> ~a [label=\"~a (~a)\"];"
                          (get-dfa-index source)
                          (get-fresh-terminal-index)
                          ;;other/no input
                          "O/No-In"
-                         (if (candidate-terminal source)
+                         (if (regex:candidate-terminal source)
                              ;;match
                              "M"
                              ;;no match
@@ -39,10 +39,10 @@
              (iter (start-dfa stream)
                (unless (find start-dfa traversed-dfas)
                  (push start-dfa traversed-dfas)
-                 (loop for (el . dest-dfa) in (transitions start-dfa)
+                 (loop for (el . dest-dfa) in (regex:transitions start-dfa)
                        do (print-transition start-dfa dest-dfa el stream)
                           (iter dest-dfa stream))
-                 (let ((dest-dfa-on-any-other (transition-on-any-other start-dfa)))
+                 (let ((dest-dfa-on-any-other (regex:transition-on-any-other start-dfa)))
                    (when dest-dfa-on-any-other
                      (print-transition start-dfa dest-dfa-on-any-other "Other" stream)
                      (iter dest-dfa-on-any-other stream)))

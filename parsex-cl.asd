@@ -23,10 +23,9 @@
   :serial t
   :components ((:file "packages")
                (:module "util"
-                :components ((:file "symbols-util")))
-               (:file "parsex-cl")
+                :components ((:file "symbol-util")
+                             (:file "char-util")))
                (:file "regex-input")
-               (:file "chars")
                (:file "regex-element")
                (:file "regex-nfa")
                (:file "regex")

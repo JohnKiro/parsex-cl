@@ -3,10 +3,15 @@
         #:iterate)
   (:export #:todo))
 
-(defpackage :parsex-cl.symbols-util
+(defpackage :parsex-cl.symbol-util
   (:use #:cl)
   (:export #:reintern
            #:with-preserve-symbol-case))
+
+(defpackage :parsex-cl.char-util
+  (:use #:cl)
+  (:export #:inc-char
+           #:dec-char))
 
 (defpackage :parsex-cl.tokenizer-states
   (:use #:cl)
@@ -65,20 +70,6 @@
            #:create-matcher-for-char-range
            #:create-matcher-for-char-set))
 
-(defpackage :parsex-cl.chars
-  (:use #:cl #:iterate)
-  (:export #:char-range
-           #:char-start
-           #:char-end
-           #:make-char-range
-           #:char-range-equal
-           #:inc-char
-           #:dec-char
-           #:split-char-range
-           #:simple-element
-           #:simple-element-equal
-           ))
-
 (defpackage :parsex-cl.regex.input
   (:use #:cl #:iterate)
   (:export #:basic-regex-input
@@ -94,7 +85,7 @@
 
 (defpackage :parsex-cl.regex-element
   (:use #:cl #:iterate)
-  (:local-nicknames (:chars #:parsex-cl.chars))
+  (:local-nicknames (:chars #:parsex-cl.char-util))
   (:export #:+any-char-element+
            #:single-char-element
            #:char-range-element
@@ -144,15 +135,15 @@
   (:use #:cl #:iterate)
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
                     (:elm #:parsex-cl.regex-element)
-                    (:chars #:parsex-cl.chars)
-                    (:sym #:parsex-cl.symbols-util))
+                    (:chars #:parsex-cl.char-util)
+                    (:sym #:parsex-cl.symbol-util))
   (:export #:prepare-regex-tree
            ))
 
 (defpackage :parsex-cl.regex
   (:use #:cl #:iterate)
   (:local-nicknames (:nfa #:parsex-cl.regex-nfa)
-                    (:chars #:parsex-cl.chars)
+                    (:chars #:parsex-cl.char-util)
                     (:elm #:parsex-cl.regex-element)
                     (:fsm #:parsex-cl.regex-fsm)
                     (:input #:parsex-cl.regex.input))
@@ -174,8 +165,9 @@
 
 (defpackage :parsex-cl.graphviz-util
   (:use #:cl)
-  (:local-nicknames (:chars #:parsex-cl.chars)
+  (:local-nicknames (:chars #:parsex-cl.char-util)
                     (:elm #:parsex-cl.regex-element)
-                    (:fsm #:parsex-cl.regex-fsm))
+                    (:fsm #:parsex-cl.regex-fsm)
+                    (:regex #:parsex-cl.regex))
   (:export #:fsm-to-graphvizdot
            #:generate-graphviz-dot-diagram))
