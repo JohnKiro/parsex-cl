@@ -38,7 +38,9 @@ operation. The only change in the arguments is for the match details, with the M
 expected matching status (T / NIL), the ACC specifing the expected accumulator's value, and CONSUM
 specifies the expected consumed value. The accumulated value defaults to the input
 (INP) in case of match, and NIL in case of no match. The consumed value defaults to the accumulated
-value. These are sensible defaults."
+value. These are sensible defaults.
+TODO: I think consumed value better default to ACC if matched, and to first char of input if no
+match."
   `(deftest ,name :desc ,desc :regex ,regex :inp ,inp
      :match-details-list ((,match ,acc ,consum))))
 
@@ -190,6 +192,54 @@ in a single way, such as NIL or \"\"."
   :match t
   :acc nil
   :consum "X")
+
+;; TODO: need a DEFTEST-N macro that repeats same matching operation against multiple inputs
+(deftest-1 inv-matching-test-1
+  :desc "Tests the INV element (1) - no match."
+  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
+  :inp "a"
+  :match nil
+  :consum "a")
+
+(deftest-1 inv-matching-test-2
+  :desc "Tests the INV element (2) - no match."
+  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
+  :inp "l"
+  :match nil
+  :consum "l")
+
+(deftest-1 inv-matching-test-3
+  :desc "Tests the INV element (3) - no match."
+  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
+  :inp "s"
+  :match nil
+  :consum "s")
+
+(deftest-1 inv-matching-test-4
+  :desc "Tests the INV element (4) - match."
+  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
+  :inp "d"
+  :match t
+  :consum "d")
+
+(deftest-1 inv-matching-test-5
+  :desc "Tests the INV element (5) - match, including SEQ and OR elements."
+  :regex (or (seq (inv #\a #\c (char-range #\l #\s) #\x #\z) "yy") "123")
+  :inp "dyy"
+  :match t)
+
+(deftest-1 inv-matching-test-6
+  :desc "Tests the INV element (6) - match, including SEQ and OR elements."
+  :regex (or (seq (inv #\a #\c (char-range #\l #\s) #\x #\z) "yy") "123")
+  :inp "123"
+  :match t)
+
+(deftest-1 inv-matching-test-7
+  :desc "Tests the INV element (7) - no match, including SEQ and OR elements."
+  :regex (or (seq (inv #\a #\c (char-range #\l #\s) #\x #\z) "yy") "123")
+  :inp "syy"
+  :match nil
+  :consum "s")
 
 (deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."

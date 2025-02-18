@@ -106,6 +106,7 @@
            #:zero-or-one-element
            #:one-or-more-element
            #:negated-element ; TODO: not yet sure
+           #:inv-element
            ))
 
 (defpackage :parsex-cl.regex-fsm

@@ -141,3 +141,8 @@ Preconditions: end >= start, splitting points must be a sorted vector."
 (defclass sequence-element (multiple-elements-wrapper-element) ())
 
 (defclass or-element (multiple-elements-wrapper-element) ())
+
+(defclass inv-element (multiple-elements-wrapper-element) ()
+  (:documentation "Equivalent to the caret (^) inside a square bracket pair in conventional regular
+expressions. It matches any character other than the ones given in the inner elements.
+Note: the inner elements have to be of type char/char-range."))

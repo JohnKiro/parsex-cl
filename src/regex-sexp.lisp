@@ -52,7 +52,11 @@ package."
             (:? (make-instance 'elm:zero-or-one-element :element (prepare-regex-tree
                                                                   (second regex))))
             (:not (make-instance 'elm:negated-element :element (prepare-regex-tree
-                                                                (second regex))))))
+                                                                (second regex))))
+            ;; TODO: ENSURE TYPE OF ALL INNER REGEX ELEMENTS TO BE CHAR/CHAR-RANGE!!!
+            ;; currently handled in the NFA code
+            (:inv (make-instance 'elm:inv-element
+                                 :elements (map 'vector #'prepare-regex-tree (cdr regex))))))
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element

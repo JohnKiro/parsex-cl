@@ -121,6 +121,16 @@ and returns output state as continuation point."))
               do (cleanup-dead-paths-on-any-other-char dead-end))))
     output-state))
 
+(defmethod regex-to-nfa ((regex elm:inv-element) input-nfa-state)
+  (loop for elm of-type (or elm:single-char-element elm:char-range-element)
+          across (elm:inner-elements regex)
+        ;; TODO: alternatively, since elm is restricted to be char/char-range, I could just add
+        ;; normal transition from input state on elm, to a dead-end state (to be created)
+        do (regex-to-nfa elm input-nfa-state))
+  (let ((output-state (make-instance 'nfa-state)))
+    (set-nfa-transition-on-any-other input-nfa-state output-state)
+    output-state))
+
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
 ;;; states as a useful by-product.
