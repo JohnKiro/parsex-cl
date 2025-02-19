@@ -129,7 +129,7 @@
            #:terminal-nfa-closure-union-p
            #:prepare-nfa-state-closure-union
            #:create-nfa-normalized-transition-table
-           #:parse-and-produce-nfa
+           #:produce-nfa
            ))
 
 (defpackage :parsex-cl.regex-sexp

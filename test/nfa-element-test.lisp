@@ -39,7 +39,7 @@
                   #\y
                   #\z))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
-         (root-state (nfa:parse-and-produce-nfa regex-obj-tree))
+         (root-state (nfa:produce-nfa regex-obj-tree))
          (root-closure (nfa::prepare-nfa-state-closure-union (list root-state)))
          (splitting-points (nfa::collect-char-range-splitting-points root-closure)))
     (format t "~&Root closure: ~a" root-closure)

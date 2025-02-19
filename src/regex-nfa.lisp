@@ -172,9 +172,9 @@ its type (T -> auto-connected, NIL -> non-auto-connected)."
       (recurse start-state)
       (values auto-connected non-auto-connected))))
 
-(defun parse-and-produce-nfa (regex)
-  "Produces NFA starting at root regex element. Its importance is in identifying the terminus state.
-TODO: after latest changes, it does NOT actually parse, so consider renaming."
+(defun produce-nfa (regex)
+  "Produces NFA starting at root regex element. Its importance is in identifying the terminus
+state."
   (let* ((root-state (make-instance 'nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
     (setf (terminus terminus-nfa-state) t)

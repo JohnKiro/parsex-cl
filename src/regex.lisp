@@ -183,7 +183,7 @@ Returns destination DFA state."
 
 ;;; Public interface function (regex --> DFA root state)
 (defun parse-and-produce-dfa (regex)
-  (let ((root-nfa-state (nfa:parse-and-produce-nfa regex)))
+  (let ((root-nfa-state (nfa:produce-nfa regex)))
     (produce-dfa root-nfa-state)))
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state dfa-state))

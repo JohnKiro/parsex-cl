@@ -50,7 +50,7 @@ against a single REGEX, and tests the result of each matching operation against 
 of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully traversed."
   (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
-         (nfa (nfa:parse-and-produce-nfa regex-obj-tree))
+         (nfa (nfa:produce-nfa regex-obj-tree))
          (dfa (parsex-cl.regex:produce-dfa nfa)))
     (when *graphvizdot-nfa*
       (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
