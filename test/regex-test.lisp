@@ -29,7 +29,7 @@ Note: NIL (for either accumulated or consumed) means empty string. I.E. can use 
 interchangeably, and normalization will take place in a call to MATCH-RESULT.
 Note: it is user's responsibility to ensure no problem caused by the order of arguments passed
 (since we're using keyword arguments,allowing to change order)."
-  `(test ,name ,desc
+  `(test ,name ,@(when desc (list desc))
      (run-regex-matching-test-loop ',regex ,inp (match-results ',match-details-list))))
 
 (defmacro deftest-1 (name &key desc regex inp match (acc (and match inp)) (consum acc))
