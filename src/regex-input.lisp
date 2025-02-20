@@ -36,7 +36,8 @@ no accumulation)."))
 (defgeneric retrieve-last-consumed-value (source)
   (:documentation "Retrieve the last consumed portion of the input. Unlike
 RETRIEVE-LAST-ACCUMULATED-VALUE, this one returns the consumed characters, whether or not they
-correspond to a successful match."))
+correspond to a successful match. Similarly to the RETRIEVE-LAST-ACCUMULATED-VALUE, it should
+return NIL in case no characters were consumed."))
 
 (defclass basic-regex-input ()
   ((input-text :reader input-text
