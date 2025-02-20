@@ -16,10 +16,10 @@ regular expressions. For example, for the regex fragment (:or (:seq #\a #\b) (se
 the :any-char would match any char, including #\a.")
 
 (defconstant +any-other-char-element+ :any-other-char
-  "Centralized reference to any ANY-OTHER-CHAR element. This element is usually generated during
-negation, and for now, I'm not allowing at for the user. Later, I may allow it, so that user could
-define a regex like (or #\a (seq any-other-char #\x)). In such case, 'bx' would match, but not
-'ax'.")
+  "Centralized reference to any ANY-OTHER-CHAR element. This element is currently generated during
+negation and inversion, and for now, I'm not allowing it for the user. Later, I may allow it, so
+that user could define a regex like (or #\a (seq any-other-char #\x)). In such case, 'bx' would
+match, but not 'ax'.")
 
 ;; TODO: remove (no need for base abstract)
 (defclass element () ()
