@@ -44,6 +44,18 @@ match."
   `(deftest ,name :desc ,desc :regex ,regex :inp ,inp
      :match-details-list ((,match ,acc ,consum))))
 
+(defmacro deftest-n (name &key desc regex test-details-list)
+  "Allows defining multiple tests at once, all of them are against a single regex but with different
+inputs (and hence different expected matching results. This helps avoid redundancy in case we need
+to test matching against a single regex.
+Note: I'm defining all as a single test, rather than one test per matching operation. This is since
+we have a single description for simplicity (otherwise, I'd have to supply description per test)."
+  `(test ,name ,@(when desc (list desc))
+     (progn
+       ,@(loop for (inp . match-details) in test-details-list
+               collect `(run-regex-matching-test-loop ',regex ,inp
+                                                      (match-results '(,match-details)))))))
+
 (defun run-regex-matching-test-loop (regex input match-details-list)
   "Reusable function that runs a loop of regex matching operations for the input string INPUT
 against a single REGEX, and tests the result of each matching operation against successive elements
@@ -193,53 +205,17 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "X")
 
-;; TODO: need a DEFTEST-N macro that repeats same matching operation against multiple inputs
-(deftest-1 inv-matching-test-1
-  :desc "Tests the INV element (1) - no match."
+(deftest-n inv-matching-tests
+  :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
-  :inp "a"
-  :match nil
-  :consum "a")
-
-(deftest-1 inv-matching-test-2
-  :desc "Tests the INV element (2) - no match."
-  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
-  :inp "l"
-  :match nil
-  :consum "l")
-
-(deftest-1 inv-matching-test-3
-  :desc "Tests the INV element (3) - no match."
-  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
-  :inp "s"
-  :match nil
-  :consum "s")
-
-(deftest-1 inv-matching-test-4
-  :desc "Tests the INV element (4) - match."
-  :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
-  :inp "d"
-  :match t
-  :consum "d")
-
-(deftest-1 inv-matching-test-5
-  :desc "Tests the INV element (5) - match, including SEQ and OR elements."
-  :regex (or (seq (inv #\a #\c (char-range #\l #\s) #\x #\z) "yy") "123")
-  :inp "dyy"
-  :match t)
-
-(deftest-1 inv-matching-test-6
-  :desc "Tests the INV element (6) - match, including SEQ and OR elements."
-  :regex (or (seq (inv #\a #\c (char-range #\l #\s) #\x #\z) "yy") "123")
-  :inp "123"
-  :match t)
-
-(deftest-1 inv-matching-test-7
-  :desc "Tests the INV element (7) - no match, including SEQ and OR elements."
-  :regex (or (seq (inv #\a #\c (char-range #\l #\s) #\x #\z) "yy") "123")
-  :inp "syy"
-  :match nil
-  :consum "s")
+  :test-details-list (("a" nil nil "a")
+                      ("l" nil nil "l")
+                      ("a" nil nil "a")
+                      ("s" nil nil "s")
+                      ("d" t)
+                      ("dyy" t)
+                      ("123" t)
+                      ("syy" nil nil "s")))
 
 (deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."
