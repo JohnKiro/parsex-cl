@@ -118,7 +118,8 @@
 
 (defpackage :parsex-cl.regex-nfa
   (:use #:cl #:iterate)
-  (:local-nicknames (:chars :parsex-cl.chars)
+  (:local-nicknames (:alex :alexandria)
+                    (:chars :parsex-cl.chars)
                     (:elm #:parsex-cl.regex-element)
                     (:fsm #:parsex-cl.regex-fsm))
   (:export #:nfa-state

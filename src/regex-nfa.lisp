@@ -419,8 +419,9 @@ the FSM root state."
                  (loop for dest in (auto-transitions nfa-state)
                        do (funcall traversal-fn nfa-state :auto dest)
                           (iter dest))
-                 (let ((next-state-on-any-other-char (transition-on-any-other nfa-state)))
-                   (when next-state-on-any-other-char
-                     (funcall traversal-fn nfa-state :any-other-char next-state-on-any-other-char)
-                     (iter next-state-on-any-other-char))))))
+                 ;; TODO: might just call the traversal function, even if transition on any other
+                 ;; is NIL
+                 (alex:when-let (next-state (transition-on-any-other nfa-state))
+                   (funcall traversal-fn nfa-state elm::+ANY-OTHER-CHAR-ELEMENT+ next-state)
+                   (iter next-state)))))
       (iter root-state))))
