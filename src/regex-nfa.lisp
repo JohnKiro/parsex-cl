@@ -89,9 +89,8 @@ and returns output state as continuation point."))
                (cleanup-dead-paths-on-any-other-char (orig-state)
                  "Cleanup transitions on any-other-char, in case destination is continuation point."
                  ;; TODO: may also cleanup auto-transitions to CT (going to be dead-end)
-                 (with-slots (transition-on-any-other) orig-state
-                   (when (member transition-on-any-other inner-continuation-points)
-                     (setf transition-on-any-other nil))))
+                 (when (member #1=(transition-on-any-other orig-state) inner-continuation-points)
+                   (setf #1# nil)))
                (cleanup-dead-paths-on-auto (orig-state)
                  "Cleanup auto transitions, where destination is the output-state-inner."
                  (with-slots (auto-transitions) orig-state
@@ -184,7 +183,8 @@ state."
   ((normal-transitions :initform nil :type list :accessor normal-transitions)
    (auto-transitions :initform nil :type list :accessor auto-transitions)
    (transitions-on-any-char :initform nil :type list :accessor transitions-on-any-char)
-   (transition-on-any-other :initform nil :type (or null nfa-state) :reader transition-on-any-other)
+   (transition-on-any-other :initform nil :type (or null nfa-state)
+                            :accessor transition-on-any-other)
    (is-dead-end :initform nil :type boolean :reader is-dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
@@ -274,14 +274,14 @@ all required paths (every char is covered). NOTE that currently I'm assuming tha
 would be eventually cleaned-up, which is not a good assumption, since it assumes a specific
 scenario. TODO: change into a simpler setter.
 The returned value is either the newly-set value, or NIL otherwise."
-  (if (or (transitions-on-any-char orig-state) (transition-on-any-other orig-state))
+  (if (or (transitions-on-any-char orig-state) #1=(transition-on-any-other orig-state))
       nil
-      (setf (slot-value orig-state 'transition-on-any-other) dest-state)))
+      (setf #1# dest-state)))
 
 (defun unset-nfa-transition-on-any-other (orig-state)
   "Unset the NFA transition on any char from ORIG-STATE, if already set, otherwise, do nothing."
-  (when (transition-on-any-other orig-state)
-    (setf (slot-value orig-state 'transition-on-any-other) nil)))
+  (when #1=(transition-on-any-other orig-state)
+    (setf #1# nil)))
 
 #+nil
 (defun add-nfa-special-transition (orig-state element dest-state)
