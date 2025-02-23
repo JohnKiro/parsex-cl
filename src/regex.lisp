@@ -24,7 +24,9 @@ Other element types not needing special class:
   ((nfa-states :initarg :nfa-states
                :reader nfa-states
                :initform (error "nfa-states must be specified!"))
-   (transitions :accessor transitions :initform nil :type list)
+   (transitions :accessor transitions
+                :initform nil
+                :type list)
    (transition-on-any-other :accessor transition-on-any-other
                             :initform nil
                             :type (or null dfa-state))
@@ -80,6 +82,7 @@ remove it (see DFA-STATE-DEFINITELY-TERMINAL-P)."
                (return-from lookup-dfa-state dfa-state))))
   nil)
 
+
 (defun find-dfa-state (nfa-states traversed-dfa-states)
   "Look up NFA state closure union provided in NFA-STATES, in the TRAVERSED-DFA-STATES 
 DFA lookup vector. If not found, it creates a new DFA state and appends it to
@@ -132,6 +135,8 @@ same NFA closure union. This is because in DFA, both will have the meaning of an
                 (nfa:create-nfa-normalized-transition-table nfa-state-closure-union)))
           ;;replace each entry value with union of state closures (in place of union of states)
           (loop for (element . dest-state-union) in nfa-normalized-transition-table
+                ;; TODO: can't we do this prepare call within the call to
+                ;; nfa:create-nfa-normalized-transition-table??
                 for dest-closure-union = (nfa:prepare-nfa-state-closure-union dest-state-union)
                 for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
                 do (add-dfa-transition dfa-state element dest-dfa))
