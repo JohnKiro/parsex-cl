@@ -47,7 +47,14 @@ and returns output state as continuation point."))
     (add-nfa-auto-transition s2 output-state)
     output-state))
 
-;;TODO: SIMPLIFY, AS DONE FOR :+ BELOW
+;; Alternative simplified (experimental) version
+(defmethod regex-to-nfa% ((regex elm:zero-or-more-element) input-nfa-state)
+  (let* ((inner-regex (elm:inner-element regex))
+         (output-state (regex-to-nfa inner-regex input-nfa-state)))
+    (add-nfa-auto-transition input-nfa-state output-state)
+    (add-nfa-auto-transition output-state input-nfa-state)
+    output-state))
+
 (defmethod regex-to-nfa ((regex elm:zero-or-more-element) input-nfa-state)
   (let* ((s1 (make-instance 'nfa-state))
          (inner-regex (elm:inner-element regex))
@@ -129,6 +136,8 @@ and returns output state as continuation point."))
   (let ((output-state (make-instance 'nfa-state)))
     (set-nfa-transition-on-any-other input-nfa-state output-state)
     output-state))
+
+
 
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
