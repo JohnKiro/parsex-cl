@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex-sexp)
+(in-package :parsex-cl/regex/sexp)
 
 ;;; Handling of regex in the form of sexp (sexp --> regex object tree).
 

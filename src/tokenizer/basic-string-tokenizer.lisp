@@ -1,4 +1,4 @@
-(in-package :parsex-cl.basic-string-tokenizer)
+(in-package :parsex-cl/tokenizer/basic-string-tokenizer)
 
 #|
 Implementation of a tokenizer for string-based source.

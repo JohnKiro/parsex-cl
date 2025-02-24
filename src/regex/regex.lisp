@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex)
+(in-package :parsex-cl/regex)
 
 ;;; TODO: split into multiple files.
 

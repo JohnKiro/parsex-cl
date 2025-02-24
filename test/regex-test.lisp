@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex.test)
+(in-package :parsex-cl.test/regex.test)
 
 (def-suite :parsex-cl.regex.test-suite
   :description "Tests the RegEx"
@@ -63,17 +63,18 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
   (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
          (nfa (nfa:produce-nfa regex-obj-tree))
-         (dfa (parsex-cl.regex:produce-dfa nfa)))
+         (dfa (regex:produce-dfa nfa)))
     (when *graphvizdot-nfa*
-      (format t "~%Graphviz for NFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot nfa)))
+      (format t "~%Graphviz for NFA:~%~a~%" (graphviz:fsm-to-graphvizdot nfa)))
     (when *graphvizdot-dfa*
-      (format t "~%Graphviz for DFA:~%~a~%" (parsex-cl.graphviz-util:fsm-to-graphvizdot dfa)))
+      (format t "~%Graphviz for DFA:~%~a~%" (graphviz:fsm-to-graphvizdot dfa)))
     (dolist (match-details match-details-list)
-      (let* ((result (match-regex input-source dfa))
-             (matching-status (regex-matching-result-status result))
+      (let* ((result (regex:match-regex input-source dfa))
+             (matching-status (regex:regex-matching-result-status result))
              (updated-acc (input:retrieve-last-accumulated-value input-source))
              (consumed (input:retrieve-last-consumed-value input-source)))
-        (assert-match-result match-details (match-result matching-status updated-acc consumed))
+        (assert-match-result match-details (match-result matching-status
+                                                               updated-acc consumed))
         (when *verbose*
           (format t "~%Remaining characters in input: ~a~%" (input:remaining-length input-source))
           (format t "~%Upcoming character in input: ~a~%" (input:read-next-item input-source)))))))

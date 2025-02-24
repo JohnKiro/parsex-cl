@@ -1,4 +1,4 @@
-(in-package :parsex-cl.chars.test)
+(in-package :parsex-cl.test/chars.test)
 
 (def-suite :parsex-cl.chars.test-suite
   :description "Tests the chars util"

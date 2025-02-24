@@ -1,4 +1,4 @@
-(in-package :parsex-cl.char-util)
+(in-package :parsex-cl/char-util)
 
 ;;;; Utility functions and classes for character handling
 

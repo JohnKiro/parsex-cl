@@ -1,4 +1,4 @@
-(in-package :parsex-cl.nfa-element.test)
+(in-package :parsex-cl.test/nfa-element.test)
 
 (def-suite :parsex-cl.nfa-element.test-suite
   :description "Tests the NFA element package"

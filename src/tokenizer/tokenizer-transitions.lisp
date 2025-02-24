@@ -1,4 +1,4 @@
-(in-package :parsex-cl.tokenizer-transitions)
+(in-package :parsex-cl/tokenizer/transitions)
 
 (defclass transition ()
   ((atom-handling :initarg :atom-handling

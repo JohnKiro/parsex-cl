@@ -25,18 +25,22 @@
                (:module "util"
                 :components ((:file "symbol-util")
                              (:file "char-util")))
-               (:file "regex-input")
-               (:file "regex-element")
-               (:file "regex-nfa")
-               (:file "regex")
-               (:file "regex-sexp")
-               (:file "regex-fsm")
-               (:file "tokenizer-states")
-               (:file "tokenizer-transitions")
-               (:file "tokenizer")
-               (:file "common-atom-matchers")
-               (:file "common-transition-finders")
-               (:file "basic-string-tokenizer")
+               (:module "regex"
+                :components ((:file "regex-input")
+                             (:file "regex-element")
+                             (:file "regex-nfa")
+                             (:file "regex")
+                             (:file "regex-sexp")
+                             (:file "regex-fsm")
+                             ))
+               (:module "tokenizer"
+                :components ((:file "tokenizer-states")
+                             (:file "tokenizer-transitions")
+                             (:file "tokenizer")
+                             (:file "basic-string-tokenizer")))
+               (:module "commons"
+                :components ((:file "common-atom-matchers")
+                             (:file "common-transition-finders")))
                (:module "addons"
                 :components ((:file "graphviz-export"))))
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
@@ -51,15 +55,17 @@
                                :element-type 'character
                                :fill-pointer t)))
           (setf (fill-pointer seq) (read-sequence seq stream))
-          seq))))
+          seq)))
+  :in-order-to ((test-op (test-op "parsex-cl/test"))))
 
-(defsystem "parsex-cl/tests"
+(defsystem "parsex-cl/test"
   :depends-on ("fiveam" "parsex-cl")
-  :pathname "test/"
+  :pathname "test"
   :components ((:file "packages")
                (:file "test")
                (:file "tokenizer-test")
                (:file "regex-test")
                (:file "chars-test")
                (:file "nfa-element-test"))
-  :in-order-to ((test-op (test-op parsex-cl.test))))
+  :perform (test-op (o c)
+                    (uiop:symbol-call :fiveam '#:runnn! :parsex-cl.test-suite)))

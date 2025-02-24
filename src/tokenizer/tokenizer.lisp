@@ -4,7 +4,7 @@ Dec 2023. Updated based on "token-scanner.d" (dlang).
 Also more simplicity, by using functions instead of interfaces that have
 a single method. Hope this will be simplest and most elegant version.
 |#
-(in-package :parsex-cl.tokenizer)
+(in-package :parsex-cl/tokenizer)
 
 ;;; retrieve atom from input, and keeping it there (shouldn't advance)
 (defgeneric retrieve-atom (input))

@@ -1,4 +1,4 @@
-(in-package :parsex-cl.symbol-util)
+(in-package :parsex-cl/symbol-util)
 
 ;; TODO: may use Alexandria's ENSURE-SYMBOL
 (defun reintern (symbol package)

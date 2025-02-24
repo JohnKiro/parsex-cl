@@ -1,4 +1,4 @@
-(in-package :parsex-cl.common-atom-matchers)
+(in-package :parsex-cl/commons/common-atom-matchers)
 ;;;; Utility functions that create commonly used atom matcher.
 
 ;;;; Atom matcher: atom -> transition.

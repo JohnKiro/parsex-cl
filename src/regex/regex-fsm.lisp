@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex-fsm)
+(in-package :parsex-cl/regex/fsm)
 
 ;;;; This package is for common behavior to both FSM types (NFA, DFA)
 

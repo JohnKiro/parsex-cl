@@ -1,4 +1,4 @@
-(in-package :parsex-cl.common-transition-finders)
+(in-package :parsex-cl/commons/common-transition-finders)
 
 ;;; Finds matching transition, based on specified atom.
 ;;; Arguments:

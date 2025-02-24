@@ -1,4 +1,4 @@
-(in-package :parsex-cl.graphviz-util)
+(in-package :parsex-cl/graphviz-util)
 
 
 ;;; for reference (copied from regex.lisp for now)

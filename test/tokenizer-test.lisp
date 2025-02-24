@@ -1,4 +1,4 @@
-(in-package :parsex-cl.tokenizer.test)
+(in-package :parsex-cl.test/tokenizer.test)
 
 ;; Test suite to contain all tokenizer tests
 (def-suite :parsex-cl.tokenizer.test-suite

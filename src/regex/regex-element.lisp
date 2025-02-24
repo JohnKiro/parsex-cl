@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex-element)
+(in-package :parsex-cl/regex/element)
 
 ;;; Definition of regex elements
 

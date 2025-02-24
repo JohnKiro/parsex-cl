@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex-nfa)
+(in-package :parsex-cl/regex/nfa)
 
 (defgeneric regex-to-nfa (regex input-nfa-state)
   (:documentation "Traverses REGEX object tree and generates corresponding NFA section, starting at

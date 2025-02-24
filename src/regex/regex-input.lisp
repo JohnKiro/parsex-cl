@@ -1,4 +1,4 @@
-(in-package :parsex-cl.regex.input)
+(in-package :parsex-cl/regex/input)
 
 ;;;; Generic interface for regex source (input), and basic implementation for it
 
@@ -69,6 +69,7 @@ return NIL in case no characters were consumed."))
   (:documentation "Basic implementation for regex input, based on a string + reading position
 (index). It also includes an accumulator for the current/last matching operation."))
 
+;; TODO: replace adhoc type checking with argument type declaration or check-type
 (defmethod initialize-instance :after ((source basic-regex-input) &key
                                                                     initial-input-text
                                                                     (initial-reading-position 0)
