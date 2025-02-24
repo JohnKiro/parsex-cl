@@ -37,7 +37,6 @@ match, but not 'ax'.")
                 :reader single-char :type character))
   (:documentation "Wrapper object for single-char elements."))
 
-;; TODO: add constructor that ensures char-end >= char-start
 (defclass char-range-element (simple-element)
   ((char-start :initarg :char-start :initform (error "Mandatory")
                :reader char-start :type character)
@@ -77,10 +76,10 @@ match, but not 'ax'.")
   "Equality test for all types of simple elements (single char, char-range, symbol)."
   (or (eq element other-obj)
       (etypecase element
-        (single-char-element (and (typep other-obj 'single-char-element)
-                                  (char= (single-char element) (single-char other-obj))))
-        (char-range-element (and (typep other-obj 'char-range-element)
-                                 (char-range-equal element other-obj)))
+        (#1=single-char-element (and (typep other-obj '#1#)
+                                     (char= (single-char element) (single-char other-obj))))
+        (#2=char-range-element (and (typep other-obj '#2#)
+                                    (char-range-equal element other-obj)))
         ;; since the above EQ evaluated to nil, we're sure no equality
         (symbol nil))))
 
