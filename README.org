@@ -22,21 +22,25 @@ Regex constructs are either simple (that is, matching a single character), or co
 
 The following table describes the supported constructs. For brievity, I'm assuming that the reader is already familiar with regular expressions in general.
 
-|-----------------+-----------------------------------------------------------------+-----------------------------|
-| Regex Element   | Description                                                     | Example                     |
-|-----------------+-----------------------------------------------------------------+-----------------------------|
-| Character       | Individual characters                                           | #\a                         |
-| Any Character   | An element matching any single character                        | :any-char                   |
-| Character Range | Character range, based on char-code order                       | (char-range #\A #\F)        |
-| Sequence        | Sequence of one or more elements                                | (:seq #\x #\y)              |
-| String          | Sequence of characters                                          | "xy" (same as previous one) |
-| Choice          | Choice between multiple elements                                | (:or "Hello" "Hi")          |
-| Zero or More    | Zero or more occurrences of a specific element (Kleene closure) | (:* "a")                    |
-| One or more     | One or more occurrences of a specific element                   | (:seq "Hell" (:+ #\o) #\!)  |
-| Zero or One     | Zero or one occurrence of a specific element                    | (:? (:or "Mr." "Mrs."))     |
-|-----------------+-----------------------------------------------------------------+-----------------------------|
+|-----------------+---------------------------------------------------------------------------------+--------------------------------|
+| Regex Element   | Description                                                                     | Example                        |
+|-----------------+---------------------------------------------------------------------------------+--------------------------------|
+| Character       | Individual characters                                                           | #\a                            |
+| Any Character   | An element matching any single character                                        | :any-char                      |
+| Character Range | Character range, based on char-code order                                       | (char-range #\A #\F)           |
+| Sequence        | Sequence of one or more elements                                                | (seq #\x #\y)                  |
+| String          | Sequence of characters                                                          | "xy" (same as previous one)    |
+| Choice          | Choice between multiple elements                                                | (or "Hello" "Hi")              |
+| Zero or More    | Zero or more occurrences of a specific element (Kleene closure)                 | (* "a")                        |
+| One or more     | One or more occurrences of a specific element                                   | (seq "Hell" (+ #\o) #\!)       |
+| Zero or One     | Zero or one occurrence of a specific element                                    | (? (or "Mr." "Mrs."))          |
+| Regex Negation  | Matches anything other than the specified regex element                         | (not "abc")                    |
+| Regex Inversion | Equivalent to the caret (^) inside square brackets in conventional regex format | (inv #\a (char-range #\d #\m)) |
+|-----------------+---------------------------------------------------------------------------------+--------------------------------|
 
-Note in the previous table that *keyword symbols* are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp *reader*.
+Note in the previous table that single character and string elements are specified as they would be read by the Common Lisp *reader*. Construct types (*seq*, *or*, etc.) are specified using symbols.
+
+Note that the *negation* and *inversion* are subject to change. The negation specifically is experimental and tricky (you may not expect the behavior), so it might not be very useful. I may consider merging the negation and inversion into a single construct, with the actual behavior specified by flags.
 
 
 ** Some Implementation Notes
@@ -49,24 +53,6 @@ Backtracking in case of no match and in case of /candidate match/ are both imple
 1. The contract between the matching function and the input handling is simple.
 2. Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only.
 
-
-*** Any Char Element
-Currently the *:any-char* element (corresponding to the /DOT/ element in Unix/Perl regular expressions) has the effective meaning of "any other char". For example, the regex below will not match the string ="AC"=.
-
-#+begin_src lisp
-  (:or "AB"
-       (:seq :any-char #\C))
-#+end_src
-
-Here is the current NFA generated for it:
-
-[[file:images/any-char-or-nfa.svg]]
-
-And here is the corresponding DFA:
-
-[[file:images/any-char-or-dfa.svg]]
-
-I'm not sure at this point which behavior should be expected. Maybe I would allow both, by controlling the DFA generation using flags, or better, have two separate symbols (e.g. =:dot=, =:any-other=).
 
 * Prerequisites
 - Git
@@ -117,13 +103,13 @@ TODO: Enhance.
 Running regex unit test cases selectively can be done by first changing into the regex unit tests package:
 
 #+begin_src lisp
-  (in-package :parsex-cl.regex.test)
+  (in-package :parsex-cl.test/regex.test)
 #+end_src
 
 The output and updated prompt will indicate the *test* package:
 
 #+begin_example
-#<PACKAGE "PARSEX-CL.REGEX.TEST">
+#<PACKAGE "PARSEX-CL.TEST/REGEX.TEST">
 TEST>
 #+end_example
 
@@ -133,7 +119,7 @@ Then, all defined test cases could be executed as follows:
 TEST> (run! :parsex-cl.regex.test-suite)
 #+end_example
 
-The output will provide information about the test cases, including the following:
+The output will provide information about the test cases (controlled by dynamic variables), including the following:
 - Text being matched.
 - Regular expression being matched against.
 - Text consumed by the matching process (updated accumulator).

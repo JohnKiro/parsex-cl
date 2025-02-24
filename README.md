@@ -1,44 +1,43 @@
 
 # Table of Contents
 
-1.  [Purpose of this Project](#orgdf52612)
-2.  [Status](#org2ed9efd)
-3.  [Features](#orgf80925f)
-    1.  [Regex Format](#org5563a4e)
-    2.  [Supported Constructs](#orgfba10bc)
-    3.  [Some Implementation Notes](#org2d7e8f1)
-        1.  [Backtracking](#orgb979d68)
-        2.  [Any Char Element](#org19ab7c0)
-4.  [Prerequisites](#orgfd433fc)
-5.  [Installation](#org1d1caeb)
-6.  [Usage](#orgcf55b26)
-    1.  [Unit Tests ](#orgd89db7f)
-    2.  [Visualizing the GraphViz Dot Diagrams](#orgfe6419f)
-7.  [TODO](#org8a23821)
-8.  [Author](#org60c9f5a)
+1.  [Purpose of this Project](#org106f7f3)
+2.  [Status](#org4b13025)
+3.  [Features](#org0710142)
+    1.  [Regex Format](#org7e9d260)
+    2.  [Supported Constructs](#orgb23f7af)
+    3.  [Some Implementation Notes](#org6b1407b)
+        1.  [Backtracking](#org2889067)
+4.  [Prerequisites](#orgde86e24)
+5.  [Installation](#orga694f09)
+6.  [Usage](#org6ca70d1)
+    1.  [Unit Tests ](#org0545bfb)
+    2.  [Visualizing the GraphViz Dot Diagrams](#orgfb49cf4)
+7.  [TODO](#orgeb02ffb)
+8.  [Author](#org417a8a4)
 
 
 
-<a id="orgdf52612"></a>
+<a id="org106f7f3"></a>
 
 # Purpose of this Project
 
 I started this project as an exercise to practice Common Lisp. It is not meant by any means to compete with the well-established, feature-rich **[CL-PPCRE](https://github.com/edicl/cl-ppcre)**. However, as this one gets more mature, it could become a component of a bigger idea.
 
 
-<a id="org2ed9efd"></a>
+<a id="org4b13025"></a>
 
 # Status
 
-While it's still at an early experimental condition, it is already capable of matching strings against classical **regular expressions**, that are provided in the form of **s-expressions**. See section entitled [Unit Tests](#orgea57309) for information about how to experiment with the regex matcher.
+While it's still at an early experimental condition, it is already capable of matching strings against classical **regular expressions**, that are provided in the form of **s-expressions**. See section entitled [Unit Tests](#org1a589b2) for information about how to experiment with the regex matcher.
 
 
-<a id="orgf80925f"></a>
+<a id="org0710142"></a>
 
 # Features
 
 
-<a id="org5563a4e"></a>
+<a id="org7e9d260"></a>
 
 ## Regex Format
 
@@ -48,7 +47,7 @@ I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to d
 -   Ambiguity related to order of evalution is avoided, thanks to the parentheses.
 
 
-<a id="orgfba10bc"></a>
+<a id="orgb23f7af"></a>
 
 ## Supported Constructs
 
@@ -99,7 +98,7 @@ The following table describes the supported constructs. For brievity, I'm assumi
 <tr>
 <td class="org-left">Sequence</td>
 <td class="org-left">Sequence of one or more elements</td>
-<td class="org-left">(:seq #\x #\y)</td>
+<td class="org-left">(seq #\x #\y)</td>
 </tr>
 
 
@@ -113,43 +112,59 @@ The following table describes the supported constructs. For brievity, I'm assumi
 <tr>
 <td class="org-left">Choice</td>
 <td class="org-left">Choice between multiple elements</td>
-<td class="org-left">(:or "Hello" "Hi")</td>
+<td class="org-left">(or "Hello" "Hi")</td>
 </tr>
 
 
 <tr>
 <td class="org-left">Zero or More</td>
 <td class="org-left">Zero or more occurrences of a specific element (Kleene closure)</td>
-<td class="org-left">(:* "a")</td>
+<td class="org-left">(* "a")</td>
 </tr>
 
 
 <tr>
 <td class="org-left">One or more</td>
 <td class="org-left">One or more occurrences of a specific element</td>
-<td class="org-left">(:seq "Hell" (:+ #\o) #\!)</td>
+<td class="org-left">(seq "Hell" (+ #\o) #\!)</td>
 </tr>
 
 
 <tr>
 <td class="org-left">Zero or One</td>
 <td class="org-left">Zero or one occurrence of a specific element</td>
-<td class="org-left">(:? (:or "Mr." "Mrs."))</td>
+<td class="org-left">(? (or "Mr." "Mrs."))</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Regex Negation</td>
+<td class="org-left">Matches anything other than the specified regex element</td>
+<td class="org-left">(not "abc")</td>
+</tr>
+
+
+<tr>
+<td class="org-left">Regex Inversion</td>
+<td class="org-left">Equivalent to the caret (^) inside square brackets in conventional regex format</td>
+<td class="org-left">(inv #\a (char-range #\d #\m))</td>
 </tr>
 </tbody>
 </table>
 
-Note in the previous table that **keyword symbols** are used to specify the construct types, except for the single character and string elements, which are specified as they would be read by the Common Lisp **reader**.
+Note in the previous table that single character and string elements are specified as they would be read by the Common Lisp **reader**. Construct types (**seq**, **or**, etc.) are specified using symbols.
+
+Note that the **negation** and **inversion** are subject to change. The negation specifically is experimental and tricky (you may not expect the behavior), so it might not be very useful. I may consider merging the negation and inversion into a single construct, with the actual behavior specified by flags.
 
 
-<a id="org2d7e8f1"></a>
+<a id="org6b1407b"></a>
 
 ## Some Implementation Notes
 
 Here are some assorted implementation details, which need to be addressed by expanding them into architecture document, or that may need to be handled in the code (besides being documented):
 
 
-<a id="orgb979d68"></a>
+<a id="org2889067"></a>
 
 ### Backtracking
 
@@ -159,27 +174,7 @@ Backtracking in case of no match and in case of *candidate match* are both imple
 2.  Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only.
 
 
-<a id="org19ab7c0"></a>
-
-### Any Char Element
-
-Currently the **:any-char** element (corresponding to the *DOT* element in Unix/Perl regular expressions) has the effective meaning of "any other char". For example, the regex below will not match the string `"AC"`.
-
-    (:or "AB"
-         (:seq :any-char #\C))
-
-Here is the current NFA generated for it:
-
-![img](images/any-char-or-nfa.svg)
-
-And here is the corresponding DFA:
-
-![img](images/any-char-or-dfa.svg)
-
-I'm not sure at this point which behavior should be expected. Maybe I would allow both, by controlling the DFA generation using flags, or better, have two separate symbols (e.g. `:dot`, `:any-other`).
-
-
-<a id="orgfd433fc"></a>
+<a id="orgde86e24"></a>
 
 # Prerequisites
 
@@ -188,7 +183,7 @@ I'm not sure at this point which behavior should be expected. Maybe I would allo
 -   Quicklisp
 
 
-<a id="org1d1caeb"></a>
+<a id="orga694f09"></a>
 
 # Installation
 
@@ -223,29 +218,29 @@ The project components will be loaded sequentially, as indicated in the followin
 TODO: Enhance.
 
 
-<a id="orgcf55b26"></a>
+<a id="org6ca70d1"></a>
 
 # Usage
 
 
-<a id="orgd89db7f"></a>
+<a id="org0545bfb"></a>
 
-## Unit Tests <a id="orgea57309"></a>
+## Unit Tests <a id="org1a589b2"></a>
 
 Running regex unit test cases selectively can be done by first changing into the regex unit tests package:
 
-    (in-package :parsex-cl.regex.test)
+    (in-package :parsex-cl.test/regex.test)
 
 The output and updated prompt will indicate the **test** package:
 
-    #<PACKAGE "PARSEX-CL.REGEX.TEST">
+    #<PACKAGE "PARSEX-CL.TEST/REGEX.TEST">
     TEST>
 
 Then, all defined test cases could be executed as follows:
 
     TEST> (run! :parsex-cl.regex.test-suite)
 
-The output will provide information about the test cases, including the following:
+The output will provide information about the test cases (controlled by dynamic variables), including the following:
 
 -   Text being matched.
 -   Regular expression being matched against.
@@ -311,7 +306,7 @@ Here is a sample output for the execution of one of the test cases:
     }
 
 
-<a id="orgfe6419f"></a>
+<a id="orgfb49cf4"></a>
 
 ## Visualizing the GraphViz Dot Diagrams
 
@@ -319,7 +314,7 @@ In order to inspect the NFA or DFA visually, the **dot** utility provided with *
 
 **Note**: A Graphviz installation is required for this step.
 
-For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#orgea57309)), the following commands can be used (assuming a Unix/Linux terminal):
+For example, to visualize the DFA corresponding to the test case described in the previous section ([Unit Tests](#org1a589b2)), the following commands can be used (assuming a Unix/Linux terminal):
 
 -   Save the Dot output for the DFA into a text file:
 
@@ -361,7 +356,7 @@ For example, to visualize the DFA corresponding to the test case described in th
 ![img](./images/sample-dfa.svg "Sample DFA finite state machine diagram")
 
 
-<a id="org8a23821"></a>
+<a id="orgeb02ffb"></a>
 
 # TODO
 
@@ -370,7 +365,7 @@ For example, to visualize the DFA corresponding to the test case described in th
 -   There are also some TODOs in the source code (to be added in this section).
 
 
-<a id="org60c9f5a"></a>
+<a id="org417a8a4"></a>
 
 # Author
 
