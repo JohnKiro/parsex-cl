@@ -32,6 +32,7 @@
         )
   (:local-nicknames (:regex #:parsex-cl/regex)
                     (:nfa #:parsex-cl/regex/nfa)
+                    (:dfa #:parsex-cl/regex/dfa)
                     (:sexp #:parsex-cl/regex/sexp)
                     (:input #:parsex-cl/regex/input)
                     (:elm #:parsex-cl/regex/element)

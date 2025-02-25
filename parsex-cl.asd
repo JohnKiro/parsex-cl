@@ -29,6 +29,7 @@
                 :components ((:file "regex-input")
                              (:file "regex-element")
                              (:file "regex-nfa")
+                             (:file "regex-dfa")
                              (:file "regex")
                              (:file "regex-sexp")
                              (:file "regex-fsm")

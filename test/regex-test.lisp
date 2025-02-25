@@ -63,7 +63,7 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
   (let* ((input-source (make-instance 'input:basic-regex-input :initial-input-text input))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
          (nfa (nfa:produce-nfa regex-obj-tree))
-         (dfa (regex:produce-dfa nfa)))
+         (dfa (dfa:produce-dfa nfa)))
     (when *graphvizdot-nfa*
       (format t "~%Graphviz for NFA:~%~a~%" (graphviz:fsm-to-graphvizdot nfa)))
     (when *graphvizdot-dfa*

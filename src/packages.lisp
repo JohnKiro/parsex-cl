@@ -133,6 +133,21 @@
            #:produce-nfa
            ))
 
+(defpackage :parsex-cl/regex/dfa
+  (:use #:cl #:iterate)
+  (:local-nicknames (:alex :alexandria)
+                    (:nfa #:parsex-cl/regex/nfa)
+                    (:elm #:parsex-cl/regex/element)
+                    (:fsm #:parsex-cl/regex/fsm))
+  (:export #:produce-dfa
+           #:dfa-state
+           #:parse-and-produce-dfa ;wrapper that simplifies the above
+           #:dfa-state-definitely-terminal-p
+           #:candidate-terminal
+           #:transitions
+           #:transition-on-any-other
+           ))
+
 (defpackage :parsex-cl/regex/sexp
   (:use #:cl #:iterate)
   (:local-nicknames (:nfa #:parsex-cl/regex/nfa)
@@ -145,24 +160,18 @@
 (defpackage :parsex-cl/regex
   (:use #:cl #:iterate)
   (:local-nicknames (:nfa #:parsex-cl/regex/nfa)
+                    (:dfa #:parsex-cl/regex/dfa)
                     (:chars #:parsex-cl/char-util)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm)
                     (:input #:parsex-cl/regex/input))
-  (:export #:produce-dfa
-           #:dfa-state
-           #:parse-and-produce-dfa ;wrapper that simplifies the above
-           #:dfa-state-definitely-terminal-p
-           #:candidate-terminal
-           #:match-regex
+  (:export #:match-regex
            #:regex-matching-result
            #:regex-matching-result-accumulator-interface-fn
            #:regex-matching-result-input-interface-fn
            #:regex-matching-result-p
            #:regex-matching-result-status
            #:regex-matching-result-token
-           #:transitions
-           #:transition-on-any-other
            ))
 
 (defpackage :parsex-cl/graphviz-util
@@ -170,6 +179,6 @@
   (:local-nicknames (:chars #:parsex-cl/char-util)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm)
-                    (:regex #:parsex-cl/regex))
+                    (:dfa #:parsex-cl/regex/dfa))
   (:export #:fsm-to-graphvizdot
            #:generate-graphviz-dot-diagram))
