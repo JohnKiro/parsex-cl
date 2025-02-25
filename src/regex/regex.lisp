@@ -2,18 +2,9 @@
 
 ;;; TODO: split into multiple files.
 
-#||
-Other element types not needing special class:
-- symbols (currently only :any-char (corresponds to . in regex).
-- single character.
-- string (string of character corresponds to a sequence-element where all elements are characters).
-||#
-
 
 ;;;; NOTE: since the reader will accept only a valid sexp, the "no more input" case is not possible.
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
-;;;; TODO: accept reversed char range
-;;;; TODO: may split function using other helper functions (DONE)
 ;;;; TODO: flatten (simplify specific cases such as seq within seq)
 ;;;; TODO: more unit test cases, reorganize packages
 
