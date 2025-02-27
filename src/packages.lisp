@@ -146,6 +146,7 @@
            #:candidate-terminal
            #:transitions
            #:transition-on-any-other
+           #:find-matching-transition
            ))
 
 (defpackage :parsex-cl/regex/sexp

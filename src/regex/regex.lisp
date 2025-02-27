@@ -9,14 +9,6 @@
 ;;;; TODO: flatten (simplify specific cases such as seq within seq)
 ;;;; TODO: more unit test cases, reorganize packages
 
-;;; Note: currently returning only destination DFA state, may find later that I need
-;;; the match criterion as well (i.e. not extracting the CDR part).
-(defun find-matching-transition (origin-dfa-state char)
-  "Find matching transition from ORIGIN-DFA-STATE, based on input CHAR.
-Returns destination DFA state."
-  (or (cdr (assoc char (dfa:transitions origin-dfa-state)
-                  :test #'elm:match-char-against-simple-element))
-      (dfa:transition-on-any-other origin-dfa-state)))
 
 (defstruct regex-matching-result
   (status nil :type (or (eql :regex-matched) (eql :regex-not-matched) nil))
@@ -39,7 +31,8 @@ Returns destination DFA state."
                  (if (input:source-empty-p input-source)
                      (prepare-result last-candidate-terminal-dfa)
                      (let* ((next-ch (input:read-next-item input-source))
-                            (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
+                            (dest-dfa-state (dfa:find-matching-transition origin-dfa-state
+                                                                          next-ch)))
                        (if dest-dfa-state
                            (progn
                              (input:advance-reading-position input-source)

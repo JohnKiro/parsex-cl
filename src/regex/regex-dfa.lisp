@@ -135,6 +135,17 @@ found or newly created."
     (produce-dfa root-nfa-state)))
 
 
+;;; Note: currently returning only destination DFA state, may find later that I need
+;;; the match criterion as well (i.e. not extracting the CDR part).
+(defun find-matching-transition (origin-dfa-state char)
+  "Find matching transition from ORIGIN-DFA-STATE, based on input CHAR.
+Returns destination DFA state. This function is used by the regex matching logic, unlike the
+above functions which are used during the DFA tree preparation. Later may rearange to make this
+distiction clear."
+  (or (cdr (assoc char (transitions origin-dfa-state)
+                  :test #'elm:match-char-against-simple-element))
+      (transition-on-any-other origin-dfa-state)))
+
 ;;; ---------
 ;;; FSM methods are currently used in Graphviz Dot diagram generation only
 ;;; ---------
