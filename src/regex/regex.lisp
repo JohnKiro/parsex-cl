@@ -24,9 +24,10 @@ Returns destination DFA state."
 
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   (labels ((prepare-result (status)
+             "Prepare result based on matching status (STATUS); T means match, NIL means no match."
              ;;putting this here since we need to call it when scanning is terminated
              (input:notify-match-termination input-source)
-             (make-regex-matching-result :status status))
+             (make-regex-matching-result :status (if status :regex-matched :regex-not-matched)))
            (transit (origin-dfa-state)
              (when (dfa:candidate-terminal origin-dfa-state)
                (setf last-candidate-terminal-dfa origin-dfa-state)
@@ -34,20 +35,16 @@ Returns destination DFA state."
              (if (dfa:dfa-state-definitely-terminal-p origin-dfa-state)
                  ;; I'm not checking whether input is empty or not here (e.g. to determine if the
                  ;; match is exact or not). Leaving this up to the caller.
-                 (prepare-result :regex-matched)
+                 (prepare-result t)
                  (if (input:source-empty-p input-source)
-                     (prepare-result (if last-candidate-terminal-dfa
-                                         :regex-matched
-                                         :regex-not-matched))
+                     (prepare-result last-candidate-terminal-dfa)
                      (let* ((next-ch (input:read-next-item input-source))
                             (dest-dfa-state (find-matching-transition origin-dfa-state next-ch)))
                        (if dest-dfa-state
                            (progn
                              (input:advance-reading-position input-source)
                              (transit dest-dfa-state))
-                           (prepare-result (if last-candidate-terminal-dfa
-                                               :regex-matched
-                                               :regex-not-matched))))))))
+                           (prepare-result last-candidate-terminal-dfa)))))))
     (transit root-dfa-state)))
 
 
