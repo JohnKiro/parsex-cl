@@ -102,29 +102,29 @@ and returns output state as continuation point."))
                  "Cleanup auto transitions, where destination is the output-state-inner."
                  (with-slots (auto-transitions) orig-state
                    (setf auto-transitions (delete output-state-inner auto-transitions)))))
-        (loop for continuation-point in inner-continuation-points
-              do (set-dead-end continuation-point)
+        (loop for inner-contin in inner-continuation-points
+              do (set-dead-end inner-contin)
               do (progn
-                   (cleanup-dead-paths-on-any-other-char continuation-point)
-                   (cleanup-dead-paths-on-auto continuation-point)))
+                   (cleanup-dead-paths-on-any-other-char inner-contin)
+                   (cleanup-dead-paths-on-auto inner-contin)))
         (loop with inner-continuation-point-closures = (prepare-nfa-state-closure-union
                                                         inner-continuation-points)
-              for dead-end in inner-dead-ends
-              do (if (absolute-dead-end-p dead-end)
+              for inner-dead-end in inner-dead-ends
+              do (if (absolute-dead-end-p inner-dead-end)
                      (progn
                        ;; TODO: give user the choice (greedy/non-greedy)
                        ;; TODO: rather than creating this transition and creating output-state ,
                        ;; check the dead-end that has no auto transitions out, and use it as output
                        ;; state
-                       (add-nfa-auto-transition dead-end output-state)
-                       (unset-dead-end dead-end))
-                     (when (and (set-nfa-transition-on-any-other dead-end glue-state)
-                                (not (member dead-end inner-continuation-point-closures
+                       (add-nfa-auto-transition inner-dead-end output-state)
+                       (unset-dead-end inner-dead-end))
+                     (when (and (set-nfa-transition-on-any-other inner-dead-end glue-state)
+                                (not (member inner-dead-end inner-continuation-point-closures
                                              :test #'eql)))
                        ;; TODO: give user the choice (greedy/non-greedy)
-                       (add-nfa-auto-transition dead-end output-state)
-                       (unset-dead-end dead-end)))
-              do (cleanup-dead-paths-on-any-other-char dead-end))))
+                       (add-nfa-auto-transition inner-dead-end output-state)
+                       (unset-dead-end inner-dead-end)))
+              do (cleanup-dead-paths-on-any-other-char inner-dead-end))))
     output-state))
 
 (defmethod regex-to-nfa ((regex elm:inv-element) input-nfa-state)
