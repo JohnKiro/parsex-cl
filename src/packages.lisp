@@ -106,6 +106,7 @@
            #:zero-or-one-element
            #:one-or-more-element
            #:negated-element ; TODO: not yet sure
+           #:greedy-p
            #:inv-element
            ))
 

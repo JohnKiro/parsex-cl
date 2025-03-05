@@ -117,7 +117,11 @@ Preconditions: end >= start, splitting points must be a sorted vector."
 (defclass single-element-wrapper-element ()
   ((element :initarg :element :initform (error "Mandatory") :reader inner-element)))
 
-(defclass negated-element (single-element-wrapper-element) ())
+(defclass negated-element (single-element-wrapper-element)
+  ((greedy :initarg :greedy
+           :initform nil
+           :reader greedy-p
+           :type boolean)))
 
 (defclass zero-or-more-element (single-element-wrapper-element) ())
 

@@ -82,7 +82,9 @@ and returns output state as continuation point."))
          (glue-state (make-instance 'nfa-state))
          (negation-exit-elem (make-instance 'elm:zero-or-more-element
                                             :element elm:+any-char-element+))
-         (output-state (regex-to-nfa negation-exit-elem glue-state)))
+         (output-state (if (elm:greedy-p regex)
+                           (regex-to-nfa negation-exit-elem glue-state)
+                           glue-state)))
     (multiple-value-bind (inner-continuation-points inner-dead-ends)
         (analyze-nfa-state-reachability input-nfa-state output-state-inner)
       ;; traverse NFA sub-tree, and connect each dead-end state to the new (+ any-char) element,
