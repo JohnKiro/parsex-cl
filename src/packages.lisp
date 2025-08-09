@@ -14,6 +14,13 @@
   (:export #:inc-char
            #:dec-char))
 
+(defpackage :parsex-cl/class-util
+  (:use #:cl)
+  (:local-nicknames (:sym #:parsex-cl/symbol-util))
+  (:export #:define-class-of-functions
+           #:define-class-of-functions-constructor
+           #:define-class-of-functions-with-constructor))
+
 (defpackage :parsex-cl/tokenizer/states
   (:use #:cl)
   (:export #:normal-state

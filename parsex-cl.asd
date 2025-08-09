@@ -24,7 +24,8 @@
   :components ((:file "packages")
                (:module "util"
                 :components ((:file "symbol-util")
-                             (:file "char-util")))
+                             (:file "char-util")
+                             (:file "class-util")))
                (:module "regex"
                 :components ((:file "regex-input")
                              (:file "regex-element")
