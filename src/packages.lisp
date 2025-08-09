@@ -6,6 +6,7 @@
 (defpackage :parsex-cl/symbol-util
   (:use #:cl)
   (:export #:reintern
+           #:sym-to-kw
            #:with-preserve-symbol-case))
 
 (defpackage :parsex-cl/char-util
