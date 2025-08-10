@@ -29,20 +29,29 @@ string in special color, indicating documentation."
                                  ,@(when doc `(:documentation ,doc))))
      ,@(when doc (list `(:documentation ,doc)))))
 
-(defmacro define-class-of-functions-constructor (classname constructor-name (&rest slots))
+(defmacro define-class-of-functions-constructor (class-name constructor-name (&rest slots))
   "Utility macro to create a construction macro for a given class of functions, to be used instead
 of `make-instance`. Its sole usefulness is that it allows the user to provide each function's body,
 without enclosing it inside a '(lambda () ....)' form. I.e. it's typically used when creating
 closures, not when the functions are already created (and hence specified with a hash-quote, such
 as #'function-name).
 Note that this is a limited implementation, where all functions take no arguments. If this is not
-the case, then use the `make-instance` method instead (which is the more general case)."
-  (let ((args `(list ,@(loop for slot-name in slots
-                                collect (sym:sym-to-kw slot-name)
-                                collect ``(lambda ()
-                                            ,,slot-name)))))
+the case, then use the `make-instance` method instead (which is the more general case).
+Also note that it supports passing function objects besides code to be wrapped in a LAMBDA."
+  (declare (type list-of-symbols slots))
+  (flet ((prepare-arg-key-and-val (arg-name)
+           "Prepare key and value arg expansion code for `make-instance`, given the arg name."
+           (list (sym:sym-to-kw arg-name)
+                 `(if (typep ,arg-name 'cons)
+                      (if (eq (car ,arg-name) 'function)
+                          ,arg-name
+                          `#'(lambda ()
+                               ,,arg-name))
+                      (error "Invalid function argument for ~a!" ',arg-name)))))
     `(defmacro ,constructor-name (&key ,@slots)
-       `(make-instance ',',classname ,@,args))))
+       (let ((args (list ,@(loop for slot-name in slots
+                                 append (prepare-arg-key-and-val slot-name)))))
+         `(make-instance ',',class-name ,@args)))))
 
 (defmacro define-class-of-functions-with-constructor (class-name direct-superclasses
                                                       &key doc slots constructor-name)
