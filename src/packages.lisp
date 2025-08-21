@@ -80,6 +80,7 @@
 
 (defpackage :parsex-cl/regex/input
   (:use #:cl #:iterate)
+  (:local-nicknames (:class-util #:parsex-cl/class-util))
   (:export #:basic-regex-input
            #:source-empty-p
            #:remaining-length
