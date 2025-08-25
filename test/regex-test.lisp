@@ -60,26 +60,30 @@ we have a single description for simplicity (otherwise, I'd have to supply descr
   "Reusable function that runs a loop of regex matching operations for the input string INPUT
 against a single REGEX, and tests the result of each matching operation against successive elements
 of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully traversed."
-  (let* ((input-source (input::create-basic-regex-input input))
+  (let* ((input-source (input:create-basic-regex-input input))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
          (nfa (nfa:produce-nfa regex-obj-tree))
          (dfa (dfa:produce-dfa nfa)))
-    (when *graphvizdot-nfa*
-      (format t "~%Graphviz for NFA:~%~a~%" (graphviz:fsm-to-graphvizdot nfa)))
-    (when *graphvizdot-dfa*
-      (format t "~%Graphviz for DFA:~%~a~%" (graphviz:fsm-to-graphvizdot dfa)))
-    (dolist (match-details match-details-list)
-      (let* ((result (regex:match-regex input-source dfa))
-             (matching-status (regex:regex-matching-result-status result))
-             (updated-acc (funcall (input::retrieve-last-accumulated-value-fn input-source)))
-             (consumed (funcall (input::retrieve-last-consumed-value-fn input-source))))
-        (assert-match-result match-details (match-result matching-status
-                                                         updated-acc consumed))
-        (when *verbose*
-          (format t "~%Remaining characters in input: ~a~%"
-                  (funcall (input::remaining-length-fn input-source)))
-          (format t "~%Upcoming character in input: ~a~%"
-                  (funcall (input::read-next-item-fn input-source))))))))
+    (input:with-regex-input-handler-funcall-macros (input:retrieve-last-accumulated-value
+                                                    input:retrieve-last-consumed-value
+                                                    input:remaining-length
+                                                    input:read-next-item) input-source
+      (when *graphvizdot-nfa*
+        (format t "~%Graphviz for NFA:~%~a~%" (graphviz:fsm-to-graphvizdot nfa)))
+      (when *graphvizdot-dfa*
+        (format t "~%Graphviz for DFA:~%~a~%" (graphviz:fsm-to-graphvizdot dfa)))
+      (dolist (match-details match-details-list)
+        (let* ((result (regex:match-regex input-source dfa))
+               (matching-status (regex:regex-matching-result-status result))
+               (updated-acc (input:retrieve-last-accumulated-value))
+               (consumed (input:retrieve-last-consumed-value)))
+          (assert-match-result match-details (match-result matching-status
+                                                           updated-acc consumed))
+          (when *verbose*
+            (format t "~%Remaining characters in input: ~a~%"
+                    (input:remaining-length))
+            (format t "~%Upcoming character in input: ~a~%"
+                    (input:read-next-item))))))))
 
 (defun match-result (match &optional (accumul nil acc-supplied-p) (consum nil cons-supplied-p))
   "Prepare matching result (whether expected or actual) in the form of a plist (GETF-friendly),
