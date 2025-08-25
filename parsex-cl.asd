@@ -67,6 +67,7 @@
                (:file "test")
                (:file "tokenizer-test")
                (:file "regex-test")
+               (:file "regex-input-test")
                (:file "chars-test")
                (:file "nfa-element-test"))
   :perform (test-op (o c)

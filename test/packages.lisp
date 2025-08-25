@@ -25,6 +25,12 @@
                     ;;TODO: should not have such dependency (relocate/remove dependetn test case)
                     (:nfa #:parsex-cl/regex/nfa)))
 
+(defpackage :parsex-cl.test/regex-input.test
+  (:use #:cl
+        #:parsex-cl.test ;package containing root test suite
+        )
+  (:local-nicknames (:input #:parsex-cl/regex/input)))
+
 (defpackage :parsex-cl.test/regex.test
   (:use #:cl
         #:fiveam

@@ -92,6 +92,8 @@
            #:register-candidate-matching-point
            #:retrieve-last-accumulated-value
            #:retrieve-last-consumed-value
+           #:with-regex-input-handler-funcall-macros
+           #:create-basic-regex-input
            ))
 
 (defpackage :parsex-cl/regex/element
