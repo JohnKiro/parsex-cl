@@ -19,7 +19,9 @@
   (:local-nicknames (:sym #:parsex-cl/symbol-util))
   (:export #:define-class-of-functions
            #:define-class-of-functions-constructor
-           #:define-class-of-functions-with-constructor))
+           #:define-class-of-functions-with-constructor
+           #:let-slots
+           #:with-function-slots-funcall-macros))
 
 (defpackage :parsex-cl/tokenizer/states
   (:use #:cl)

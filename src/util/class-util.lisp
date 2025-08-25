@@ -71,3 +71,28 @@ created. This would typically be the case when some of the functions take argume
        (define-class-of-functions ,class-name ,direct-superclasses :doc ,doc :slots ,slots)
        ,@(when constructor-name
            `((define-class-of-functions-constructor ,class-name ,constructor-name ,slot-names))))))
+
+(defmacro let-slots ((&rest vars-and-slot-readers) obj &body body)
+  "Macro receiving a list of elements in the form (slot-var . slot-reader), and expanding into code
+that LET-binds each slot value (by calling `slot-reader`) to corresponding `slot-var`, around
+`body`. This is useful in cases where the slots are not modified, and we want to avoid the cost of
+reading the slot over and over (e.g. in tight loops)."
+  `(let ,(loop for (slot-var . slot-reader) in vars-and-slot-readers
+               collect `(,slot-var (,slot-reader ,obj)))
+     ,@body))
+
+(defmacro with-function-slots-funcall-macros ((&rest macro-names-and-slot-readers) obj &body body)
+  "Macro that defines local macros that expand to FUNCALLing function slots in provided object
+`obj`, to be available in `body`. The `macro-names-and-slot-readers` argument is a list of elements
+in the form (macro-name slot-reader). Slot readers must match object's slot readers. Macros will
+accept a variable number of arguments."
+  (let* ((macro-names (mapcar #'car macro-names-and-slot-readers))
+         (slot-readers (mapcar #'cdr macro-names-and-slot-readers))
+         (vars-and-slot-readers (mapcar #'(lambda (e) (cons (gensym) e)) slot-readers)))
+    `(let-slots ,vars-and-slot-readers ,obj
+       (macrolet
+           ,(loop for (slot-var . slot-reader) in vars-and-slot-readers
+                  for macro-name in macro-names
+                  collect `(,macro-name (&rest args)
+                                        `(funcall ,',slot-var ,@args)))
+         ,@body))))
