@@ -91,7 +91,6 @@ includes an accumulator for the current/last matching operation, and allows cust
                     (copy-seq initial-input-text)
                     initial-input-text))
         (starting-reference-position reading-position)
-        ;; TODO: shouldn't we exclude (subtract) initial reading position?
         (total-length (length initial-input-text))
         (accumulator-start -1)
         (accumulator-end -1)
