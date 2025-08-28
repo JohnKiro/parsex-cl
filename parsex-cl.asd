@@ -30,6 +30,8 @@
                 :components ((:file "regex-input")
                              (:file "regex-element")
                              (:file "regex-nfa")
+                             (:file "regex-nfa-state")
+                             (:file "regex-nfa-transition")
                              (:file "regex-dfa")
                              (:file "regex")
                              (:file "regex-sexp")

@@ -130,26 +130,51 @@
            #:fsm-acceptance-state-p
            ))
 
+(defpackage :parsex-cl/regex/nfa/transition
+  (:use #:cl)
+  (:local-nicknames (:elm #:parsex-cl/regex/element))
+  (:export #:nfa-transition
+           #:element
+           #:next-state))
+
+(defpackage :parsex-cl/regex/nfa/state
+  (:use #:cl)
+  (:local-nicknames (:elm #:parsex-cl/regex/element)
+                    (:trans #:parsex-cl/regex/nfa/transition)
+                    (:chars #:parsex-cl/char-util)
+                    (:fsm #:parsex-cl/regex/fsm))
+  (:export #:nfa-state
+           #:normal-transitions
+           #:auto-transitions
+           #:transitions-on-any-char
+           #:transition-on-any-other
+           #:terminus
+           #:add-nfa-normal-transition
+           #:add-nfa-transition-on-any-char
+           #:add-nfa-auto-transition
+           #:set-dead-end
+           #:unset-dead-end
+           #:set-nfa-transition-on-any-other
+           #:terminal-nfa-closure-union-p
+           #:prepare-nfa-state-closure-union
+           #:create-nfa-normalized-transition-table
+           #:analyze-nfa-state-reachability
+           ))
+
 (defpackage :parsex-cl/regex/nfa
   (:use #:cl #:iterate)
   (:local-nicknames (:alex #:alexandria)
                     (:chars #:parsex-cl/char-util)
                     (:elm #:parsex-cl/regex/element)
-                    (:fsm #:parsex-cl/regex/fsm))
-  (:export #:nfa-state
-           #:normal-transitions
-           #:auto-transitions
-           #:element
-           #:next-state
-           #:terminal-nfa-closure-union-p
-           #:prepare-nfa-state-closure-union
-           #:create-nfa-normalized-transition-table
-           #:produce-nfa
+                    (:state #:parsex-cl/regex/nfa/state)
+                    (:trans #:parsex-cl/regex/nfa/transition))
+  (:export #:produce-nfa
            ))
 
 (defpackage :parsex-cl/regex/dfa
   (:use #:cl #:iterate)
   (:local-nicknames (:alex :alexandria)
+                    (:nfa-state #:parsex-cl/regex/nfa/state)
                     (:nfa #:parsex-cl/regex/nfa)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm))
@@ -165,8 +190,7 @@
 
 (defpackage :parsex-cl/regex/sexp
   (:use #:cl #:iterate)
-  (:local-nicknames (:nfa #:parsex-cl/regex/nfa)
-                    (:elm #:parsex-cl/regex/element)
+  (:local-nicknames (:elm #:parsex-cl/regex/element)
                     (:chars #:parsex-cl/char-util)
                     (:sym #:parsex-cl/symbol-util))
   (:export #:prepare-regex-tree
@@ -174,8 +198,7 @@
 
 (defpackage :parsex-cl/regex
   (:use #:cl #:iterate)
-  (:local-nicknames (:nfa #:parsex-cl/regex/nfa)
-                    (:dfa #:parsex-cl/regex/dfa)
+  (:local-nicknames (:dfa #:parsex-cl/regex/dfa)
                     (:chars #:parsex-cl/char-util)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm)

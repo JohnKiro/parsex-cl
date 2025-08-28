@@ -23,7 +23,8 @@
   (:local-nicknames (:elm #:parsex-cl/regex/element)
                     (:sexp #:parsex-cl/regex/sexp)
                     ;;TODO: should not have such dependency (relocate/remove dependetn test case)
-                    (:nfa #:parsex-cl/regex/nfa)))
+                    (:nfa #:parsex-cl/regex/nfa)
+                    (:nfa-state #:parsex-cl/regex/nfa/state)))
 
 (defpackage :parsex-cl.test/regex-input.test
   (:use #:cl
@@ -48,6 +49,4 @@
   (:use #:cl
         #:fiveam
         #:parsex-cl.test)
-  (:local-nicknames (:chars #:parsex-cl/char-util)
-                    (:elm #:parsex-cl/regex/element)
-                    (:nfa #:parsex-cl/regex/nfa)))
+  (:local-nicknames (:chars #:parsex-cl/char-util)))

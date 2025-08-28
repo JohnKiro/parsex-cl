@@ -28,7 +28,7 @@ as separate slot to avoid computation each time it is needed."))
 (defmethod initialize-instance :after ((dfa-state dfa-state) &key)
   "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
   (with-slots (nfa-states candidate-terminal) dfa-state
-    (let ((terminal-or-not (nfa:terminal-nfa-closure-union-p nfa-states)))
+    (let ((terminal-or-not (nfa-state:terminal-nfa-closure-union-p nfa-states)))
       (setf candidate-terminal terminal-or-not))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
@@ -83,7 +83,7 @@ same NFA closure union. This is because in DFA, both will have the meaning of an
 
 ;;; TODO: produce-dfa and parse-and-produce-dfa can be converted into methods of a single generic
 (defun produce-dfa (nfa-root-state)
-  (let ((nfa-root-state-closure (nfa:prepare-nfa-state-closure-union (list nfa-root-state)))
+  (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure-union (list nfa-root-state)))
         (dfa-state-set (create-dfa-state-set)))
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
@@ -119,12 +119,13 @@ found or newly created."
     (if (eq found-or-new 'already-found)
         dfa-state
         (let ((nfa-normalized-transition-table
-                (nfa:create-nfa-normalized-transition-table nfa-state-closure-union)))
+                (nfa-state:create-nfa-normalized-transition-table nfa-state-closure-union)))
           ;;replace each entry value with union of state closures (in place of union of states)
           (loop for (element . dest-state-union) in nfa-normalized-transition-table
                 ;; TODO: can't we do this prepare call within the call to
                 ;; nfa:create-nfa-normalized-transition-table??
-                for dest-closure-union = (nfa:prepare-nfa-state-closure-union dest-state-union)
+                for dest-closure-union = (nfa-state:prepare-nfa-state-closure-union
+                                          dest-state-union)
                 for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
                 do (add-dfa-transition dfa-state element dest-dfa))
           dfa-state))))
