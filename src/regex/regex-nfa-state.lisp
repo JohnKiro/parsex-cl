@@ -5,7 +5,7 @@
    (%auto-transitions :initform nil :type list :accessor auto-transitions)
    (%transitions-on-any-char :initform nil :type list :accessor transitions-on-any-char)
    (%transition-on-any-other :initform nil :type (or null nfa-state)
-                            :accessor transition-on-any-other)
+                             :reader transition-on-any-other)
    (%is-dead-end :initform nil :type boolean :reader is-dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
@@ -53,7 +53,7 @@ into a continuation point."
   "Add NFA transition on any char from ORIG-STATE to DEST-STATE. Note that any-char invalidates
 any-other-char (since it accepts any-char, leaving nothing to any-other-char to match. For this
 reason, this function also clears any-other-char transition (if any)."
-  (push dest-state (transitions-on-any-char orig-state))
+  (push dest-state (slot-value orig-state '%transitions-on-any-char))
   (unset-nfa-transition-on-any-other orig-state))
 
 (defun add-nfa-auto-transition (orig-state dest-state)
@@ -71,14 +71,14 @@ all required paths (every char is covered). NOTE that currently I'm assuming tha
 would be eventually cleaned-up, which is not a good assumption, since it assumes a specific
 scenario. TODO: change into a simpler setter.
 The returned value is either the newly-set value, or NIL otherwise."
-  (if (or (transitions-on-any-char orig-state) #1=(transition-on-any-other orig-state))
-      nil
-      (setf #1# dest-state)))
+  (with-slots (#1=%transitions-on-any-char #2=%transition-on-any-other) orig-state
+    (if (or #1# #2#)
+        nil
+        (setf #2# dest-state))))
 
 (defun unset-nfa-transition-on-any-other (orig-state)
-  "Unset the NFA transition on any char from ORIG-STATE, if already set, otherwise, do nothing."
-  (when #1=(transition-on-any-other orig-state)
-        (setf #1# nil)))
+  "Unset the NFA transition on any char from ORIG-STATE. It has no effect if it's already not set."
+  (setf (slot-value orig-state '%transition-on-any-other) nil))
 
 
 ;;; TODO: may change recursion into iteration.
