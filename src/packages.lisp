@@ -148,7 +148,8 @@
            #:auto-transitions
            #:transitions-on-any-char
            #:transition-on-any-other
-           #:terminus
+           #:terminus-p
+           #:set-terminus
            #:add-nfa-normal-transition
            #:add-nfa-transition-on-any-char
            #:add-nfa-auto-transition

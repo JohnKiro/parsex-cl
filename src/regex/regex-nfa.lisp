@@ -145,6 +145,6 @@ and returns output state as continuation point."))
 state."
   (let* ((root-state (make-instance 'state:nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
-    (setf (state:terminus terminus-nfa-state) t)
+    (state:set-terminus terminus-nfa-state)
     (values root-state terminus-nfa-state)))
 
