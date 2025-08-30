@@ -148,13 +148,16 @@
            #:auto-transitions
            #:transitions-on-any-char
            #:transition-on-any-other
-           #:terminus
+           #:terminus-p
+           #:set-terminus
            #:add-nfa-normal-transition
            #:add-nfa-transition-on-any-char
            #:add-nfa-auto-transition
+           #:delete-auto-transition
            #:set-dead-end
            #:unset-dead-end
            #:set-nfa-transition-on-any-other
+           #:unset-nfa-transition-on-any-other
            #:terminal-nfa-closure-union-p
            #:prepare-nfa-state-closure-union
            #:create-nfa-normalized-transition-table

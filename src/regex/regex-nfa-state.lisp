@@ -1,18 +1,18 @@
 (in-package :parsex-cl/regex/nfa/state)
 
 (defclass nfa-state ()
-  ((%normal-transitions :initform nil :type list :accessor normal-transitions)
-   (%auto-transitions :initform nil :type list :accessor auto-transitions)
-   (%transitions-on-any-char :initform nil :type list :accessor transitions-on-any-char)
+  ((%normal-transitions :initform nil :type list :reader normal-transitions)
+   (%auto-transitions :initform nil :type list :reader auto-transitions)
+   (%transitions-on-any-char :initform nil :type list :reader transitions-on-any-char)
    (%transition-on-any-other :initform nil :type (or null nfa-state)
                              :reader transition-on-any-other)
-   (%is-dead-end :initform nil :type boolean :reader is-dead-end-p)
+   (%dead-end :initform nil :type boolean :reader dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
    ;;However, terminus state is not known when the state is constructed, so cannot determine its
    ;;type beforehand. It's still possible to change CLOS class, but probably not worth the
    ;;complexity.
-   (%terminus :initform nil :type (or null t) :accessor terminus)))
+   (%terminus :initform nil :type (or null t) :reader terminus-p)))
 
 (defparameter *verbose-printing* nil "Enable/disable verbose object printing.")
 
@@ -33,12 +33,12 @@
 (defun set-dead-end (state)
   "Set dead-end flag for state. This is normally called upon NFA negation, to convert a continuation
 point into a dead-end."
-  (setf (slot-value state '%is-dead-end) t))
+  (setf (slot-value state '%dead-end) t))
 
 (defun unset-dead-end (state)
   "Unset dead-end flag for state. This is normally called upon NFA negation, to convert a dead-end
 into a continuation point."
-  (setf (slot-value state '%is-dead-end) nil))
+  (setf (slot-value state '%dead-end) nil))
 
 ;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
 (defclass negated-nfa-state (nfa-state)
@@ -47,7 +47,7 @@ into a continuation point."
 (defun add-nfa-normal-transition (orig-state element dest-state)
   "Add NFA transition from ORIG-STATE, on ELEMENT (chararcter/char-range), to DEST-STATE."
   (let ((transition (make-instance 'trans:nfa-transition :element element :next-state dest-state)))
-    (push transition (normal-transitions orig-state))))
+    (push transition (slot-value orig-state '%normal-transitions))))
 
 (defun add-nfa-transition-on-any-char (orig-state dest-state)
   "Add NFA transition on any char from ORIG-STATE to DEST-STATE. Note that any-char invalidates
@@ -58,7 +58,15 @@ reason, this function also clears any-other-char transition (if any)."
 
 (defun add-nfa-auto-transition (orig-state dest-state)
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
-  (push dest-state (auto-transitions orig-state)))
+  (push dest-state (slot-value orig-state '%auto-transitions)))
+
+(defun delete-auto-transition (state state-to-be-deleted)
+  "Delete NFA state `state-to-be-deleted` from NFA state `state`'s auto transitions. Note that we
+depend on the uniqueness of state objects, hence, we use the default EQL test. Also note that
+although we use a vector (not a list), we set the returned value back, to keep the code agnostic to
+sequence type."
+  (with-slots (%auto-transitions) state
+    (setf %auto-transitions (delete state-to-be-deleted %auto-transitions))))
 
 (defun set-nfa-transition-on-any-other (orig-state dest-state)
   "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except in one of two
@@ -80,6 +88,9 @@ The returned value is either the newly-set value, or NIL otherwise."
   "Unset the NFA transition on any char from ORIG-STATE. It has no effect if it's already not set."
   (setf (slot-value orig-state '%transition-on-any-other) nil))
 
+(defun set-terminus (nfa-state)
+  "Mark state `nfa-state` as terminus."
+  (setf (slot-value nfa-state '%terminus) t))
 
 ;;; TODO: may change recursion into iteration.
 ;;; TODO: may change accumulation in list into a hashtable (for perf).
@@ -103,7 +114,7 @@ The returned value is either the newly-set value, or NIL otherwise."
 when any of the NFA states in the closure is the terminus state produced by the NFA. Since the
 terminus state indicates matching success, then terminal also means acceptance."
   (dolist (s nfa-states nil)
-    (when (terminus s)
+    (when (terminus-p s)
       (return t))))
 
 (defun collect-char-range-splitting-points (nfa-states)
@@ -215,7 +226,7 @@ its type (T -> auto-connected, NIL -> non-auto-connected)."
       (values auto-connected non-auto-connected))))
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
-  (terminus fsm-state))
+  (terminus-p fsm-state))
 
 ;; TODO: a macro would be more convenient
 (defmethod fsm:traverse-fsm-transitions ((root-state nfa-state) traversal-fn)

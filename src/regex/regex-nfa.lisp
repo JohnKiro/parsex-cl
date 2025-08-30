@@ -100,11 +100,10 @@ and returns output state as continuation point."))
                  ;; TODO: may also cleanup auto-transitions to CT (going to be dead-end)
                  (when (member #1=(state:transition-on-any-other orig-state)
                                inner-continuation-points)
-                   (setf #1# nil)))
+                   (state:unset-nfa-transition-on-any-other orig-state)))
                (cleanup-dead-paths-on-auto (orig-state)
                  "Cleanup auto transitions, where destination is the output-state-inner."
-                 (with-accessors ((auto-transitions state:auto-transitions)) orig-state
-                   (setf auto-transitions (delete output-state-inner auto-transitions)))))
+                 (state:delete-auto-transition orig-state output-state-inner)))
         (loop for inner-contin in inner-continuation-points
               do (state:set-dead-end inner-contin)
               do (progn
@@ -145,6 +144,6 @@ and returns output state as continuation point."))
 state."
   (let* ((root-state (make-instance 'state:nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
-    (setf (state:terminus terminus-nfa-state) t)
+    (state:set-terminus terminus-nfa-state)
     (values root-state terminus-nfa-state)))
 
