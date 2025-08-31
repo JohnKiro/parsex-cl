@@ -106,9 +106,8 @@ and returns output state as continuation point."))
                  (state:delete-auto-transition orig-state output-state-inner)))
         (loop for inner-contin in inner-continuation-points
               do (state:set-dead-end inner-contin)
-              do (progn
-                   (cleanup-dead-paths-on-any-other-char inner-contin)
-                   (cleanup-dead-paths-on-auto inner-contin)))
+                 (cleanup-dead-paths-on-any-other-char inner-contin)
+                 (cleanup-dead-paths-on-auto inner-contin))
         (loop with inner-continuation-point-closures = (state:prepare-nfa-state-closure-union
                                                         inner-continuation-points)
               for inner-dead-end in inner-dead-ends
