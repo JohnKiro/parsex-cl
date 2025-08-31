@@ -21,7 +21,7 @@ package."
                    collect (cons (sym:reintern each-tag +regex-element-tags-package+)
                                  each-clause))))
     (let ((reinterned-element-tag (gensym)))
-      `(let ((,reinterned-element-tag (sym:reintern ,element-tag +regex-element-tags-package+)))
+      `(let ((,reinterned-element-tag (sym:reintern ,element-tag ,+regex-element-tags-package+)))
          (ecase ,reinterned-element-tag
            ,@(prepare-body body))))))
 
@@ -38,6 +38,9 @@ package."
     (list (case-list-regex (car regex)
             ;; note that I could use any symbols (no need for keywords), but keywords are better to
             ;; avoid confusing the syntax coloring
+            ;; TODO: alternative to this macro, I could use a function that traverses the regex
+            ;; recursively, and reinterns each symbol in the +regex-element-tags-package+ pkg.
+            ;; This may result in more readable code.
             (:char-range (make-instance 'elm:char-range-element
                                         :char-start (second regex)
                                         :char-end (third regex)))
