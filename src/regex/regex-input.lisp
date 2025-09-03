@@ -42,13 +42,17 @@ and the later would be the slot name. The macro would expand to a funcall for th
 by the slot."
     (intern (concatenate 'string (string func-name) "-FN") (find-package :parsex-cl/regex/input)))
 
+  (defun get-all-operation-names ()
+    "Extract all regex input handler operation names."
+    (mapcar #'first *regex-input-handler-operations*))
+
   (defun valid-regex-input-handler-operation-p (operation-name)
     "Validates that argument `operation-name` is one of the valid operation names."
-    (member operation-name (mapcar #'first *regex-input-handler-operations*)))
+    (member operation-name (get-all-operation-names)))
 
   (defun valid-regex-input-handler-operations-p (operation-names)
     "Validates that all items in list argument `operation-names` are valid operation names."
-    (subsetp operation-names (mapcar #'first *regex-input-handler-operations*))))
+    (subsetp operation-names (get-all-operation-names))))
 
 (class-util:define-class-of-functions-with-constructor regex-input-handler ()
   :doc "Class that represents the functions that handle the internal state of a regex input source.
