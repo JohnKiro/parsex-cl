@@ -118,19 +118,19 @@ terminus state indicates matching success, then terminal also means acceptance."
       (return t))))
 
 (defun collect-char-range-splitting-points (nfa-states)
+  "Collects char range splitting points (characters) into a sorted vector of characters."
   (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
     (labels ((append-bounds (char-left char-right)
                (vector-push-extend (chars:dec-char char-left) result)
                (vector-push-extend char-right result)))
       (dolist (nfa-state nfa-states result)
-        (let ((normal-transitions (normal-transitions nfa-state)))
-          (dolist (trans normal-transitions)
-            (let ((element (trans:element trans)))
-              (etypecase element
-                (elm:single-char-element (let ((bound (elm:single-char element)))
-                                           (append-bounds bound bound)))
-                (elm:char-range-element (append-bounds (elm:char-start element)
-                                                       (elm:char-end element)))))))))
+        (dolist (trans (normal-transitions nfa-state))
+          (let ((element (trans:element trans)))
+            (etypecase element
+              (elm:single-char-element (let ((bound (elm:single-char element)))
+                                         (append-bounds bound bound)))
+              (elm:char-range-element (append-bounds (elm:char-start element)
+                                                     (elm:char-end element))))))))
     (sort (remove-duplicates result :test #'char=) #'char<)))
 
 ;;;TODO: REFACTOR
