@@ -78,7 +78,8 @@ and returns output state as continuation point."))
 
 (defmethod regex-to-nfa ((regex elm:negated-element) input-nfa-state)
   (let* ((inner-regex (elm:inner-element regex))
-         (output-state-inner (regex-to-nfa inner-regex input-nfa-state))
+         (entry-state (make-instance 'state:nfa-state))
+         (output-state-inner (regex-to-nfa inner-regex entry-state))
          (glue-state (make-instance 'state:nfa-state))
          (negation-exit-elem (make-instance 'elm:zero-or-more-element
                                             :element elm:+any-char-element+))
@@ -86,7 +87,7 @@ and returns output state as continuation point."))
                            (regex-to-nfa negation-exit-elem glue-state)
                            glue-state)))
     (multiple-value-bind (inner-continuation-points inner-dead-ends)
-        (state:analyze-nfa-state-reachability input-nfa-state output-state-inner)
+        (state:analyze-nfa-state-reachability entry-state output-state-inner)
       ;; traverse NFA sub-tree, and connect each dead-end state to the new (+ any-char) element,
       ;; then to output state
       ;; actually for now, we separated the traversal (above) from the connecting (below)
@@ -95,19 +96,19 @@ and returns output state as continuation point."))
                           (state:transitions-on-any-char state)
                           ;; TODO: REVISE!!!!
                           (state:transition-on-any-other state))))
-               (cleanup-dead-paths-on-any-other-char (orig-state)
-                 "Cleanup transitions on any-other-char, in case destination is continuation point."
-                 ;; TODO: may also cleanup auto-transitions to CT (going to be dead-end)
-                 (when (member #1=(state:transition-on-any-other orig-state)
-                               inner-continuation-points)
-                   (state:unset-nfa-transition-on-any-other orig-state)))
-               (cleanup-dead-paths-on-auto (orig-state)
-                 "Cleanup auto transitions, where destination is the output-state-inner."
-                 (state:delete-auto-transition orig-state output-state-inner)))
+               #+nil(cleanup-dead-paths-on-any-other-char (orig-state)
+                      "Cleanup transitions on any-other-char, in case destination is continuation point."
+                      ;; TODO: may also cleanup auto-transitions to CT (going to be dead-end)
+                      (when (member (state:transition-on-any-other orig-state)
+                                    inner-continuation-points)
+                        (state:unset-nfa-transition-on-any-other orig-state)))
+               #+nil(cleanup-dead-paths-on-auto (orig-state)
+                      "Cleanup auto transitions, where destination is the output-state-inner."
+                      (state:delete-auto-transition orig-state output-state-inner)))
         (loop for inner-contin in inner-continuation-points
               do (state:set-dead-end inner-contin)
-                 (cleanup-dead-paths-on-any-other-char inner-contin)
-                 (cleanup-dead-paths-on-auto inner-contin))
+              #+nil(cleanup-dead-paths-on-any-other-char inner-contin)
+              #+nil(cleanup-dead-paths-on-auto inner-contin))
         (loop with inner-continuation-point-closures = (state:prepare-nfa-state-closure-union
                                                         inner-continuation-points)
               for inner-dead-end in inner-dead-ends
@@ -125,8 +126,60 @@ and returns output state as continuation point."))
                        ;; TODO: give user the choice (greedy/non-greedy)
                        (state:add-nfa-auto-transition inner-dead-end output-state)
                        (state:unset-dead-end inner-dead-end)))
-              do (cleanup-dead-paths-on-any-other-char inner-dead-end))))
-    output-state))
+              #+nil(cleanup-dead-paths-on-any-other-char inner-dead-end))))
+    ;; new handling (sept 2025):
+    (let ((traversal-lookup (make-hash-table)))
+      (labels ((second-pass (state)
+                 #+nil(format t "DEBUG: Calling SECOND-PASS for state ~a..~&" state)
+                 (unless #1=(gethash state traversal-lookup)
+                         #+nil(format t "DEBUG: Actually handling SECOND-PASS for state ~a (not traversed before)..~&" state)
+                         (setf #1# t)
+                         (let ((closure (state:prepare-nfa-state-closure-union (list state))))
+                           #+nil(transition-elements (state::collect-normal-transition-elements
+                                                      closure))
+                           #+nil(format t "DEBUG: Closure of ~a: ~a.~&" state closure)
+                           (when (state::states-have-trans-on-any-other-p closure)
+                             ;; clear "any-other" transitions (since converted to normal transitions)
+                             ;; TODO: try to avoid having to do this
+                             (dolist (s closure)
+                               (state:unset-nfa-transition-on-any-other s))
+                             ;; convert "any-other" transitions into normal transitions (using inversion)
+                             ;; note that we add the created transitions to the closure initial point
+                             ;; (actually it doesn't matter which state in the closure gets the
+                             ;; transitions)
+                             (let ((splitting-pts (state::collect-char-range-splitting-points closure))
+                                   (split-elements nil))
+                               (format t "DEBUG: Splitting points: ~s.~&" splitting-pts)
+                               (state::do-normal-transitions (trans element next-state) closure
+                                 #+nil(format t "DEBUG: Inverting element ~a..~&" elm)
+                                 ;; check to avoid inverting an inverted element
+                                 (unless (eq next-state glue-state)
+                                   (etypecase element
+                                     (elm:char-range-element
+                                      (let ((split-ranges (elm:split-char-range element splitting-pts)))
+                                        (dolist (r split-ranges)
+                                          (push r split-elements))))
+                                     (elm:single-char-element
+                                      (push element split-elements)))
+                                   xxx need to handle NULLability of trans components elsewhere!!!
+                                   (trans::clear-transition trans)))
+                               (loop for inv-elem in (elm::invert-elements
+                                                      (elm::sort-simple-elements split-elements))
+                                     do (state:add-nfa-normal-transition state inv-elem glue-state)))
+                             ;; invert element and add corresponding transition
+                             #+nil(multiple-value-bind (range-left range-right) (elm::invert-simple-element elm)
+                                    (when range-left
+                                      (state:add-nfa-normal-transition state range-left glue-state))
+                                    (when range-right
+                                      (state:add-nfa-normal-transition state range-right
+                                                                       glue-state))))
+                           ;;TODO: can we move this inside the above loop?
+                           (state::do-normal-transitions (trans elm next-state) closure
+                             (second-pass next-state))))))
+        (second-pass entry-state))
+      ;; connect the NOT element to the rest of the NFA
+      (state:add-nfa-auto-transition input-nfa-state entry-state)
+      output-state)))
 
 (defmethod regex-to-nfa ((regex elm:inv-element) input-nfa-state)
   (loop for elm of-type (or elm:single-char-element elm:char-range-element)

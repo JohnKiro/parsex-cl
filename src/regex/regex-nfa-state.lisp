@@ -7,6 +7,7 @@
    (%transition-on-any-other :initform nil :type (or null nfa-state)
                              :reader transition-on-any-other)
    (%dead-end :initform nil :type boolean :reader dead-end-p)
+   (%negated :initform nil :initarg :negated :type boolean :reader negated-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
    ;;However, terminus state is not known when the state is constructed, so cannot determine its
@@ -88,6 +89,13 @@ The returned value is either the newly-set value, or NIL otherwise."
   "Unset the NFA transition on any char from ORIG-STATE. It has no effect if it's already not set."
   (setf (slot-value orig-state '%transition-on-any-other) nil))
 
+(defun toggle-negation (nfa-state)
+  "Toggle the NFA state negation flag. A negated NFA state indicates no matching. For example, for
+a (not #\b) regex, the state coming from 'b' is negated. This function toggles the negation flag
+(t -> nil, nil -> t).
+UPDATE: probably won't need it!"
+  (setf #1=(slot-value nfa-state '%negated) (not #1#)))
+
 (defun set-terminus (nfa-state)
   "Mark state `nfa-state` as terminus."
   (setf (slot-value nfa-state '%terminus) t))
@@ -109,10 +117,45 @@ The returned value is either the newly-set value, or NIL otherwise."
                    (reduce #'prepare-nfa-state-closure direct-autos :initial-value accumul)))))
     (reduce #'prepare-nfa-state-closure states :initial-value nil)))
 
+;; TODO: considering creating a more general and flexible traversal macro, replacing even the
+;; FSM traversal generic method
+(defmacro do-normal-transitions ((transition-var
+                                  element-reader-name-var
+                                  next-state-reader-name-var) list-of-states &body body)
+  "Iterate on normal transitions of a list of states (typically a state closure or a state closure
+union, exposing in each iteration the transition object, as well as accessors for the transition's
+element and next state.
+TODO: may consider passing the name vars as keywords, since I may not always be interested in all
+exposed variables, and wish to access only some of them. However, there is no cost in declaring
+variables that won't be used in the body (since `with-accessors` just defines symbol macros).
+TODO: may (also) define another macro that takes a single state, and compute its closure first,
+before iterating on closure's normal transitions. Such macro might be called
+`do-closure-normal-transitions`.
+TODO: THINK ALSO ABOUT ANY-CHAR TRANSITIONS!"
+  (alexandria:with-gensyms (nfa-state)
+    `(dolist (,nfa-state ,list-of-states)
+       (dolist (,transition-var (normal-transitions ,nfa-state))
+         (with-accessors ((,element-reader-name-var trans:element)
+                          (,next-state-reader-name-var trans:next-state)) ,transition-var
+           ,@body)))))
+
+(defun collect-normal-transition-elements (list-of-states)
+  "Collects all elements of normal transitions going out from the `list-of-states` (typically a
+closure/closure union).
+TODO: vector instead of list (for perf).
+ACTUALLY MAY REMOVE (NOT USED)"
+  (let (output)
+    (do-normal-transitions (e _) list-of-states
+      (push e output))
+    output))
+  
 (defun terminal-nfa-closure-union-p (nfa-states)
   "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
 when any of the NFA states in the closure is the terminus state produced by the NFA. Since the
-terminus state indicates matching success, then terminal also means acceptance."
+terminus state indicates matching success, then terminal also means acceptance.
+UPDATE (EXPERIMENTAL): if it's negated, then not necessarily it's acceptance (depending on the
+scanned char)."
+  ;;TODO: (find-if #'terminus-p nfa-states)
   (dolist (s nfa-states nil)
     (when (terminus-p s)
       (return t))))
@@ -121,8 +164,10 @@ terminus state indicates matching success, then terminal also means acceptance."
   "Collects char range splitting points (characters) into a sorted vector of characters."
   (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
     (labels ((append-bounds (char-left char-right)
-               (vector-push-extend (chars:dec-char char-left) result)
-               (vector-push-extend char-right result)))
+               (when (typep char-left 'character)
+                 (vector-push-extend (chars:dec-char char-left) result))
+               (when (typep char-right 'character)
+                 (vector-push-extend char-right result))))
       (dolist (nfa-state nfa-states result)
         (dolist (trans (normal-transitions nfa-state))
           (let ((element (trans:element trans)))
@@ -133,7 +178,7 @@ terminus state indicates matching success, then terminal also means acceptance."
                                                      (elm:char-end element))))))))
     (sort (remove-duplicates result :test #'char=) #'char<)))
 
-;;;TODO: REFACTOR
+;;;TODO: REFACTOR (e.g. extract normalized transition table as abstract data type)
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
 each normalized element to corresponding set of destination NFA states (representing a destination
@@ -142,7 +187,9 @@ overlaps. Each element could be single char, char range, any-char, or any-other-
 all destination states of the transition on any-char to the destination states of the normal
 transition being handled. This is since all normal elements are implicitly part of the any-char
 space. Note that both any-char and any-other-char are merged, and inserted as any-other-char. This
-is since as far as DFA is concerned, both will be handled as any-other-char."
+is since as far as DFA is concerned, both will be handled as any-other-char.
+UPDATE: this last part is not accurate, since any-other-char merging should be treated in a special
+way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each other)."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
@@ -160,8 +207,8 @@ is since as far as DFA is concerned, both will be handled as any-other-char."
                (dolist (orig-state orig-closure-union)
                  (dolist (next-state-on-any-char (transitions-on-any-char orig-state))
                    (add-trans element next-state-on-any-char)))))
-      ;; handle normal transitions
       (dolist (nfa-state nfa-state-closure-union assoc-list)
+        ;; handle normal transitions
         (dolist (trans (normal-transitions nfa-state))
           (with-accessors ((element trans:element) (next-state trans:next-state)) trans
             (etypecase element
@@ -180,6 +227,7 @@ is since as far as DFA is concerned, both will be handled as any-other-char."
         (dolist (next-state-on-any-char (transitions-on-any-char nfa-state))
           (add-trans elm:+ANY-CHAR-ELEMENT+ next-state-on-any-char))
         ;; handle transitions on any-other-char
+        ;; TODO: REMOVE, since in latest changes (Sept 2025), there won't be such transition
         (let ((next-state-on-any-other-char (transition-on-any-other nfa-state)))
           (when next-state-on-any-other-char
             (add-trans elm::+ANY-OTHER-CHAR-ELEMENT+ next-state-on-any-other-char)))))))
@@ -225,6 +273,12 @@ its type (T -> auto-connected, NIL -> non-auto-connected)."
       (recurse start-state)
       (values auto-connected non-auto-connected))))
 
+(defun states-have-trans-on-any-other-p (nfa-states)
+  "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`
+is a list of NFA states, that could typically be a closure. We avoid to compute the closure inside
+the function, since it is typically already prepared by the client code."
+  (find-if #'transition-on-any-other nfa-states))
+
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
   (terminus-p fsm-state))
 
@@ -255,3 +309,60 @@ the FSM root state."
                    (funcall traversal-fn nfa-state elm::+ANY-OTHER-CHAR-ELEMENT+ next-state)
                    (iter next-state)))))
       (iter root-state))))
+
+(defmacro do-closure-transitions ((state-var closure-var element-var next-state-var)
+                                  start-state
+                                  (&body per-closure-forms)
+                                  (&body per-state-forms)
+                                  (&body per-transition-forms))
+  "Iterate on NFA starting from `start-state`.  normal transitions of a list of states (typically a state closure or a state closure
+union, exposing in each iteration accessors for the transition's element and transition's next
+state.
+TODO: may consider passing the name vars as keywords, since I may not always be interested in both
+variables and wish to access only one of them.
+TODO: may define another macro that takes a single state, and compute its closure first, before
+iterating on closure's normal transitions."
+  ;; init traversal hashmap
+  ;; ensure state not traversed yet
+  ;; compute closure --> apply form on closure
+  ;; loop on closure states --> apply form on each state
+  ;; loop on normal/any-char transitions for each state --> apply form on each transition
+  ;; loop on destination state of each transition (repeat: compute closure etc.)
+  (alexandria:with-gensyms (traversal-lookup start-closure)
+    `(let ((,traversal-lookup (state closure make-hash-table)))
+       (loop with state = ,start-state
+             while ,closure = 
+           (,start-closure (prepare-nfa-state-closure ,start-state)))
+               (unless (gethash nfa-state traversal-mark-lookup-table)
+                 (setf (gethash nfa-state traversal-mark-lookup-table) t)
+    `(dolist (,state-var ,)
+       (dolist (,trans (normal-transitions ,nfa-state))
+         (with-accessors ((,element-reader-name-var trans:element)
+                          (,next-state-reader-name-var trans:next-state)) ,trans
+           ,@body)))))))
+
+
+(defun traverse-nfa (start-state traversal-fn)
+  ""
+  (let ((traversal-lookup (make-hash-table)))
+    (labels ((iter (state)
+               (unless #1=(gethash state traversal-lookup)
+                 (setf  #1# t)
+                 (loop for trans in (normal-transitions state)
+                       for elem = (trans:element trans)
+                       for next-state = (trans:next-state trans)
+                       do (funcall traversal-fn state elem next-state)
+                          (iter next-state))
+                 (loop for dest in (transitions-on-any-char state)
+                       do (funcall traversal-fn state elm:+ANY-CHAR-ELEMENT+ dest)
+                          (iter dest))
+                 (loop for dest in (auto-transitions state)
+                       do (funcall traversal-fn state :auto dest)
+                          (iter dest))
+                 ;; TODO: might just call the traversal function, even if transition on any other
+                 ;; is NIL
+                 (alexandria:when-let (next-state (transition-on-any-other state))
+                   (funcall traversal-fn state elm::+ANY-OTHER-CHAR-ELEMENT+ next-state)
+                   (iter next-state)))))
+      (iter root-state))))
+
