@@ -53,7 +53,9 @@
         (iter root-dfa a-stream)
         (format a-stream "~%\}~%")))))
 
-(defgeneric element-to-edge (element))
+(defgeneric element-to-edge (element)
+  (:documentation "Returns a textual representation for an FSM element, to be used as an edge label
+for the corresponding transition."))
 
 (defmethod element-to-edge ((element character))
   element)
@@ -106,7 +108,7 @@ DOT node label, rather than the default, which is a numerical index."
                                     (get-state-index src)
                                     "lightgreen"))
                           (when (fsm:fsm-acceptance-state-p dst)
-                            (format output-stream "~%   ~a [style=filled, fillcolor=~a];"
+                            (format output-stream "~%   ~a [style=filled, color=\"blue\", fillcolor=~a];"
                                     (get-state-index dst)
                                     "lightgreen"))
                           (format output-stream "~%    ~a -> ~a [label=\"~a\"];"
@@ -138,6 +140,6 @@ USE-ADDRESS-AS-LABEL specifies whether the state label will be based on the stat
 or a numerical index."
   (let* ((dot (fsm-to-graphvizdot root-fsm-state :regex regex
                                                  :use-address-as-label use-address-as-label))
-         (command (format nil "echo ~s | dot  -Tsvg -Nfontcolor=red -Nshape=circle -o ~a"
+         (command (format nil "echo '~a' | dot  -Tsvg -Nfontcolor=blue -Nshape=circle -o ~a"
                           dot output-file)))
     (uiop:run-program command :output *standard-output*)))

@@ -154,6 +154,9 @@ distiction clear."
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state dfa-state))
   (candidate-terminal fsm-state))
 
+(defmethod fsm::fsm-dead-end-state-p ((fsm-state dfa-state))
+  nil)
+
 (defmethod fsm:traverse-fsm-transitions ((root-state dfa-state) traversal-fn)
   "Traverse all transitions in the DFA state machine, starting from ROOT-STATE. This includes
 both normal and transitions on any other char. TRAVERSAL-FN is called for each transition."

@@ -282,6 +282,9 @@ the function, since it is typically already prepared by the client code."
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
   (terminus-p fsm-state))
 
+(defmethod fsm::fsm-dead-end-state-p ((fsm-state nfa-state))
+  (dead-end-p fsm-state))
+
 ;; TODO: a macro would be more convenient
 (defmethod fsm:traverse-fsm-transitions ((root-state nfa-state) traversal-fn)
   "Traverse all transitions in the NFA state machine, starting from an initial state ROOT-STATE.

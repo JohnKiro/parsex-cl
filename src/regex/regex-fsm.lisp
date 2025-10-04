@@ -11,3 +11,6 @@ destination state."))
   (:documentation "Predicate to indicate whether the state is acceptance or not. Initially it will
 be used only in GraphViz export, to give acceptance nodes different style."))
 
+(defgeneric fsm-dead-end-state-p (fsm-state)
+    (:documentation "Predicate to indicate whether the state is dead-end or not. Initially it will
+be used only in GraphViz export, to give dead-end nodes different style."))
