@@ -2,7 +2,7 @@
 
 
 ;;; for reference (copied from regex.lisp for now)
-(defun dfa-to-graphvizdot (root-dfa)
+#+nil(defun dfa-to-graphvizdot (root-dfa)
   "Generate a Graphviz DOT string for the DFA state machine."
   (let ((dfa-address-map (make-array 50 :adjustable t :fill-pointer 0))
         (terminal-index 0)
@@ -72,46 +72,42 @@ for the corresponding transition."))
 (defmethod element-to-edge ((element (eql elm:+ANY-CHAR-ELEMENT+)))
   "<any char>")
 
-(defmethod element-to-edge ((element (eql :any-other-char)))
+(defmethod element-to-edge ((element (eql elm::+ANY-OTHER-CHAR-ELEMENT+)))
   "[any other]")
 
-(defun fsm-to-graphvizdot (root-fsm-state &key (output-file nil) (output-stream nil) (regex nil)
-                                            (use-address-as-label nil))
+(defun fsm-to-graphvizdot (root-fsm-state &key (output-file nil) (output-stream nil) (regex nil))
   "Generate a Graphviz DOT string for an NFA or DFA state machine, starting at ROOT-FSM-STATE. The
 generated string is returned, and is also optionally dumped to specified output file and/or output
 stream. The optional REGEX parameter is also included in the diagram as a description for the regex.
 Two keyword options also control the dumping:
 OUTPUT-FILE specifies the output file path, and is NIL by default (no dumping to output file).
 OUTPUT-STREAM specifies a stream to dump to (besides the output file). If T is passed, standard
-output is used. NIL (default) disables the dumping.
-Finally, a keyword flag indicates whether to use last 4 digits of state object's memory address as
-DOT node label, rather than the default, which is a numerical index."
+output is used. NIL (default) disables the dumping."
   (labels ((fsm-transitions-to-dot (output-stream)
              (let ((state-index -1)
                    (state-lookup (make-hash-table)))
                (labels ((get-state-index (state)
-                          (or (and use-address-as-label
-                                   (let ((addr-as-str #+sbcl(write-to-string
-                                                             (sb-kernel:get-lisp-obj-address
-                                                              state))))
-                                     (when addr-as-str
-                                       (let* ((addr-length (length addr-as-str))
-                                              (node-label (subseq addr-as-str (- addr-length 4)
-                                                                  addr-length)))
-                                         node-label))))
-                              (gethash state state-lookup)
-                              (setf (gethash state state-lookup) (incf state-index))))
+                          "Finds state index in lookup table, and generate and insert if not found."
+                          (let ((current #1=(gethash state state-lookup)))
+                            (if current
+                                (values current t)
+                                (values (setf #1# (incf state-index)) nil))))
+                        (add-dot-state-declaration (state)
+                          (multiple-value-bind (index already-found) (get-state-index state)
+                            (unless already-found
+                              (when (fsm:fsm-acceptance-state-p state)
+                                (format output-stream "~%   ~a [style=filled, fillcolor=~a];"
+                                        index
+                                        "lightgreen"))
+                              (when (fsm::fsm-dead-end-state-p state)
+                                (format output-stream "~%   ~a [style=filled, fillcolor=~a];"
+                                        index
+                                        "red")))))
                         (transition-to-dot (src elem dst)
                           ;;TODO: REFACTOR!!
-                          (when (fsm:fsm-acceptance-state-p src)
-                            (format output-stream "~%   ~a [style=filled, fillcolor=~a];"
-                                    (get-state-index src)
-                                    "lightgreen"))
-                          (when (fsm:fsm-acceptance-state-p dst)
-                            (format output-stream "~%   ~a [style=filled, color=\"blue\", fillcolor=~a];"
-                                    (get-state-index dst)
-                                    "lightgreen"))
-                          (format output-stream "~%    ~a -> ~a [label=\"~a\"];"
+                          (add-dot-state-declaration src)
+                          (add-dot-state-declaration dst)
+                          (format output-stream "~%   ~a -> ~a [label=\"~a\"];"
                                   (get-state-index src)
                                   (get-state-index dst)
                                   (element-to-edge elem))))
@@ -132,14 +128,12 @@ DOT node label, rather than the default, which is a numerical index."
         (format output-stream "Generated DOT output:~%~a" result))
       result)))
 
-(defun generate-graphviz-dot-diagram (root-fsm-state output-file &key regex use-address-as-label)
+(defun generate-graphviz-dot-diagram (root-fsm-state svg-output-file &key regex dot-output-file)
   "Generate diagram for an FSM (whether NFA or DFA), given its root state (ROOT-FSM-STATE). The
 output is written to a file whose path is specified by the OUTPUT-FILE. An optional keyword argument
-REGEX may be used to describe the regex, to be displayed in the diagram. Another optional keyword
-USE-ADDRESS-AS-LABEL specifies whether the state label will be based on the state object's address,
-or a numerical index."
+REGEX may be used to describe the regex, to be displayed in the diagram."
   (let* ((dot (fsm-to-graphvizdot root-fsm-state :regex regex
-                                                 :use-address-as-label use-address-as-label))
+                                                 :output-file dot-output-file))
          (command (format nil "echo '~a' | dot  -Tsvg -Nfontcolor=blue -Nshape=circle -o ~a"
-                          dot output-file)))
+                          dot svg-output-file)))
     (uiop:run-program command :output *standard-output*)))
