@@ -24,6 +24,14 @@
         (error "Invalid transition element type for transition ~a. Expecting ~a, got ~a!"
                transition required-element-type %element)))))
 
+(defparameter *verbose-printing* nil "Enable/disable verbose object printing.")
+
+(defmethod print-object ((object nfa-transition) stream)
+  (print-unreadable-object (object stream :type t :identity t)
+    (when *verbose-printing*
+      (with-slots (%element %next-state) object
+        (format stream "On ~a to ~a" %element %next-state)))))
+
 (defun clear-transition (transition)
   "Clear (invalidate) transition. This is a simpler way to delete the transition, than removing it
 from the transitions table of a certain state. Most probably won't be needed."
