@@ -98,6 +98,7 @@ includes an accumulator for the current/last matching operation, and allows cust
         (total-length (length initial-input-text))
         (accumulator-start -1)
         (accumulator-end -1)
+        (consumption-start -1)
         ;; I depend on the fact that definite termination is also candidate termination, so we
         ;; can assume that this will hold value of last matching position (whether last candidate
         ;; or current position). TODO: may rethink about this later.
@@ -109,6 +110,7 @@ includes an accumulator for the current/last matching operation, and allows cust
      :read-next-item-fn (char source reading-position)
      :advance-reading-position-fn (incf reading-position)
      :notify-match-termination-fn (progn
+                                    (setf consumption-start starting-reference-position)
                                     (setf accumulator-start starting-reference-position)
                                     (setf accumulator-end candidate-matching-point)
                                     ;; non-negative candidate-matching-point implies regex match
@@ -131,6 +133,5 @@ includes an accumulator for the current/last matching operation, and allows cust
      :register-candidate-matching-point-fn (setf candidate-matching-point reading-position)
      :retrieve-last-accumulated-value-fn (when (< accumulator-start accumulator-end)
                                            (subseq source accumulator-start accumulator-end))
-     :retrieve-last-consumed-value-fn (when (< accumulator-start starting-reference-position)
-                                        (subseq source accumulator-start
-                                                starting-reference-position)))))
+     :retrieve-last-consumed-value-fn (when (<= consumption-start reading-position total-length)
+                                        (subseq source consumption-start reading-position)))))
