@@ -22,14 +22,14 @@
     (when *verbose-printing*
       (with-slots (%normal-transitions %auto-transitions %transitions-on-any-char %terminus) object
         (if %normal-transitions
-            (princ "Normal transitions on: ")
-            (princ "No normal transitions, "))
+            (princ "Normal transitions on: " stream)
+            (princ "No normal transitions, " stream))
         (loop for nt in %normal-transitions
-              do (princ (trans:element nt))
-              do (princ ", "))
-        (format t "~a auto transitions, " (length %auto-transitions))
-        (format t "~a transitions on any char, " (length %transitions-on-any-char))
-        (format t "terminus: ~a " %terminus)))))
+              do (princ (trans:element nt) stream)
+              do (princ ", " stream))
+        (format stream "~a auto transitions, " (length %auto-transitions))
+        (format stream "~a transitions on any char, " (length %transitions-on-any-char))
+        (format stream "terminus: ~a " %terminus)))))
 
 (defun set-dead-end (state)
   "Set dead-end flag for state. This is normally called upon NFA negation, to convert a continuation
