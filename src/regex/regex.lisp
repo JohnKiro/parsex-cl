@@ -44,5 +44,3 @@
                                (transit dest-dfa-state))
                              (prepare-result last-candidate-terminal-dfa)))))))
       (transit root-dfa-state))))
-
-
