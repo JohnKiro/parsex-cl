@@ -170,24 +170,6 @@ and returns output state as continuation point."))
                         (state:unset-dead-end state-i)))
                      (:not-connected ;; previously condition "absolute dead-end"
                       (state:add-nfa-auto-transition state-i output-state)
-                      (state:unset-dead-end state-i)))))
-        #+nil(loop for inner-non-ct in inner-non-continuation-points
-                   ;; TODO: I SEE NEED TO DECIDE THIS BEFORE 2ND PASS!!!!
-                   do (if (member inner-non-ct absolute-dead-ends)
-                          (progn
-                            ;; TODO: give user the choice (greedy/non-greedy)
-                            ;;xxx in current example (not (* (or #\B #\D))), this sets an auto-trans
-                            ;;from 4 --> 2, which is wrong (investigate!!!! 30 Sept)
-                            (state:add-nfa-auto-transition inner-non-ct output-state)
-                            (state:unset-dead-end inner-non-ct)
-                            ;; if I keep this, I could move it outside the IF form (since it would be
-                            ;; in both the if and else branches)
-                            #+nil(state:set-nfa-transition-on-any-other inner-non-ct glue-state))
-                          (unless (member inner-non-ct inner-continuation-point-closures :test #'eql)
-                            ;; TODO: give user the choice (greedy/non-greedy)
-                            (state:add-nfa-auto-transition inner-non-ct output-state)
-                            (state:unset-dead-end inner-non-ct)))
-                   #+nil(cleanup-dead-paths-on-any-other-char inner-non-ct))
                       (state:unset-dead-end state-i))))))
       ;; connect the NOT element to the rest of the NFA
       output-state)))
