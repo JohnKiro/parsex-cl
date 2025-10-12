@@ -51,11 +51,8 @@ into a continuation point."
     (push transition (slot-value orig-state '%normal-transitions))))
 
 (defun add-nfa-transition-on-any-char (orig-state dest-state)
-  "Add NFA transition on any char from ORIG-STATE to DEST-STATE. Note that any-char invalidates
-any-other-char (since it accepts any-char, leaving nothing to any-other-char to match. For this
-reason, this function also clears any-other-char transition (if any)."
-  (push dest-state (slot-value orig-state '%transitions-on-any-char))
-  (unset-nfa-transition-on-any-other orig-state))
+  "Add NFA transition on any char from ORIG-STATE to DEST-STATE."
+  (push dest-state (slot-value orig-state '%transitions-on-any-char)))
 
 (defun add-nfa-auto-transition (orig-state dest-state)
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
@@ -63,9 +60,7 @@ reason, this function also clears any-other-char transition (if any)."
 
 (defun delete-auto-transition (state state-to-be-deleted)
   "Delete NFA state `state-to-be-deleted` from NFA state `state`'s auto transitions. Note that we
-depend on the uniqueness of state objects, hence, we use the default EQL test. Also note that
-although we use a vector (not a list), we set the returned value back, to keep the code agnostic to
-sequence type."
+depend on the uniqueness of state objects, hence, we use the default EQL test."
   (with-slots (%auto-transitions) state
     (setf %auto-transitions (delete state-to-be-deleted %auto-transitions))))
 
@@ -74,16 +69,17 @@ sequence type."
 cases:
 1) If a transition on any-char is found for ORIG-STATE, then this transition is skipped, since it
 won't be effective anyway (since any-char matches any char, so the path on any-other-char will never
-be used.
-2) If a transition on any other char from ORIG-STATE already exists. This is because we already have
-all required paths (every char is covered). NOTE that currently I'm assuming that this transition
-would be eventually cleaned-up, which is not a good assumption, since it assumes a specific
-scenario. TODO: change into a simpler setter.
-The returned value is either the newly-set value, or NIL otherwise."
+be used. This is just for purpose of optimization.
+2) If a transition on any other char from ORIG-STATE already exists. In this case, I'm throwing an
+error.
+The returned value is either the newly-set value, or NIL otherwise.
+TODO: I WON'T NEED DEST-STATE ACTUALLY (T/NIL will do the job)."
   (with-slots (#1=%transitions-on-any-char #2=%transition-on-any-other) orig-state
-    (if (or #1# #2#)
-        nil
-        (setf #2# dest-state))))
+    (cond
+      (#1# nil)
+      (#2# (error "Transition on any other char is already set for origin state ~a (BUG??)!"
+                  orig-state))
+      (t (setf #2# dest-state)))))
 
 (defun unset-nfa-transition-on-any-other (orig-state)
   "Unset the NFA transition on any char from ORIG-STATE. It has no effect if it's already not set."
@@ -139,16 +135,6 @@ TODO: THINK ALSO ABOUT ANY-CHAR TRANSITIONS!"
                           (,next-state-reader-name-var trans:next-state)) ,transition-var
            ,@body)))))
 
-(defun collect-normal-transition-elements (list-of-states)
-  "Collects all elements of normal transitions going out from the `list-of-states` (typically a
-closure/closure union).
-TODO: vector instead of list (for perf).
-ACTUALLY MAY REMOVE (NOT USED)"
-  (let (output)
-    (do-normal-transitions (e _) list-of-states
-      (push e output))
-    output))
-  
 (defun terminal-nfa-closure-union-p (nfa-states)
   "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
 when any of the NFA states in the closure is the terminus state produced by the NFA. Since the
@@ -236,42 +222,54 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
 ;;; states as a useful by-product.
 (defun analyze-nfa-state-reachability (start-state end-state)
-  "Traverse a portion of the NFA, starting at START-STATE, and prepares two separate lists of
-states: 1) All states that have END-STATE in their closures, and 2) All states that do not have
-END-STATE in their closures. The typical usage is in handling the negation regex, where the first
-list corresponds to matching points, while the second corresponds to non-matching points.
-The two lists are returned as two values: (VALUES AUTO-CONNECTED NON-AUTO-CONNECTED)."
-  (let ((non-auto-connected nil)
-        (auto-connected nil)
-        (traversed nil))
+  "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
+the traversed states (object reference), and values as condition of each state. Condition is one of:
+:AUTO-CONNECTED - having `end-state` in its closures.
+:ELEMENT-CONNECTED - can reach `end-state` via a combination of auto and normal/any-char
+transitions.
+:NOT-CONNECTED - does not reach `end-state` in any way.
+The typical usage is in handling the negation regex."
+  (let ((traversal-table (make-hash-table)))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
-its type (T -> auto-connected, NIL -> non-auto-connected)."
-               (if (member state traversed :test #'eq)
-                   (member state auto-connected :test #'eq)
-                   (progn
-                     (push state traversed)
+its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, or :NOT-CONNECTED). Note that if both auto
+reachability and element reachability are satisfied, auto reachability takes precedence."
+               (format t "DEBUG: Analyzing reachability for state ~a..~&" state)
+               (or #1=(gethash state traversal-table)
+                   (let ((current-state-status nil))
+                     (format t "DEBUG: Reachability for state ~a not yet checked, checking..~&" state)
+                     (setf current-state-status
+                           (if (eq state end-state)
+                               ;; what about using a separate status for this (e.g. :SAME-STATE)? I mean
+                               ;; it's an extra information that won't harm
+                               :auto-connected
+                               ;; inital (default) status, also marking traversal
+                               :not-connected))
+                     (setf #1# current-state-status)
                      (loop for normal-trans-i in (normal-transitions state)
-                           for state-i = (trans:next-state normal-trans-i)
-                           do (recurse state-i))
-                     (dolist (state-i (transitions-on-any-char state))
-                       (recurse state-i))
-                     (let ((next-state-on-any-other-char (transition-on-any-other state)))
-                       (when next-state-on-any-other-char
-                         (recurse next-state-on-any-other-char)))
-                     (let ((is-auto-connected nil))
-                       (when (eq state end-state)
-                         (setf is-auto-connected t))
-                       (dolist (state-i (auto-transitions state))
-                         (when (recurse state-i)
-                           ;;if state-i is auto-connected, then so is the one leading to it
-                           (setf is-auto-connected t)))
-                       (if is-auto-connected
-                           (pushnew state auto-connected :test #'eq)
-                           (pushnew state non-auto-connected :test #'eq))
-                       is-auto-connected)))))
+                           for state-status-i = (recurse (trans:next-state normal-trans-i))
+                           unless (eq current-state-status :auto-connected) do
+                             (when (member state-status-i '(:auto-connected :element-connected))
+                               (setf current-state-status :element-connected)))
+                     ;;TODO: code very similar to above (hope to remove this duplication)
+                     ;; probably I'll end up including the transitions on any char together with
+                     ;; the normal transitions (would simplify a lot of code, though not
+                     ;; necessarily better for efficiency.
+                     (loop for state-i in (transitions-on-any-char state)
+                           for state-status-i = (recurse state-i)
+                           unless (eq current-state-status :auto-connected) do
+                             (when (member state-status-i '(:auto-connected :element-connected))
+                               (setf current-state-status :element-connected)))
+                     (loop for state-i in (auto-transitions state)
+                           for state-status-i = (recurse state-i)
+                           unless (eq current-state-status :auto-connected) do
+                             (when (member state-status-i '(:auto-connected :element-connected))
+                               (setf current-state-status state-status-i)))
+                     (format t "DEBUG: Setting reachability status for ~a to ~a~&" state
+                             current-state-status)
+                     (setf #1# current-state-status)))))
       (recurse start-state)
-      (values auto-connected non-auto-connected))))
+      traversal-table)))
 
 (defun states-have-trans-on-any-other-p (nfa-states)
   "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`
@@ -313,59 +311,4 @@ the FSM root state."
                    (iter next-state)))))
       (iter root-state))))
 
-(defmacro do-closure-transitions ((state-var closure-var element-var next-state-var)
-                                  start-state
-                                  (&body per-closure-forms)
-                                  (&body per-state-forms)
-                                  (&body per-transition-forms))
-  "Iterate on NFA starting from `start-state`.  normal transitions of a list of states (typically a state closure or a state closure
-union, exposing in each iteration accessors for the transition's element and transition's next
-state.
-TODO: may consider passing the name vars as keywords, since I may not always be interested in both
-variables and wish to access only one of them.
-TODO: may define another macro that takes a single state, and compute its closure first, before
-iterating on closure's normal transitions."
-  ;; init traversal hashmap
-  ;; ensure state not traversed yet
-  ;; compute closure --> apply form on closure
-  ;; loop on closure states --> apply form on each state
-  ;; loop on normal/any-char transitions for each state --> apply form on each transition
-  ;; loop on destination state of each transition (repeat: compute closure etc.)
-  (alexandria:with-gensyms (traversal-lookup start-closure)
-    `(let ((,traversal-lookup (state closure make-hash-table)))
-       (loop with state = ,start-state
-             while ,closure = 
-           (,start-closure (prepare-nfa-state-closure ,start-state)))
-               (unless (gethash nfa-state traversal-mark-lookup-table)
-                 (setf (gethash nfa-state traversal-mark-lookup-table) t)
-    `(dolist (,state-var ,)
-       (dolist (,trans (normal-transitions ,nfa-state))
-         (with-accessors ((,element-reader-name-var trans:element)
-                          (,next-state-reader-name-var trans:next-state)) ,trans
-           ,@body)))))))
-
-
-(defun traverse-nfa (start-state traversal-fn)
-  ""
-  (let ((traversal-lookup (make-hash-table)))
-    (labels ((iter (state)
-               (unless #1=(gethash state traversal-lookup)
-                 (setf  #1# t)
-                 (loop for trans in (normal-transitions state)
-                       for elem = (trans:element trans)
-                       for next-state = (trans:next-state trans)
-                       do (funcall traversal-fn state elem next-state)
-                          (iter next-state))
-                 (loop for dest in (transitions-on-any-char state)
-                       do (funcall traversal-fn state elm:+ANY-CHAR-ELEMENT+ dest)
-                          (iter dest))
-                 (loop for dest in (auto-transitions state)
-                       do (funcall traversal-fn state :auto dest)
-                          (iter dest))
-                 ;; TODO: might just call the traversal function, even if transition on any other
-                 ;; is NIL
-                 (alexandria:when-let (next-state (transition-on-any-other state))
-                   (funcall traversal-fn state elm::+ANY-OTHER-CHAR-ELEMENT+ next-state)
-                   (iter next-state)))))
-      (iter root-state))))
 
