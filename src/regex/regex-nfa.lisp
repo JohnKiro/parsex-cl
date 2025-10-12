@@ -78,15 +78,15 @@ and returns output state as continuation point."))
 
 (defmethod regex-to-nfa ((regex elm:negated-element) input-nfa-state)
   (let* ((inner-regex (elm:inner-element regex))
-         (entry-state (make-instance 'state:nfa-state))
-         (output-state-inner (regex-to-nfa inner-regex entry-state))
+         (output-state-inner (regex-to-nfa inner-regex input-nfa-state))
          (glue-state (make-instance 'state:nfa-state))
          (negation-exit-elem (make-instance 'elm:zero-or-more-element
                                             :element elm:+any-char-element+))
          (output-state (if (elm:greedy-p regex)
                            (regex-to-nfa negation-exit-elem glue-state)
                            glue-state))
-         (state-reachability (state:analyze-nfa-state-reachability entry-state output-state-inner)))
+         (state-reachability (state:analyze-nfa-state-reachability input-nfa-state
+                                                                   output-state-inner)))
     (labels ((cleanup-dead-paths-on-auto (orig-state)
                "Cleanup auto transitions, where destination is the output-state-inner."
                (state:delete-auto-transition orig-state output-state-inner)))
@@ -149,7 +149,7 @@ and returns output state as continuation point."))
                              ;; well??)
                              (state::do-normal-transitions (trans elm next-state) closure
                                (second-pass next-state))))))
-          (second-pass entry-state))
+          (second-pass input-nfa-state))
         ;; traverse NFA sub-tree, and states that have output-state-inner in their closures will
         ;; be converted to dead-ends, and states that can reach output-state-inner via elements
         ;; will get a transition on any-char to output-state (later: optionally via a
@@ -190,7 +190,6 @@ and returns output state as continuation point."))
                    #+nil(cleanup-dead-paths-on-any-other-char inner-non-ct))
                       (state:unset-dead-end state-i))))))
       ;; connect the NOT element to the rest of the NFA
-      (state:add-nfa-auto-transition input-nfa-state entry-state)
       output-state)))
 
 
