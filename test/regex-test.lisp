@@ -212,6 +212,135 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "X")
 
+(deftest-n negation-tests-0
+  :desc "Simple test to familiarize with negation. Note that (not #\B) accepts all characters other
+than #\B, and also accepts the empty string (since empty string is NOT #\B)."
+  :regex (not #\B)
+  :test-details-list (("Ax" t "A" "A")
+                      ("Bx" t nil "B")
+                      ("" t nil nil)))
+
+(deftest-n negation-tests-1
+  :desc "Tests success for negation of ORing of single char and char range elements, negation set
+includes empty string."
+  :regex (not (or #\B #\D (char-range #\L #\S) #\W #\Y))
+  :test-details-list (("Ax" t "A" "A")
+                      ("Bx" t nil "B")
+                      ("Cx" t "C" "C")
+                      ("Dx" t nil "D")
+                      ("Kx" t "K" "K")
+                      ("Lx" t nil "L")
+                      ("Sx" t nil "S")
+                      ("Vx" t "V" "V")
+                      ("Wx" t nil "W")
+                      ("Xx" t "X" "X")
+                      ("Yx" t nil "Y")
+                      ("Zx" t "Z" "Z")
+                      ("" t "" "")))
+
+(deftest-n negation-tests-2
+  :desc "Tests success and failure for negation of ORing of single char and char range elements, the
+zero-or-one wrapper element removes the empty string from the negation set."
+  :regex (not (? (or #\B #\D (char-range #\L #\S) #\W #\Y)))
+  :test-details-list (("Ax" t "A" "A")
+                      ("Bx" nil nil "B")
+                      ("Cx" t "C" "C")
+                      ("Dx" nil nil "D")
+                      ("Kx" t "K" "K")
+                      ("Lx" nil nil "L")
+                      ("Sx" nil nil "S")
+                      ("Vx" t "V" "V")
+                      ("Wx" nil nil "W")
+                      ("Xx" t "X" "X")
+                      ("Yx" nil nil "Y")
+                      ("Zx" t "Z" "Z")
+                      ("" nil nil nil)))
+
+;; Note that (not #\M) matches empty string, that's why "abyz" gets matched
+;; Note that upon match failure, only one char is consumed, according to how the basic input handler
+;; operates (which is not specific to the negation element). In another implementation, the whole
+;; text up to the point of failure detection would be consumed (depending on the specific
+;; application's desired behavior)
+(deftest-n negation-tests-3
+  :desc "Tests negation part of a larger regex (sequence including negated part)."
+  :regex (seq "ab" (not #\M) "yz")
+  :test-details-list (("abcyz" t "abcyz" "abcyz")
+                      ("abyz" t "abyz" "abyz")
+                      ("abMyz" nil nil "a")))
+
+(deftest-n negation-tests-4
+  :desc "Tests ORing of two negations (leading to acceptance of all chars)."
+  :regex (or (not #\B) (not #\D))
+  :test-details-list (("Ax" t "A" "A")
+                      ("Bx" t "B" "B")
+                      ("Cx" t "C" "C")
+                      ("Dx" t "D" "D")
+                      ("Ex" t "E" "E")
+                      ("" t nil nil)))
+
+(deftest-n negation-tests-5
+  :desc "Tests negation of closure: default implementation is 'tolerant', i.e. 'ABA' accepts. I will
+later implement the non-tolerant case (I see would mark the red states to disallow backtracking)."
+  :regex (not (* "AB"))
+  :test-details-list (("AB" t "A" "A")  ;'tolerance' case (user would expect NO MATCH)
+                      ("ABx" t "A" "A") ; same note
+                      ("ABA" t "ABA" "ABA") ; same note
+                      ("ABABC" t "ABA" "ABA") ; same note
+                      ("ABAB" t "ABA" "ABA") ; same note
+                      ("ABAC" t "ABAC" "ABAC") ; same note
+                      ("AA" t "AA" "AA")
+                      ("AC" t "AC" "AC")
+                      ("ACD" t "AC" "AC")
+                      ("B" t "B" "B")
+                      ("BAB" t "B" "B")
+                      ("" nil nil nil)))
+
+;; TODO: recheck "xyABABCwv" (missing any-other?), comparing with NFA and DFA generated with old
+;; algo (see chapter 8 in ODT).
+(deftest-n negation-tests-6
+  :desc "Tests negation of closure, inside a sequence. See notes about tolerance in previous TC,
+however, note that in this case, there is no backtracking to 'A', due to the trailing 'wv'."
+  :regex (seq "xy" (not (* "AB")) "wv")
+  :test-details-list (("xyABwv" nil nil "x")
+                      ("xyAwv" t "xyAwv" "xyAwv")
+                      ("xyAwwv" t "xyAwwv" "xyAwwv")
+                      ("xyAxwv" t "xyAxwv" "xyAxwv")
+                      ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
+                      ("xyABABCwv" nil nil "x") ;TODO: tolerance is broken :( (missing "any-other"?)
+                      ("xyABABwv" nil nil "x")
+                      ("xyABABCwv" nil nil "x")
+                      ("xyAB" nil nil "x")
+                      ("xyABx" nil nil "x")
+                      ("xywv" nil nil "x") ;match set of the NOT part does not include empty string
+                      ("xywwv" t "xywwv" "xywwv")
+                      ("xyxwv" t "xyxwv" "xyxwv")
+                      ("xywvwv" nil nil "x") ;may surprise the user (the non-greedy option)
+                      ("" nil nil nil)))
+
+(deftest-n negation-tests-7
+  :desc "Tests double negation of closure. Functionally, simplification by cancelling the two
+negations out should not affect the result (to be verified, also for greedy and intolerance)."
+  :regex (not (not (* "AB")))
+  :test-details-list (("AB" t "AB" "AB")
+                      ("ABAB" t "ABAB" "ABAB")
+                      ("ABx" t "AB" "AB")
+                      ("ABABx" t "ABAB" "ABAB")
+                      ("" t "" "")
+                      ("ABX" t "AB" "AB")
+                      ("ABAX" t "AB" "AB")
+                      ("xABwwv" t nil "x") ;consumption due to input advance-on-.... flag
+                      ("AxAB" t nil "A"))) ;same
+
+(deftest-n negation-tests-8
+  :desc "Tests negation of sequence, inside a sequence, and including any-char."
+  :regex (seq "xy" (not (seq #\m :any-char)) "wv")
+  :test-details-list (("xywv" t "xywv" "xywv") ;note that the NOT match set includes empty string
+                      ("xyAwv" t "xyAwv" "xyAwv")
+                      ("xyAwwv" nil nil "x") ;TODO: this and the next: need any-other? (TODO above)
+                      ("xyAxwv" nil nil "x")
+                      ("xymAwv" nil nil "x")
+                      ("xymwv" t "xymwv" "xymwv")))
+
 (deftest-n inv-matching-tests
   :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
