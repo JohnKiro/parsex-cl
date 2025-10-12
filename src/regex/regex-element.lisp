@@ -117,29 +117,35 @@ we do not care about element range end."
 
 ;;; TODO: may use other data structures later.
 (defun split-char-range (char-range-element splitting-points)
-  "Split a char range CHAR-RANGE-ELEMENT into a number of ranges based on SPLITTING-POINTS (vector
-of characters).
+  "Split a char range CHAR-RANGE-ELEMENT into a number of ranges/single chars, based on
+SPLITTING-POINTS (vector of characters).
 Preconditions: splitting points must be a sorted vector.
-Note: it takes into consideration half-open/full-open ranges."
+Note: it takes into consideration half-open/full-open ranges.
+TODO: add optimization declaration!"
+  (declare (type char-range-element char-range-element)
+           (type (vector character) splitting-points))
   (format t "DEBUG: splitting range ~a on characters ~s..~&" char-range-element splitting-points)
   (let ((slider (char-start char-range-element))
         (end (char-end char-range-element))
         (acc nil))
-    (loop for p across splitting-points
+    (loop for sp across splitting-points
+          while (or (eq end :max) (char< sp end))
           ;; skip splitting points < slider (effective at start, till splitting points start to
           ;; overlap with the range at hand, noting that splitting points are assumed sorted).
           ;; TODO: some optimization is possible, since p will remain >= slider (once overlap
           ;; is detected), so we need to do this check only once (in a separate loop to find
           ;; first overlapping splitting point)
-          do (when (or (eql slider :min) (char>= p slider))
-               (if (or (eql end :max) (char< p end))
-                   (progn
-                     (push (make-instance 'char-range-element :char-start slider :char-end p) acc)
-                     (setf slider (chars:inc-char p)))
-                   ;; break loop (since any remaining splitting points will be beyond range
-                   (return))))
-      ;; add last range
-      (push (make-instance 'char-range-element :char-start slider :char-end end) acc)
+          if (or (eql slider :min) (char> sp slider)) do
+            (push (make-char-range :start slider :end sp) acc)
+            (setf slider (chars:inc-char sp))
+          else if (char= sp slider) do
+            (push (make-instance 'single-char-element :single-char slider) acc)
+            (setf slider (chars:inc-char sp))
+          end)
+    ;; add last char or range
+    (if (eql slider end)
+        (push (make-instance 'single-char-element :single-char slider) acc)
+        (push (make-char-range :start slider :end end) acc))
     ;; return accumulator, containing all sub-ranges
     (format t "DEBUG: Range split into: ~a~&" acc)
     acc))
@@ -199,23 +205,31 @@ TODO: for ranges containing a single char, no need to return a range object (sin
              (single-char-element (let* ((ch (single-char elem))
                                          (left-char (chars:dec-char ch))
                                          (right-char (chars:inc-char ch)))
-                                    (when (or (and (characterp slider) (char>= left-char slider))
-                                              (eq slider :min))
-                                      (push (make-char-range :start slider :end left-char) output))
+                                    (if (eql left-char slider)
+                                        (push (make-instance 'single-char-element :single-char
+                                                              slider)
+                                              output)
+                                        (when (or (eq slider :min) (char< slider left-char))
+                                           (push (make-char-range :start slider :end left-char)
+                                                 output)))
                                     (setf slider right-char)))
              (char-range-element (let* ((s (char-start elem))
                                         (e (char-end elem))
                                         (left-char (if (eq s :min) :min (chars:dec-char s)))
                                         (right-char (if (eq e :max) :max (chars:inc-char e))))
-                                   (when (and (characterp left-char) (or (eq slider :min)
-                                                                         (char>= left-char slider)))
-                                     (push (make-char-range :start slider :end left-char) output))
+                                   (when (characterp left-char)
+                                     (if (eql left-char slider)
+                                         (push (make-instance 'single-char-element :single-char
+                                                              slider)
+                                               output)
+                                         (when (or (eq slider :min) (char< slider left-char))
+                                           (push (make-char-range :start slider :end left-char)
+                                                 output))))
                                    (setf slider right-char))))
         when (eq slider :max)
           do (return output) ;exit early when finding an open-ended range
         finally (progn
-                  ;; handle remaining segment (we're sure there is one, since no early exit done
-                  ;; above)
+                  ;; handle remaining segment (unless an early exit is done above)
                   (push (make-char-range :start slider :end :max) output)
                   (return output))))
   
