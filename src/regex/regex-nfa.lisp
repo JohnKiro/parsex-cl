@@ -80,10 +80,10 @@ and returns output state as continuation point."))
   (let* ((inner-regex (elm:inner-element regex))
          (output-state-inner (regex-to-nfa inner-regex input-nfa-state))
          (glue-state (make-instance 'state:nfa-state))
-         (negation-exit-elem (make-instance 'elm:zero-or-more-element
-                                            :element elm:+any-char-element+))
          (output-state (if (elm:greedy-p regex)
-                           (regex-to-nfa negation-exit-elem glue-state)
+                           (regex-to-nfa (make-instance 'elm:zero-or-more-element
+                                                        :element elm:+any-char-element+)
+                                         glue-state)
                            glue-state))
          (state-reachability (state:analyze-nfa-state-reachability input-nfa-state
                                                                    output-state-inner)))
