@@ -348,6 +348,7 @@ however, note that in this case, there is no backtracking to 'A', due to the tra
                       ("xywwv" t "xywwv" "xywwv")
                       ("xyxwv" t "xyxwv" "xyxwv")
                       ("xywvwv" nil nil "x") ;may surprise the user (the non-greedy option)
+                      ("xywABwv" nil nil "x") ;same
                       ("" nil nil nil)))
 
 (deftest-n negation-tests-7
