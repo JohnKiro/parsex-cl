@@ -60,7 +60,8 @@ we have a single description for simplicity (otherwise, I'd have to supply descr
   "Reusable function that runs a loop of regex matching operations for the input string INPUT
 against a single REGEX, and tests the result of each matching operation against successive elements
 of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully traversed."
-  (let* ((input-source (input:create-basic-regex-input input))
+  (let* ((input-source (input:create-basic-regex-input input
+                                                       :advance-on-no-consumption-on-match t))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
          (nfa (nfa:produce-nfa regex-obj-tree))
          (dfa (dfa:produce-dfa nfa)))
@@ -212,6 +213,39 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "X")
 
+(deftest-1 single-regex-matching-test-15
+  :desc "Tests backtracking, consumption (note: depending on input
+:advance-on-no-consumption-on-match creation flag)."
+  :regex (* "xy")
+  :inp "z"
+  :match t
+  :acc nil
+  :consum "z")
+
+(deftest-1 single-regex-matching-test-16
+  :desc "Tests backtracking, consumption (2) - see previous TC."
+  :regex (* "xy")
+  :inp "xz"
+  :match t
+  :acc nil
+  :consum "x")
+
+(deftest-1 single-regex-matching-test-17
+  :desc "Tests backtracking for a closure within a seq."
+  :regex (seq "AB" (* "xy") "CD")
+  :inp "ABCD"
+  :match t
+  :acc "ABCD"
+  :consum "ABCD")
+
+(deftest-1 single-regex-matching-test-18
+  :desc "Tests failure to match a closure within a seq."
+  :regex (seq "AB" (* "xy") "CD")
+  :inp "ABzCD"
+  :match nil
+  :acc nil
+  :consum "A")
+
 (deftest-n negation-tests-0
   :desc "Simple test to familiarize with negation. Note that (not #\B) accepts all characters other
 than #\B, and also accepts the empty string (since empty string is NOT #\B)."
@@ -308,7 +342,6 @@ however, note that in this case, there is no backtracking to 'A', due to the tra
                       ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
                       ("xyABABCwv" nil nil "x") ;TODO: tolerance is broken :( (missing "any-other"?)
                       ("xyABABwv" nil nil "x")
-                      ("xyABABCwv" nil nil "x")
                       ("xyAB" nil nil "x")
                       ("xyABx" nil nil "x")
                       ("xywv" nil nil "x") ;match set of the NOT part does not include empty string
@@ -368,7 +401,7 @@ negations out should not affect the result (to be verified, also for greedy and 
                        (nil nil "Z")))
 
 (deftest regex-matching-loop-test-2
-  :desc "Tests: ONE-OR-MORE, backtracking."
+  :desc "Tests: ONE-OR-MORE, backtracking to last match position."
   :regex (+ (seq #\X #\Y))
   :inp "XYXYXZZZ"
   :match-details-list ((t "XYXY" "XYXY")
@@ -398,8 +431,9 @@ negations out should not affect the result (to be verified, also for greedy and 
 
 (deftest regex-matching-loop-test-4
   ;; Notice how the BB has been matched, although at some point, the cursor was after the AB,
-  ;; thanks to backtracking to just after the #\A.
-  :desc "Tests: consumption of one bad char, followed by backtracking."
+  ;; thanks to backtracking to just after the #\A. Also remember that we can control even the
+  ;; consumption of a single char upon failure to match (flag in regex input interface)
+  :desc "Tests: consumption of one bad char, followed by backtracking, and other tests."
   :regex (or (seq #\A #\B #\C) (seq #\B #\B) (seq #\C #\C (+ #\D)))
   :inp "ABBXXXXCCDDDD"
   :match-details-list ((nil nil "A")
@@ -422,7 +456,8 @@ negations out should not affect the result (to be verified, also for greedy and 
                        (nil nil "Z")))
 
 (deftest regex-matching-loop-test-6
-  :desc "Tests: effect of * (invalid characters are matched, consumed, but not accumulated)."
+  :desc "Tests: effect of * (invalid characters are matched, consumed (due to input's
+:advance-on-no-consumption-on-match flag), but not accumulated)."
   :regex (* #\X)
   :inp "XXXXXABC"
   :match-details-list ((t "XXXXX" "XXXXX")
