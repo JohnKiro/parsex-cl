@@ -9,21 +9,21 @@
 (defclass dfa-state ()
   ((nfa-states :initarg :nfa-states
                :reader nfa-states
-               :initform (error "nfa-states must be specified!"))
+               :initform (error "nfa-states must be specified!")
+               :documentation "List of NFA states represented by this DFA state")
    (transitions :accessor transitions
                 :initform nil
-                :type list)
+                :type list
+                :documentation "Transitions to other DFA states, based on single char/char range")
    (transition-on-any-other :accessor transition-on-any-other
                             :initform nil
-                            :type (or null dfa-state))
+                            :type (or null dfa-state)
+                            :documentation "destination DFA state on any other char")
    (candidate-terminal :reader candidate-terminal
-                       :type boolean))
-  (:documentation "DFA state is identified by the following information:
-NFA-STATES - list of NFA states represented by this DFA state;
-TRANSITIONS - list of transitions to other DFA states, based on single char/char range;
-TRANSITION-ON-ANY-OTHER - destination DFA state for any other char;
-CANDIDATE-TERMINAL - whether this is accepting state. It is derived from NFA-STATES, but included
-as separate slot to avoid computation each time it is needed."))
+                       :type boolean
+                       :documentation "whether this is accepting state. It is derived from
+NFA-STATES, but included as separate slot to avoid computation each time it is needed."))
+  (:documentation "DFA state corresponding to an NFA closure union."))
 
 (defmethod initialize-instance :after ((dfa-state dfa-state) &key)
   "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
