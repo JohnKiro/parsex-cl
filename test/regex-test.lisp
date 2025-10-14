@@ -246,6 +246,40 @@ in a single way, such as NIL or \"\"."
   :acc nil
   :consum "A")
 
+;; TODO: compare with the non-greedy negation (the comparison shows that the greedy negation is
+;; more reasonable (expected by user)
+(deftest-1 single-regex-matching-test-19
+  :desc "Tests succes to match a closure of any-char within a seq."
+  :regex (seq "AB" (* :any-char) "CD")
+  :inp "ABCDCD"
+  :match t
+  :acc  "ABCDCD"
+  :consum  "ABCDCD")
+
+(deftest-1 single-regex-matching-test-20
+  :desc "Tests succes to match one-or-more any-char within a seq."
+  :regex (seq "AB" (+ :any-char) "CD")
+  :inp "ABCDCD"
+  :match t
+  :acc  "ABCDCD"
+  :consum  "ABCDCD")
+
+(deftest-1 single-regex-matching-test-21
+  :desc "Tests succes to match one-or-more char found in ending."
+  :regex (seq "AB" (+ #\C) "CD")
+  :inp "ABCCCCD"
+  :match t
+  :acc  "ABCCCCD"
+  :consum  "ABCCCCD")
+
+(deftest-1 single-regex-matching-test-22
+  :desc "Tests succes to match one-or-more seq, repeated in ending."
+  :regex (seq "AB" (+ "CD") "CD")
+  :inp "ABCDCDCD"
+  :match t
+  :acc  "ABCDCDCD"
+  :consum  "ABCDCDCD")
+
 (deftest-n negation-tests-0
   :desc "Simple test to familiarize with negation. Note that (not #\B) accepts all characters other
 than #\B, and also accepts the empty string (since empty string is NOT #\B)."
@@ -374,6 +408,25 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("xyAxwv" nil nil "x")
                       ("xymAwv" nil nil "x")
                       ("xymwv" t "xymwv" "xymwv")))
+
+(deftest-n negation-tests-9
+  :desc "Tests negation of one-or-more, inside a sequence. Compare with `negation-tests-6`."
+  :regex (seq "xy" (not (+ "AB")) "wv")
+  :test-details-list (("xyABwv" nil nil "x")
+                      ("xyAwv" t "xyAwv" "xyAwv")
+                      ("xyAwwv" t "xyAwwv" "xyAwwv")
+                      ("xyAxwv" t "xyAxwv" "xyAxwv")
+                      ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
+                      ("xyABABCwv" nil nil "x") ;TODO: tolerance is broken :( (missing "any-other"?)
+                      ("xyABABwv" nil nil "x")
+                      ("xyAB" nil nil "x")
+                      ("xyABx" nil nil "x")
+                      ("xywv" t "xywv" "xywv") ;match set of the NOT part includes empty string
+                      ("xywwv" t "xywwv" "xywwv")
+                      ("xyxwv" t "xyxwv" "xyxwv")
+                      ("xywvwv" t "xywv" "xywv") ;may surprise the user (the non-greedy option)
+                      ("xywABwv" nil nil "x") ;same
+                      ("" nil nil nil)))
 
 (deftest-n inv-matching-tests
   :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
