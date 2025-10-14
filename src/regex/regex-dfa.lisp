@@ -7,29 +7,29 @@
 ;;; A DFA state contains the union of NFA states that form the DFA state, as well as an
 ;;; association of transitions (simple element --> next DFA state).
 (defclass dfa-state ()
-  ((nfa-states :initarg :nfa-states
-               :reader nfa-states
-               :initform (error "nfa-states must be specified!")
-               :documentation "List of NFA states represented by this DFA state")
-   (transitions :accessor transitions
-                :initform nil
-                :type list
-                :documentation "Transitions to other DFA states, based on single char/char range")
-   (transition-on-any-other :accessor transition-on-any-other
-                            :initform nil
-                            :type (or null dfa-state)
-                            :documentation "destination DFA state on any other char")
-   (candidate-terminal :reader candidate-terminal
-                       :type boolean
-                       :documentation "whether this is accepting state. It is derived from
+  ((%nfa-states :initarg :nfa-states
+                :reader nfa-states
+                :initform (error "nfa-states must be specified!")
+                :documentation "List of NFA states represented by this DFA state")
+   (%transitions :accessor transitions
+                 :initform nil
+                 :type list
+                 :documentation "Transitions to other DFA states, based on single char/char range")
+   (%transition-on-any-other :accessor transition-on-any-other
+                             :initform nil
+                             :type (or null dfa-state)
+                             :documentation "destination DFA state on any other char")
+   (%candidate-terminal :reader candidate-terminal
+                        :type boolean
+                        :documentation "whether this is accepting state. It is derived from
 NFA-STATES, but included as separate slot to avoid computation each time it is needed."))
   (:documentation "DFA state corresponding to an NFA closure union."))
 
 (defmethod initialize-instance :after ((dfa-state dfa-state) &key)
   "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
-  (with-slots (nfa-states candidate-terminal) dfa-state
-    (let ((terminal-or-not (nfa-state:terminal-nfa-closure-union-p nfa-states)))
-      (setf candidate-terminal terminal-or-not))))
+  (with-slots (%nfa-states %candidate-terminal) dfa-state
+    (let ((terminal-or-not (nfa-state:terminal-nfa-closure-union-p %nfa-states)))
+      (setf %candidate-terminal terminal-or-not))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
@@ -67,7 +67,7 @@ element can be either single char, char range, or any-other-char. Note that duri
 transition table preparation, elements any-char and any-other-char are merged (if both found in the
 same NFA closure union. This is because in DFA, both will have the meaning of any-other-char."
   (declare (dfa-state origin-dfa-state))
-  (assoc simple-element (slot-value origin-dfa-state 'transitions)
+  (assoc simple-element (slot-value origin-dfa-state '%transitions)
          :test #'elm:simple-element-equal))
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
@@ -91,7 +91,7 @@ same NFA closure union. This is because in DFA, both will have the meaning of an
 (defun lookup-dfa-state (nfa-states traversed-dfa-states)
   (declare (cons nfa-states))
   (loop for dfa-state across traversed-dfa-states
-        do (let* ((nfa-states-loop (slot-value dfa-state 'nfa-states))
+        do (let* ((nfa-states-loop (slot-value dfa-state '%nfa-states))
                   (difference (set-exclusive-or nfa-states nfa-states-loop)))
              (unless difference
                (return-from lookup-dfa-state dfa-state))))
