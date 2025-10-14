@@ -103,8 +103,9 @@ and returns output state as continuation point."))
                   (state:set-nfa-transition-on-any-other state-i glue-state))
                  (:not-connected 'nothing-to-do)))
       (let ((traversal-lookup (make-hash-table)))
-        (labels ((second-pass (state)
-                   #+nil(format t "DEBUG: Calling SECOND-PASS for state ~a..~&" state)
+        (labels ((add-inversion-transitions (state)
+                   "Add transitions corresponding to inversions resulting from the negation."
+                   #+nil(format t "DEBUG: Calling ADD-INVERSION-TRANSITIONS for state ~a..~&" state)
                    (unless #1=(gethash state traversal-lookup)
                            ;;unfortunately #1= in UNLESS confuses indentation
                            (setf #1# t)
@@ -144,12 +145,12 @@ and returns output state as continuation point."))
                                  (progn
                                    ;; else: no any-other trans, => traverse closure
                                    (dolist (s closure)
-                                     (second-pass s))))
+                                     (add-inversion-transitions s))))
                              ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
                              ;; well??)
                              (state::do-normal-transitions (trans elm next-state) closure
-                               (second-pass next-state))))))
-          (second-pass input-nfa-state))
+                               (add-inversion-transitions next-state))))))
+          (add-inversion-transitions input-nfa-state))
         ;; traverse NFA sub-tree, and states that have output-state-inner in their closures will
         ;; be converted to dead-ends, and states that can reach output-state-inner via elements
         ;; will get a transition on any-char to output-state (later: optionally via a
