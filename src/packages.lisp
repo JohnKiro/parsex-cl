@@ -156,6 +156,7 @@
            #:delete-auto-transition
            #:set-dead-end
            #:unset-dead-end
+           #:dead-end-p
            #:set-nfa-transition-on-any-other
            #:unset-nfa-transition-on-any-other
            #:terminal-nfa-closure-union-p
@@ -186,6 +187,7 @@
            #:parse-and-produce-dfa ;wrapper that simplifies the above
            #:dfa-state-definitely-terminal-p
            #:candidate-terminal
+           #:dead-end-p
            #:transitions
            #:transition-on-any-other
            #:find-matching-transition

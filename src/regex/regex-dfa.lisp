@@ -22,7 +22,12 @@
    (%candidate-terminal :reader candidate-terminal
                         :type boolean
                         :documentation "whether this is accepting state. It is derived from
-NFA-STATES, but included as separate slot to avoid computation each time it is needed."))
+NFA-STATES, but included as separate slot to avoid computation each time it is needed.")
+   (%dead-end :initarg :dead-end
+              :initform nil
+              :type boolean
+              :reader dead-end-p
+              :documentation "Dead-end status, derived from corresponding NFA states."))
   (:documentation "DFA state corresponding to an NFA closure union."))
 
 (defmethod initialize-instance :after ((dfa-state dfa-state) &key)
@@ -106,7 +111,10 @@ found or newly created."
   (let ((dfa-state (lookup-dfa-state nfa-states traversed-dfa-states)))
     (if dfa-state
         (values dfa-state 'already-found)
-        (let ((new-dfa-state (make-instance 'dfa-state :nfa-states nfa-states)))
+        (let* ((dead-end (dolist (nfa-state nfa-states nil)
+                           (when (nfa-state:dead-end-p nfa-state)
+                             (return t))))
+               (new-dfa-state (make-instance 'dfa-state :nfa-states nfa-states :dead-end dead-end)))
           (vector-push-extend new-dfa-state traversed-dfa-states)
           (values new-dfa-state 'newly-created)))))
 
@@ -155,7 +163,7 @@ distiction clear."
   (candidate-terminal fsm-state))
 
 (defmethod fsm::fsm-dead-end-state-p ((fsm-state dfa-state))
-  nil)
+  (dead-end-p fsm-state))
 
 (defmethod fsm:traverse-fsm-transitions ((root-state dfa-state) traversal-fn)
   "Traverse all transitions in the DFA state machine, starting from ROOT-STATE. This includes
