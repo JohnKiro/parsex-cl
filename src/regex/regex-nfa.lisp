@@ -94,12 +94,10 @@ and returns output state as continuation point."))
       ;; be converted to dead-ends, and states that can reach output-state-inner via elements
       ;; will get a transition on any-char to output-state (later: optionally via a
       ;; (+ any-char))
-      (let ((inner-continuation-point-closures (state:prepare-nfa-state-closure-union
-                                                (loop for state-i being the hash-keys
-                                                        in state-reachability
-                                                          using (hash-value s-status)
-                                                      when (eq s-status :auto-connected)
-                                                        collect state-i))))
+      (let ((inner-cont-pts-closures (state:prepare-nfa-state-closure-union
+                                      (loop for state-i being the hash-keys in state-reachability
+                                              using (hash-value s-status)
+                                            when (eq s-status :auto-connected) collect state-i))))
         (loop for state-i being the hash-keys in state-reachability using (hash-value s-status)
               do (ecase s-status
                    (:auto-connected
@@ -108,7 +106,7 @@ and returns output state as continuation point."))
                     (cleanup-dead-paths-on-auto state-i))
                    (:element-connected
                     (state:set-nfa-transition-on-any-other state-i glue-state)
-                    (unless (member state-i inner-continuation-point-closures :test #'eql)
+                    (unless (member state-i inner-cont-pts-closures :test #'eql)
                       ;; TODO: give user the choice (greedy/non-greedy)
                       (state:add-nfa-auto-transition state-i output-state)
                       (state:unset-dead-end state-i)))
