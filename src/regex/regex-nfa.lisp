@@ -94,14 +94,27 @@ and returns output state as continuation point."))
       ;; be converted to dead-ends, and states that can reach output-state-inner via elements
       ;; will get a transition on any-char to output-state (later: optionally via a
       ;; (+ any-char))
-      (loop for state-i being the hash-keys in state-reachability using (hash-value s-status)
-            do (ecase s-status
-                 (:auto-connected
-                  (state:set-dead-end state-i)
-                  (cleanup-dead-paths-on-auto state-i))
-                 (:element-connected
-                  (state:set-nfa-transition-on-any-other state-i glue-state))
-                 (:not-connected 'nothing-to-do)))
+      (let ((inner-continuation-point-closures (state:prepare-nfa-state-closure-union
+                                                (loop for state-i being the hash-keys
+                                                        in state-reachability
+                                                          using (hash-value s-status)
+                                                      when (eq s-status :auto-connected)
+                                                        collect state-i))))
+        (loop for state-i being the hash-keys in state-reachability using (hash-value s-status)
+              do (ecase s-status
+                   (:auto-connected
+                    (state:set-dead-end state-i)
+                    ;; just simplification, not needed (generated DFA not affected, test cases pass)
+                    (cleanup-dead-paths-on-auto state-i))
+                   (:element-connected
+                    (state:set-nfa-transition-on-any-other state-i glue-state)
+                    (unless (member state-i inner-continuation-point-closures :test #'eql)
+                      ;; TODO: give user the choice (greedy/non-greedy)
+                      (state:add-nfa-auto-transition state-i output-state)
+                      (state:unset-dead-end state-i)))
+                   (:not-connected ;; previously condition "absolute dead-end"
+                    (state:add-nfa-auto-transition state-i output-state)
+                    (state:unset-dead-end state-i)))))
       (let ((traversal-lookup (make-hash-table)))
         (labels ((add-inversion-transitions (state)
                    "Add transitions corresponding to inversions resulting from the negation."
@@ -150,28 +163,7 @@ and returns output state as continuation point."))
                              ;; well??)
                              (state::do-normal-transitions (trans elm next-state) closure
                                (add-inversion-transitions next-state))))))
-          (add-inversion-transitions input-nfa-state))
-        ;; traverse NFA sub-tree, and states that have output-state-inner in their closures will
-        ;; be converted to dead-ends, and states that can reach output-state-inner via elements
-        ;; will get a transition on any-char to output-state (later: optionally via a
-        ;; (+ any-char))
-        ;; TODO: REDUCE ALL THESE LOOPS!!!
-        (let ((inner-continuation-point-closures (state:prepare-nfa-state-closure-union
-                                                  (loop for state-i being the hash-keys
-                                                          in state-reachability
-                                                            using (hash-value s-status)
-                                                        when (eq s-status :auto-connected)
-                                                          collect state-i))))
-          (loop for state-i being the hash-keys in state-reachability using (hash-value s-status)
-                do (case s-status
-                     (:element-connected
-                      (unless (member state-i inner-continuation-point-closures :test #'eql)
-                        ;; TODO: give user the choice (greedy/non-greedy)
-                        (state:add-nfa-auto-transition state-i output-state)
-                        (state:unset-dead-end state-i)))
-                     (:not-connected ;; previously condition "absolute dead-end"
-                      (state:add-nfa-auto-transition state-i output-state)
-                      (state:unset-dead-end state-i))))))
+          (add-inversion-transitions input-nfa-state)))
       ;; connect the NOT element to the rest of the NFA
       output-state)))
 
