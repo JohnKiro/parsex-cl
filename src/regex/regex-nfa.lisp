@@ -102,7 +102,8 @@ and returns output state as continuation point."))
               do (ecase s-status
                    (:auto-connected
                     (state:set-dead-end state-i)
-                    ;; just simplification, not needed (generated DFA not affected, test cases pass)
+                    ;; just simplification, not needed (cleans up generated NFA, but DFA not
+                    ;; affected, test cases pass)
                     (cleanup-dead-paths-on-auto state-i))
                    (:element-connected
                     (state:set-nfa-transition-on-any-other state-i glue-state)
@@ -110,7 +111,7 @@ and returns output state as continuation point."))
                       ;; TODO: give user the choice (greedy/non-greedy)
                       (state:add-nfa-auto-transition state-i output-state)
                       (state:unset-dead-end state-i)))
-                   (:not-connected ;; previously condition "absolute dead-end"
+                   (:not-connected
                     (state:add-nfa-auto-transition state-i output-state)
                     (state:unset-dead-end state-i)))))
       (let ((traversal-lookup (make-hash-table)))
@@ -158,7 +159,8 @@ and returns output state as continuation point."))
                                    (dolist (s closure)
                                      (add-inversion-transitions s))))
                              ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
-                             ;; well??)
+                             ;; well?? Not making difference, since inverting any-char gives
+                             ;; "no char")
                              (state::do-normal-transitions (trans elm next-state) closure
                                (add-inversion-transitions next-state))))))
           (add-inversion-transitions input-nfa-state)))
