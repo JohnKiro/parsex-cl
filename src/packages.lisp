@@ -128,6 +128,7 @@
   (:local-nicknames )
   (:export #:traverse-fsm-transitions
            #:fsm-acceptance-state-p
+           #:with-unique-visit
            ))
 
 (defpackage :parsex-cl/regex/nfa/transition
@@ -171,7 +172,8 @@
                     (:chars #:parsex-cl/char-util)
                     (:elm #:parsex-cl/regex/element)
                     (:state #:parsex-cl/regex/nfa/state)
-                    (:trans #:parsex-cl/regex/nfa/transition))
+                    (:trans #:parsex-cl/regex/nfa/transition)
+                    (:fsm #:parsex-cl/regex/fsm))
   (:export #:produce-nfa
            ))
 

@@ -114,56 +114,45 @@ and returns output state as continuation point."))
                    (:not-connected
                     (state:add-nfa-auto-transition state-i output-state)
                     (state:unset-dead-end state-i)))))
-      (let ((traversal-lookup (make-hash-table)))
-        (labels ((add-inversion-transitions (state)
-                   "Add transitions corresponding to inversions resulting from the negation."
-                   #+nil(format t "DEBUG: Calling ADD-INVERSION-TRANSITIONS for state ~a..~&" state)
-                   (unless #1=(gethash state traversal-lookup)
-                           ;;unfortunately #1= in UNLESS confuses indentation
-                           (setf #1# t)
-                           (let ((closure (state:prepare-nfa-state-closure-union (list state))))
-                             (if (state::states-have-trans-on-any-other-p closure)
-                                 (progn
-                                   ;; clear "any-other" transitions from the whole closure, since
-                                   ;;we'll convert them to normal transitions
-                                   ;; TODO: try to avoid having to do this (merge with 1st pass?)
-                                   (dolist (s closure)
-                                     (state:unset-nfa-transition-on-any-other s))
-                                   ;; convert "any-other" transitions into normal transitions (using
-                                   ;; inversion)
-                                   ;; note that we add the created transitions to the closure's
-                                   ;; initial point (actually it doesn't matter which state in the
-                                   ;; closure gets the transitions)
-                                   (let ((splitting-pts (state::collect-char-range-splitting-points
-                                                         closure))
-                                         (split-elements nil))
-                                     (format t "DEBUG: Splitting points: ~s.~&" splitting-pts)
-                                     (state::do-normal-transitions (_ element next-state) closure
-                                       ;; check to avoid inverting an inverted element
-                                       (unless  (eq next-state glue-state)
-                                         (etypecase element
-                                           (elm:char-range-element
-                                            (let ((split-ranges (elm:split-char-range
-                                                                 element splitting-pts)))
-                                              (dolist (r split-ranges)
-                                                (push r split-elements))))
-                                           (elm:single-char-element
-                                            (push element split-elements)))))
-                                     (loop for inv-elem in (elm::invert-elements
-                                                            (elm::sort-simple-elements
-                                                             split-elements))
-                                           do (state:add-nfa-normal-transition state inv-elem
-                                                                               glue-state))))
-                                 (progn
-                                   ;; else: no any-other trans, => traverse closure
-                                   (dolist (s closure)
-                                     (add-inversion-transitions s))))
-                             ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
-                             ;; well?? Not making difference, since inverting any-char gives
-                             ;; "no char")
-                             (state::do-normal-transitions (trans elm next-state) closure
-                               (add-inversion-transitions next-state))))))
-          (add-inversion-transitions input-nfa-state)))
+      (fsm:with-unique-visit (state input-nfa-state add-inversion-transitions)
+        (let ((closure (state:prepare-nfa-state-closure-union (list state))))
+          (if (state::states-have-trans-on-any-other-p closure)
+              (progn
+                ;; clear "any-other" transitions from the whole closure, since
+                ;;we'll convert them to normal transitions
+                ;; TODO: try to avoid having to do this (merge with 1st pass?)
+                (dolist (s closure)
+                  (state:unset-nfa-transition-on-any-other s))
+                ;; convert "any-other" transitions into normal transitions (using
+                ;; inversion)
+                ;; note that we add the created transitions to the closure's
+                ;; initial point (actually it doesn't matter which state in the
+                ;; closure gets the transitions)
+                (let ((splitting-pts (state::collect-char-range-splitting-points closure))
+                      (split-elements nil))
+                  (format t "DEBUG: Splitting points: ~s.~&" splitting-pts)
+                  (state::do-normal-transitions (_ element next-state) closure
+                    ;; check to avoid inverting an inverted element
+                    (unless  (eq next-state glue-state)
+                      (etypecase element
+                        (elm:char-range-element
+                         (let ((split-ranges (elm:split-char-range element splitting-pts)))
+                           (dolist (r split-ranges)
+                             (push r split-elements))))
+                        (elm:single-char-element
+                         (push element split-elements)))))
+                  (loop for inv-elem in (elm::invert-elements
+                                         (elm::sort-simple-elements split-elements))
+                        do (state:add-nfa-normal-transition state inv-elem glue-state))))
+              (progn
+                ;; else: no any-other trans, => traverse closure
+                (dolist (s closure)
+                  (add-inversion-transitions s))))
+          ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
+          ;; well?? Not making difference, since inverting any-char gives
+          ;; "no char")
+          (state::do-normal-transitions (trans elm next-state) closure
+            (add-inversion-transitions next-state))))
       ;; connect the NOT element to the rest of the NFA
       output-state)))
 
