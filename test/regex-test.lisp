@@ -428,6 +428,22 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("xywABwv" nil nil "x") ;same
                       ("" nil nil nil)))
 
+(deftest-n negation-tests-10
+  :desc "Tests triple negation of closure: Expecting same behavior as single negation (see
+`negation-tests-5"
+  :regex (not (not (not (* "AB"))))
+  :test-details-list (("AB" t "A" "A")  ;'tolerance' case (user would expect NO MATCH)
+                      ("ABx" t "A" "A") ; same note
+                      ("ABA" t "ABA" "ABA") ; same note
+                      ("ABABC" t "ABA" "ABA") ; same note
+                      ("ABAB" t "ABA" "ABA") ; same note
+                      ("ABAC" t "ABAC" "ABAC") ; same note
+                      ("AA" t "AA" "AA")
+                      ("AC" t "AC" "AC")
+                      ("ACD" t "AC" "AC")
+                      ("B" t "B" "B")
+                      ("BAB" t "B" "B")
+                      ("" nil nil nil)))
 (deftest-n inv-matching-tests
   :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
