@@ -58,11 +58,11 @@ into a continuation point."
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
   (push dest-state (slot-value orig-state '%auto-transitions)))
 
-(defun delete-auto-transition (state state-to-be-deleted)
-  "Delete NFA state `state-to-be-deleted` from NFA state `state`'s auto transitions. Note that we
-depend on the uniqueness of state objects, hence, we use the default EQL test."
-  (with-slots (%auto-transitions) state
-    (setf %auto-transitions (delete state-to-be-deleted %auto-transitions))))
+(defun delete-auto-transition (orig-state dest-state)
+  "Delete auto transition from `orig-state` to `dest-state`. Note that we depend on the uniqueness
+of state objects, hence, we use the default EQL test."
+  (with-slots (%auto-transitions) orig-state
+    (setf %auto-transitions (delete dest-state %auto-transitions))))
 
 (defun set-nfa-transition-on-any-other (orig-state dest-state)
   "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except in one of two
