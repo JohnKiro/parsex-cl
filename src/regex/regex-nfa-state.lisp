@@ -98,20 +98,28 @@ UPDATE: probably won't need it!"
 
 ;;; TODO: may change recursion into iteration.
 ;;; TODO: may change accumulation in list into a hashtable (for perf).
-;;; TODO: actually can combine previous todos by using fsm-traversal function instead (see
+;;; TODO: check possibility to combine previous todos by using fsm-traversal function instead (see
 ;;; fsm-traversal package.
-;;; NOTE: Since a single instance is created for each state, so address comparison
-;;; (using EQ) is sufficient.
+;;; NOTE: Since a single instance is created for each state, so address comparison (using EQ) is
+;;; sufficient.
 ;;; NOTE: duplication is automatically handled by prepare-nfa-state-closure.
+(defun %accumulate-nfa-state-closure (initial-accumulator state)
+  "Accumulates NFA closure for `state` into `accumulator`, and returns the final accumulator value.
+If `state` is found in the accumulator, it is skipped as the accumulator plays also the role of
+traversal lookup. This is a helper function."
+  (if (member state initial-accumulator :test #'eq)
+      initial-accumulator
+      (let ((accumulator (cons state initial-accumulator))
+            (direct-autos (slot-value state '%auto-transitions)))
+        (reduce #'%accumulate-nfa-state-closure direct-autos :initial-value accumulator))))
+
+(defun prepare-nfa-state-closure (state)
+  "Computes NFA closure for state `state`."
+  (%accumulate-nfa-state-closure nil state))
+
 (defun prepare-nfa-state-closure-union (states)
-  "Extracts a union of NFA closures for a set of states (STATES)."
-  (labels ((prepare-nfa-state-closure (initial-accumulator state)
-             (if (member state initial-accumulator :test #'eq)
-                 initial-accumulator ;state has already been traversed
-                 (let ((accumul (cons state initial-accumulator))
-                       (direct-autos (slot-value state '%auto-transitions)))
-                   (reduce #'prepare-nfa-state-closure direct-autos :initial-value accumul)))))
-    (reduce #'prepare-nfa-state-closure states :initial-value nil)))
+  "Computes a union of NFA closures for a set of states `states`."
+  (reduce #'%accumulate-nfa-state-closure states :initial-value nil))
 
 ;; TODO: considering creating a more general and flexible traversal macro, replacing even the
 ;; FSM traversal generic method

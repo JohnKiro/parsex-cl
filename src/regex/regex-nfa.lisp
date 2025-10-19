@@ -116,7 +116,7 @@ this one from now on."
                   (state:add-nfa-auto-transition state-i output-state)
                   (state:unset-dead-end state-i)))))
     (fsm:with-unique-visit (state input-nfa-state add-inversion-transitions)
-      (let ((closure (state:prepare-nfa-state-closure-union (list state))))
+      (let ((closure (state:prepare-nfa-state-closure state)))
         (if (state::states-have-trans-on-any-other-p closure)
             (progn
               ;; clear "any-other" transitions from the whole closure, since

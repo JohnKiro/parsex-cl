@@ -88,7 +88,7 @@ same NFA closure union. This is because in DFA, both will have the meaning of an
 
 ;;; TODO: produce-dfa and parse-and-produce-dfa can be converted into methods of a single generic
 (defun produce-dfa (nfa-root-state)
-  (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure-union (list nfa-root-state)))
+  (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
         (dfa-state-set (create-dfa-state-set)))
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))

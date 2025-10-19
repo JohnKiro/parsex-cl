@@ -161,6 +161,7 @@
            #:set-nfa-transition-on-any-other
            #:unset-nfa-transition-on-any-other
            #:terminal-nfa-closure-union-p
+           #:prepare-nfa-state-closure
            #:prepare-nfa-state-closure-union
            #:create-nfa-normalized-transition-table
            #:analyze-nfa-state-reachability
