@@ -444,6 +444,53 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("B" t "B" "B")
                       ("BAB" t "B" "B")
                       ("" nil nil nil)))
+
+(deftest-n negation-tests-11
+  :desc "Tests negation of one-or-more. See also `negation-tests-9`."
+  :regex (not (+ "AB"))
+  :test-details-list (("AB" t "A" "A")
+                      ("xAB" t "x" "x")
+                      ("AA" t "AA" "AA")
+                      ("ABAB" t "ABA" "ABA")
+                      ("ABA" t "ABA" "ABA")
+                      ("ABABC" t "ABA" "ABA") ;TODO: tolerance issue? (missing any-other trans?)
+                      ("ABAC" t "ABAC" "ABAC")
+                      ("ACB" t "AC" "AC")
+                      ("BB" t "B" "B") ;same
+                      ("" t nil nil)))
+
+
+(deftest-n negation-tests-12
+  :desc "Tests double negation of one-or-more."
+  :regex (not (not (+ "AB")))
+  :test-details-list (("AB" t "AB" "AB")
+                      ("xAB" nil nil "x")
+                      ("AA" nil nil "A")
+                      ("ABAB" t "ABAB" "ABAB")
+                      ("ABA" t "AB" "AB")
+                      ("ABABC" t "ABAB" "ABAB")
+                      ("ABAC" t "AB" "AB")
+                      ("ACB" nil nil "A")
+                      ("BB" nil nil "B") ;same
+                      ("" nil nil nil)))
+
+(deftest-n negation-tests-13
+  :desc "Tests success for negation of ORing of single char and char range elements. See also
+negation test 2."
+  :regex (not (or #\B #\D (char-range #\L #\S) #\W #\Y))
+  :test-details-list (("Ax" t "A" "A")
+                      ("Bx" t nil "B")
+                      ("Cx" t "C" "C")
+                      ("Dx" t nil "D")
+                      ("Kx" t "K" "K")
+                      ("Lx" t nil "L")
+                      ("Sx" t nil "S")
+                      ("Vx" t "V" "V")
+                      ("Wx" t nil "W")
+                      ("Xx" t "X" "X")
+                      ("Yx" t nil "Y")
+                      ("Zx" t "Z" "Z")
+                      ("" t nil nil)))
 (deftest-n inv-matching-tests
   :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)

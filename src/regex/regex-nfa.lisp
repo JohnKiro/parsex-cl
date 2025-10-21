@@ -107,7 +107,9 @@ this one from now on."
                   ;; affected, test cases pass)
                   (state:delete-auto-transition state-i output-state-inner))
                  (:element-connected
-                  (state:set-nfa-transition-on-any-other state-i glue-state)
+                  ;; add any-other trans, unless this state was marked as dead-end in inner negation
+                  (unless (state:dead-end-p state-i)
+                    (state:set-nfa-transition-on-any-other state-i glue-state))
                   (unless (member state-i inner-cont-pts-closures :test #'eql)
                     ;; TODO: give user the choice (greedy/non-greedy)
                     (state:add-nfa-auto-transition state-i output-state)
