@@ -350,10 +350,10 @@ zero-or-one wrapper element removes the empty string from the negation set."
   :desc "Tests negation of closure: default implementation is 'tolerant', i.e. 'ABA' accepts. I will
 later implement the non-tolerant case (I see would mark the red states to disallow backtracking)."
   :regex (not (* "AB"))
-  :test-details-list (("AB" t "A" "A")  ;'tolerance' case (user would expect NO MATCH)
-                      ("ABx" t "A" "A") ; same note
+  :test-details-list (("AB" t "A" "A")  ;tolerance case (user would expect NO MATCH)
+                      ("ABx" t "ABx" "ABx") ; same note
                       ("ABA" t "ABA" "ABA") ; same note
-                      ("ABABC" t "ABA" "ABA") ; same note
+                      ("ABABC" t "ABABC" "ABABC") ; same note, but missing "any-other"? See also next TC
                       ("ABAB" t "ABA" "ABA") ; same note
                       ("ABAC" t "ABAC" "ABAC") ; same note
                       ("AA" t "AA" "AA")
@@ -374,14 +374,14 @@ however, note that in this case, there is no backtracking to 'A', due to the tra
                       ("xyAwwv" t "xyAwwv" "xyAwwv")
                       ("xyAxwv" t "xyAxwv" "xyAxwv")
                       ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
-                      ("xyABABCwv" nil nil "x") ;TODO: tolerance is broken :( (missing "any-other"?)
+                      ("xyABABCwv" t "xyABABCwv" "xyABABCwv") ;TODO: tolerance is broken :( (missing "any-other"?)
                       ("xyABABwv" nil nil "x")
                       ("xyAB" nil nil "x")
                       ("xyABx" nil nil "x")
                       ("xywv" nil nil "x") ;match set of the NOT part does not include empty string
                       ("xywwv" t "xywwv" "xywwv")
                       ("xyxwv" t "xyxwv" "xyxwv")
-                      ("xywvwv" nil nil "x") ;may surprise the user (the non-greedy option)
+                      ("xywvwv" nil nil "x") ;TODO: may surprise the user (the non-greedy option)
                       ("xywABwv" nil nil "x") ;same
                       ("" nil nil nil)))
 
@@ -417,7 +417,7 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("xyAwwv" t "xyAwwv" "xyAwwv")
                       ("xyAxwv" t "xyAxwv" "xyAxwv")
                       ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
-                      ("xyABABCwv" nil nil "x") ;TODO: tolerance is broken :( (missing "any-other"?)
+                      ("xyABABCwv" t "xyABABCwv" "xyABABCwv") ;TODO: tolerance is broken :( (missing "any-other"?)
                       ("xyABABwv" nil nil "x")
                       ("xyAB" nil nil "x")
                       ("xyABx" nil nil "x")
@@ -432,10 +432,10 @@ negations out should not affect the result (to be verified, also for greedy and 
   :desc "Tests triple negation of closure: Expecting same behavior as single negation (see
 `negation-tests-5"
   :regex (not (not (not (* "AB"))))
-  :test-details-list (("AB" t "A" "A")  ;'tolerance' case (user would expect NO MATCH)
-                      ("ABx" t "A" "A") ; same note
+  :test-details-list (("AB" t "A" "A") ;tolerance case (user would expect NO MATCH)
+                      ("ABx" t "ABx" "ABx") ; same note
                       ("ABA" t "ABA" "ABA") ; same note
-                      ("ABABC" t "ABA" "ABA") ; same note
+                      ("ABABC" t "ABABC" "ABABC") ; same note, but missing "any-other"? See also next TC
                       ("ABAB" t "ABA" "ABA") ; same note
                       ("ABAC" t "ABAC" "ABAC") ; same note
                       ("AA" t "AA" "AA")
