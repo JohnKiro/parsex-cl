@@ -102,10 +102,6 @@ this one from now on."
             do (ecase s-status
                  (:auto-connected
                   (state:set-dead-end state-i)
-                  ;; experimental! (see test cases negation-5 --> negation-10
-                  ;; the idea is: (not #\A) includes {"", "AA", "AB", ...}, but more work is needed
-                  ;; and user may not expect it.
-                  (state:set-nfa-transition-on-any-other state-i glue-state)
                   ;; Cleanup auto transitions, where destination is the output-state-inner.
                   ;; This is just simplification, not needed (cleans up generated NFA, but DFA not
                   ;; affected, test cases pass)
