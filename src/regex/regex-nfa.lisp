@@ -145,10 +145,9 @@ this one from now on."
                 (loop for inv-elem in (elm::invert-elements
                                        (elm::sort-simple-elements split-elements))
                       do (state:add-nfa-normal-transition state inv-elem glue-state))))
-            (progn
-              ;; else: no any-other trans, => traverse closure
-              (dolist (s closure)
-                (add-inversion-transitions s))))
+            ;; else: no any-other trans, => traverse closure
+            (dolist (s closure)
+              (add-inversion-transitions s)))
         ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
         ;; well?? Not making difference, since inverting any-char gives
         ;; "no char")
