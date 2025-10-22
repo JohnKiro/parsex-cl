@@ -68,7 +68,8 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
     (input:with-regex-input-handler-funcall-macros (input:retrieve-last-accumulated-value
                                                     input:retrieve-last-consumed-value
                                                     input:remaining-length
-                                                    input:read-next-item) input-source
+                                                    input:read-next-item
+                                                    input:source-empty-p) input-source
       (when *graphvizdot-nfa*
         (format t "~%Graphviz for NFA:~%~a~%" (graphviz:fsm-to-graphvizdot nfa)))
       (when *graphvizdot-dfa*
@@ -81,10 +82,12 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
           (assert-match-result match-details (match-result matching-status
                                                            updated-acc consumed))
           (when *verbose*
-            (format t "~%Remaining characters in input: ~a~%"
-                    (input:remaining-length))
-            (format t "~%Upcoming character in input: ~a~%"
-                    (input:read-next-item))))))))
+            (format t "~%~%Consumed value: ~a." consumed)
+            (format t "~&Accumulated value: ~a." updated-acc)
+            (format t "~&Result: ~a." result)
+            (format t "~&Remaining characters in input: ~a" (input:remaining-length))
+            (format t "~&Upcoming character in input: ~a~%" (and (not (input:source-empty-p))
+                                                                 (input:read-next-item)))))))))
 
 (defun match-result (match &optional (accumul nil acc-supplied-p) (consum nil cons-supplied-p))
   "Prepare matching result (whether expected or actual) in the form of a plist (GETF-friendly),
