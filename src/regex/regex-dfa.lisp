@@ -19,9 +19,9 @@
                              :initform nil
                              :type (or null dfa-state)
                              :documentation "destination DFA state on any other char")
-   (%candidate-terminal :reader candidate-terminal
-                        :type boolean
-                        :documentation "whether this is accepting state. It is derived from
+   (%candidate-matching-point :reader candidate-matching-point-p
+                              :type boolean
+                              :documentation "whether this is accepting state. It is derived from
 NFA-STATES, but included as separate slot to avoid computation each time it is needed.")
    (%dead-end :initarg :dead-end
               :initform nil
@@ -32,9 +32,9 @@ NFA-STATES, but included as separate slot to avoid computation each time it is n
 
 (defmethod initialize-instance :after ((dfa-state dfa-state) &key)
   "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
-  (with-slots (%nfa-states %candidate-terminal) dfa-state
-    (let ((terminal-or-not (nfa-state:terminal-nfa-closure-union-p %nfa-states)))
-      (setf %candidate-terminal terminal-or-not))))
+  (with-slots (%nfa-states %candidate-matching-point) dfa-state
+    (let ((matching-or-not (nfa-state:terminal-nfa-closure-union-p %nfa-states)))
+      (setf %candidate-matching-point matching-or-not))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
@@ -43,20 +43,27 @@ matching (after DFA is completely constructed).
 NOTE: with the implementation of regex negation, and hence the introduction of dead-end states (that
 have no transitions out, but also are not acceptance), it's not sufficient to identify acceptance
 by just having no transitions out, hence, we're also checking the candidate terminal status. I'm
-still not sure if we'll have such case in DFA, will revise if we need this change."
+still not sure if we'll have such case in DFA, will revise if we need this change.
+UPDATE: I'm also taking dead-end status into consideration, since it should override terminal
+status. Actually I need to investigate this further, as I think this condition should not happen,
+and would indicate bug. Also more likely that the matching function would need to be modified to
+check the dead-end status."
   (and (null (transitions dfa-state))
        (null (transition-on-any-other dfa-state))
-       (candidate-terminal dfa-state)))
+       (candidate-matching-point-p dfa-state)))
 
 (defun dfa-state-dead-end-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is dead-end, in other words, having no
-transitions out, but not candidate terminal (i.e. non-accepting). It must be used only in regex
-matching (after DFA is completely constructed).
+transitions out, but not candidate matching point. It must be used only in regex
+matching (after DFA is completely constructed). UPDATE: not sure which should have priority:
+being candidate matching point or being dead-end. Having both in the same closure could be
+problematic (bug??). I'm still experimenting, and now I'll make dead-end status override candidate
+matching status. Also I see confusion: dead-end in NFA VS dead-end in DFA (different meanings?).
 These states are ones that were negated by an outer negation element. Currently not used, and may
 remove it (see DFA-STATE-DEFINITELY-TERMINAL-P)."
   (and (null (transitions dfa-state))
        (null (transition-on-any-other dfa-state))
-       (not (candidate-terminal dfa-state))))
+       (not (candidate-matching-point-p dfa-state))))
 
 (defun create-dfa-state-set ()
   (make-array 50 :adjustable t :fill-pointer 0))
@@ -160,7 +167,7 @@ distiction clear."
 ;;; ---------
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state dfa-state))
-  (candidate-terminal fsm-state))
+  (candidate-matching-point-p fsm-state))
 
 (defmethod fsm::fsm-dead-end-state-p ((fsm-state dfa-state))
   (dead-end-p fsm-state))

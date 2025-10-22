@@ -26,7 +26,7 @@
                (input:notify-match-termination)
                (make-regex-matching-result :status (if status :regex-matched :regex-not-matched)))
              (transit (origin-dfa-state)
-               (when (dfa:candidate-terminal origin-dfa-state)
+               (when (dfa:candidate-matching-point-p origin-dfa-state)
                  (setf last-candidate-terminal-dfa origin-dfa-state)
                  (input:register-candidate-matching-point))
                (if (dfa:dfa-state-definitely-terminal-p origin-dfa-state)

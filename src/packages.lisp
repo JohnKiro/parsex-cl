@@ -189,7 +189,7 @@
            #:dfa-state
            #:parse-and-produce-dfa ;wrapper that simplifies the above
            #:dfa-state-definitely-terminal-p
-           #:candidate-terminal
+           #:candidate-matching-point-p
            #:dead-end-p
            #:transitions
            #:transition-on-any-other
