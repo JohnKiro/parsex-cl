@@ -232,48 +232,62 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 (defun analyze-nfa-state-reachability (start-state end-state)
   "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
 the traversed states (object reference), and values as condition of each state. Condition is one of:
-:AUTO-CONNECTED - having `end-state` in its closures.
+:AUTO-CONNECTED - having `end-state` in its closure.
 :ELEMENT-CONNECTED - can reach `end-state` via a combination of auto and normal/any-char
 transitions.
+:AUTO-AND-ELEMENT-CONNECTED - having paths of both of the previous types to `end-state`.
 :NOT-CONNECTED - does not reach `end-state` in any way.
 The typical usage is in handling the negation regex."
   (let ((traversal-table (make-hash-table)))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
-its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, or :NOT-CONNECTED). Note that if both auto
-reachability and element reachability are satisfied, auto reachability takes precedence."
-               (format t "DEBUG: Analyzing reachability for state ~a..~&" state)
+its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :NOT-CONNECTED)."
+               #+nil(format t "DEBUG: Analyzing reachability for state ~a..~&" state)
                (or #1=(gethash state traversal-table)
-                   (let ((current-state-status nil))
-                     (format t "DEBUG: Reachability for state ~a not yet checked, checking..~&" state)
-                     (setf current-state-status
-                           (if (eq state end-state)
-                               ;; what about using a separate status for this (e.g. :SAME-STATE)? I mean
-                               ;; it's an extra information that won't harm
-                               :auto-connected
-                               ;; inital (default) status, also marking traversal
-                               :not-connected))
+                   (let ((current-state-status (if (eq state end-state)
+                                                   ;; what about using a separate status for this
+                                                   ;; (e.g. :SAME-STATE)? I mean it's an extra
+                                                   ;; information that won't harm
+                                                   :auto-connected
+                                                   ;; inital (default) status, also marks traversal
+                                                   :not-connected)))
                      (setf #1# current-state-status)
                      (loop for normal-trans-i in (normal-transitions state)
                            for state-status-i = (recurse (trans:next-state normal-trans-i))
-                           unless (eq current-state-status :auto-connected) do
-                             (when (member state-status-i '(:auto-connected :element-connected))
-                               (setf current-state-status :element-connected)))
+                           do (case current-state-status
+                                (:auto-connected
+                                 (unless (eq state-status-i :not-connected)
+                                   (setf current-state-status :auto-and-element-connected)))
+                                (:not-connected
+                                 (unless (eq state-status-i :not-connected)
+                                   (setf current-state-status :element-connected)))))
                      ;;TODO: code very similar to above (hope to remove this duplication)
                      ;; probably I'll end up including the transitions on any char together with
                      ;; the normal transitions (would simplify a lot of code, though not
                      ;; necessarily better for efficiency.
                      (loop for state-i in (transitions-on-any-char state)
                            for state-status-i = (recurse state-i)
-                           unless (eq current-state-status :auto-connected) do
-                             (when (member state-status-i '(:auto-connected :element-connected))
-                               (setf current-state-status :element-connected)))
+                           do (case current-state-status
+                                (:auto-connected
+                                 (unless (eq state-status-i :not-connected)
+                                   (setf current-state-status :auto-and-element-connected)))
+                                (:not-connected
+                                 (unless (eq state-status-i :not-connected)
+                                   (setf current-state-status :element-connected)))))
                      (loop for state-i in (auto-transitions state)
                            for state-status-i = (recurse state-i)
-                           unless (eq current-state-status :auto-connected) do
-                             (when (member state-status-i '(:auto-connected :element-connected))
-                               (setf current-state-status state-status-i)))
-                     (format t "DEBUG: Setting reachability status for ~a to ~a~&" state
+                           do (case current-state-status
+                                (:auto-connected
+                                 (when (or (eq state-status-i :element-connected)
+                                           (eq state-status-i :auto-and-element-connected))
+                                   (setf current-state-status :auto-and-element-connected)))
+                                (:element-connected
+                                 (when (or (eq state-status-i :auto-connected)
+                                           (eq state-status-i :auto-and-element-connected))
+                                   (setf current-state-status :auto-and-element-connected)))
+                                (:not-connected
+                                 (setf current-state-status state-status-i))))
+                     #+nil(format t "DEBUG: Setting reachability status for ~a to ~a~&" state
                              current-state-status)
                      (setf #1# current-state-status)))))
       (recurse start-state)
