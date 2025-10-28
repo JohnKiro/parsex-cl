@@ -101,19 +101,27 @@ this one from now on."
                                                                   :auto-and-element-connected))
                                             collect state-i))))
       ;; TODO: may postpone adding the auto transition to output, since it would cause the
+      ;; output-state to be added to closures processed in 2nd pass below (extra loop iteration
+      ;; without need), but if I split, I'll have another loop at the end.
       (loop for state-i being the hash-keys in state-reachability using (hash-value s-status)
             do (ecase s-status
                  (:auto-connected
+                  ;; I think I'll keep the dead-end meaning to output-state-inner only
                   (state:set-dead-end state-i)
                   ;; experimental! (see test cases negation-5 --> negation-10
                   ;; the idea is: (not #\A) includes {"", "AA", "AB", ...}, but more work is needed
-                  ;; and user may not expect it.
-                  (state:set-nfa-transition-on-any-other state-i glue-state)
+                  ;; and user may not expect it. It may be activated based on an option (TODO)
+                  #+nil(state:set-nfa-transition-on-any-other state-i glue-state)
                   ;; Cleanup auto transitions, where destination is the output-state-inner.
                   ;; This is just simplification, not needed (cleans up generated NFA, but DFA not
                   ;; affected, test cases pass)
                   ;; UPDATE: new meaning of dead-end => should not delete such transition!
                   #+nil(state:delete-auto-transition state-i output-state-inner)
+                  ;; Experimental: remove all auto-transitions out of these ones (in order to remove
+                  ;; all transitions out of the dead-end (inner continuation point)
+                  #+nil(state::delete-auto-transitions state-i)
+                  ;; Experimental: also delete all normal and any-char transitions (for same reason)
+                  #+nil(state::delete-all-outgoing-transitions state-i))
                  (:auto-and-element-connected
                   (state:set-dead-end state-i)
                   (state:set-nfa-transition-on-any-other state-i glue-state))
@@ -131,10 +139,11 @@ this one from now on."
     (fsm:with-unique-visit (state input-nfa-state add-inversion-transitions)
       (let ((closure (state:prepare-nfa-state-closure state)))
         (if (state::states-have-trans-on-any-other-p closure)
+            #+nil(state:transition-on-any-other state)
             (progn
               ;; clear "any-other" transitions from the whole closure, since
-              ;;we'll convert them to normal transitions
-              ;; TODO: try to avoid having to do this (merge with 1st pass?)
+              ;;we'll convert them to normal transitions (inversion)
+              ;; TODO: try to avoid having to do this
               (dolist (s closure)
                 (state:unset-nfa-transition-on-any-other s))
               ;; convert "any-other" transitions into normal transitions (using
@@ -144,10 +153,11 @@ this one from now on."
               ;; closure gets the transitions)
               (let ((splitting-pts (state::collect-char-range-splitting-points closure))
                     (split-elements nil))
-                (format t "DEBUG: Splitting points: ~s.~&" splitting-pts)
+                #+nil(format t "DEBUG: Splitting points: ~s.~&" splitting-pts)
                 (state::do-normal-transitions (_ element next-state) closure
-                  ;; check to avoid inverting an inverted element
-                  (unless  (eq next-state glue-state)
+                  ;; check to avoid inverting an inverted element (not sure if this is possible, but
+                  ;; maybe in NFAs having complex closures, due to recursion)
+                  (unless (eq next-state glue-state)
                     (etypecase element
                       (elm:char-range-element
                        (let ((split-ranges (elm:split-char-range element splitting-pts)))
@@ -163,7 +173,7 @@ this one from now on."
               (add-inversion-transitions s)))
         ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
         ;; well?? Not making difference, since inverting any-char gives
-        ;; "no char")
+        ;; "no char") -- TODO: test (not :any-char)
         (state::do-normal-transitions (trans elm next-state) closure
           (add-inversion-transitions next-state))))
     ;; connect the NOT element to the rest of the NFA

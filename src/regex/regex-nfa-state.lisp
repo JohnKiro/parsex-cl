@@ -33,17 +33,23 @@
 
 (defun set-dead-end (state)
   "Set dead-end flag for state. This is normally called upon NFA negation, to convert a continuation
-point into a dead-end."
-  (setf (slot-value state '%dead-end) t))
+point into a dead-end. It also clears all transitions out of it."
+  (with-slots (#1=%normal-transitions #2=%auto-transitions #3=%transitions-on-any-char #4=%dead-end)
+      state
+    #+nil(setf #1# nil
+          #2# nil
+          #3# nil)
+    ;; TODO: needed??
+    (setf #4# t)))
 
 (defun unset-dead-end (state)
   "Unset dead-end flag for state. This is normally called upon NFA negation, to convert a dead-end
 into a continuation point."
-  (setf (slot-value state '%dead-end) nil))
-
-;;;TODO: CHECK WITH NOT-ELEMENT above (remove one of them?)
-(defclass negated-nfa-state (nfa-state)
-  ((negated-state :initform (error "Negated state is mandatory!") :type nfa-state)))
+  ;; TODO: I think not needed
+  (with-slots (#1=%dead-end) state
+    (when #1#
+      #+nil(error "Shouldn't be set and this shouldn't be needed! BUG??")
+      (setf #1# nil))))
 
 (defun add-nfa-normal-transition (orig-state element dest-state)
   "Add NFA transition from ORIG-STATE, on ELEMENT (chararcter/char-range), to DEST-STATE."
@@ -63,6 +69,18 @@ into a continuation point."
 of state objects, hence, we use the default EQL test."
   (with-slots (%auto-transitions) orig-state
     (setf %auto-transitions (delete dest-state %auto-transitions))))
+
+(defun delete-auto-transitions (orig-state)
+  "Delete all auto transitions from `orig-state`."
+  (setf (slot-value orig-state '%auto-transitions) nil))
+
+(defun delete-all-outgoing-transitions (orig-state)
+  "Delete all outgoing transitions from `orig-state`, including auto, normal, and any-char
+transitions (TODO: may also include any-other - EXPERIMENT!)."
+  (with-slots (#1=%auto-transitions #2=%normal-transitions #3=%transitions-on-any-char) orig-state
+    (setf #1# nil
+          #2# nil
+          #3# nil)))
 
 (defun set-nfa-transition-on-any-other (orig-state dest-state)
   "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except in one of two

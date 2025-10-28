@@ -288,7 +288,7 @@ in a single way, such as NIL or \"\"."
 than #\B, and also accepts the empty string (since empty string is NOT #\B)."
   :regex (not #\B)
   :test-details-list (("Ax" t "A" "A")
-                      ("Bx" t nil "B")
+                      ("Bx" t nil "B") ;'B' consumed based on flag (advance on match on no consump)
                       ("" t nil nil)))
 
 (deftest-n negation-tests-1
