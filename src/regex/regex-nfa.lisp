@@ -97,7 +97,10 @@ this one from now on."
     (let ((inner-cont-pts-closures (state:prepare-nfa-state-closure-union
                                     (loop for state-i being the hash-keys in state-reachability
                                             using (hash-value s-status)
-                                          when (eq s-status :auto-connected) collect state-i))))
+                                          when (member s-status '(:auto-connected
+                                                                  :auto-and-element-connected))
+                                            collect state-i))))
+      ;; TODO: may postpone adding the auto transition to output, since it would cause the
       (loop for state-i being the hash-keys in state-reachability using (hash-value s-status)
             do (ecase s-status
                  (:auto-connected
@@ -109,7 +112,11 @@ this one from now on."
                   ;; Cleanup auto transitions, where destination is the output-state-inner.
                   ;; This is just simplification, not needed (cleans up generated NFA, but DFA not
                   ;; affected, test cases pass)
-                  (state:delete-auto-transition state-i output-state-inner))
+                  ;; UPDATE: new meaning of dead-end => should not delete such transition!
+                  #+nil(state:delete-auto-transition state-i output-state-inner)
+                 (:auto-and-element-connected
+                  (state:set-dead-end state-i)
+                  (state:set-nfa-transition-on-any-other state-i glue-state))
                  (:element-connected
                   ;; add any-other trans, unless this state was marked as dead-end in inner negation
                   (unless (state:dead-end-p state-i)

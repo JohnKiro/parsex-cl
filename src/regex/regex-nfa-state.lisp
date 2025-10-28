@@ -234,64 +234,128 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 the traversed states (object reference), and values as condition of each state. Condition is one of:
 :AUTO-CONNECTED - having `end-state` in its closure.
 :ELEMENT-CONNECTED - can reach `end-state` via a combination of auto and normal/any-char
-transitions.
+transitions (but is not having `end-state` in its closure).
 :AUTO-AND-ELEMENT-CONNECTED - having paths of both of the previous types to `end-state`.
 :NOT-CONNECTED - does not reach `end-state` in any way.
 The typical usage is in handling the negation regex."
-  (let ((traversal-table (make-hash-table)))
+  (let ((output-table (make-hash-table))
+        (traversal-table (make-hash-table))
+        (pending-states-table (make-hash-table))
+        (confirmed-states-table (make-hash-table))
+        (iteration-count 5))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
 its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :NOT-CONNECTED)."
                #+nil(format t "DEBUG: Analyzing reachability for state ~a..~&" state)
-               (or #1=(gethash state traversal-table)
-                   (let ((current-state-status (if (eq state end-state)
-                                                   ;; what about using a separate status for this
-                                                   ;; (e.g. :SAME-STATE)? I mean it's an extra
-                                                   ;; information that won't harm
-                                                   :auto-connected
-                                                   ;; inital (default) status, also marks traversal
-                                                   :not-connected)))
-                     (setf #1# current-state-status)
-                     (loop for normal-trans-i in (normal-transitions state)
-                           for state-status-i = (recurse (trans:next-state normal-trans-i))
-                           do (case current-state-status
-                                (:auto-connected
-                                 (unless (eq state-status-i :not-connected)
-                                   (setf current-state-status :auto-and-element-connected)))
-                                (:not-connected
-                                 (unless (eq state-status-i :not-connected)
-                                   (setf current-state-status :element-connected)))))
-                     ;;TODO: code very similar to above (hope to remove this duplication)
-                     ;; probably I'll end up including the transitions on any char together with
-                     ;; the normal transitions (would simplify a lot of code, though not
-                     ;; necessarily better for efficiency.
-                     (loop for state-i in (transitions-on-any-char state)
-                           for state-status-i = (recurse state-i)
-                           do (case current-state-status
-                                (:auto-connected
-                                 (unless (eq state-status-i :not-connected)
-                                   (setf current-state-status :auto-and-element-connected)))
-                                (:not-connected
-                                 (unless (eq state-status-i :not-connected)
-                                   (setf current-state-status :element-connected)))))
-                     (loop for state-i in (auto-transitions state)
-                           for state-status-i = (recurse state-i)
-                           do (case current-state-status
-                                (:auto-connected
-                                 (when (or (eq state-status-i :element-connected)
-                                           (eq state-status-i :auto-and-element-connected))
-                                   (setf current-state-status :auto-and-element-connected)))
-                                (:element-connected
-                                 (when (or (eq state-status-i :auto-connected)
-                                           (eq state-status-i :auto-and-element-connected))
-                                   (setf current-state-status :auto-and-element-connected)))
-                                (:not-connected
-                                 (setf current-state-status state-status-i))))
-                     #+nil(format t "DEBUG: Setting reachability status for ~a to ~a~&" state
-                             current-state-status)
-                     (setf #1# current-state-status)))))
-      (recurse start-state)
-      traversal-table)))
+               (let (auto-connected
+                     element-connected
+                     to-be-revisited
+                     current-state-status)
+                 (setf current-state-status (or #1=(gethash state output-table)
+                                                (and (eq state end-state) :auto-connected)
+                                                ;; inital status
+                                                :not-connected))
+                 (case current-state-status
+                   (:auto-connected (setf auto-connected t))
+                   (:element-connected (setf element-connected t))
+                   (:auto-and-element-connected (setf auto-connected t
+                                                      element-connected t)))
+                 (format t "Analyzing reachability for state ~a ..~%" state)
+                 (format t "---------------------------------------------------~%")
+                 ;;(break)
+                 ;; TODO: merge with following UNLESS into if/else.
+                 (when (gethash state traversal-table)
+                   #+nil(unless (eq current-state-status :auto-and-element-connected)
+                          (setf (gethash state pending-states-table) t)
+                          (setf to-be-revisited t))
+                   (unless (gethash state confirmed-states-table)
+                     (setf to-be-revisited t)))
+                 (unless (gethash state traversal-table)
+                   (setf (gethash state traversal-table) t)
+                   (dolist (normal-trans-i (normal-transitions state))
+                     (let ((state-i (trans:next-state normal-trans-i)))
+                       (format t "Handling transition on ~a to ~a ..~%"
+                               (trans:element normal-trans-i)
+                               state-i)
+                       (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                           (recurse state-i)
+                         (unless element-connected ;avoid redundant hash table updates
+                           (if (setf element-connected (or auto-connected-i element-connected-i))
+                               (progn (if auto-connected
+                                          (setf #1# :auto-and-element-connected)
+                                          (setf #1# :element-connected))
+                                      (setf to-be-revisited nil))
+                               (when to-be-revisited-i
+                                 ;; propagate revised flag only if no element conn found so far
+                                 (setf to-be-revisited t)))))))
+                   ;;TODO: code very similar to above (hope to remove this duplication)
+                   ;; probably I'll end up including the transitions on any char together with
+                   ;; the normal transitions (would simplify a lot of code, though not
+                   ;; necessarily better for efficiency.
+                   (dolist (state-i (transitions-on-any-char state))
+                     (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                         (recurse state-i)
+                       (unless element-connected ;avoid redundant hash table updates
+                         (if (setf element-connected (or auto-connected-i element-connected-i))
+                             (progn (if auto-connected
+                                        (setf #1# :auto-and-element-connected)
+                                        (setf #1# :element-connected))
+                                    (setf to-be-revisited nil))
+                             (when to-be-revisited-i
+                               ;; propagate revised flag only if no element conn found so far
+                               (setf to-be-revisited t))))))
+                   (dolist (state-i (auto-transitions state))
+                     (format t "Handling auto transition to ~a ..~%" state-i)
+                     (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                         (recurse state-i)
+                       (unless (and auto-connected element-connected) ;avoid unnecessary processing
+                         (when auto-connected-i
+                           (setf auto-connected t))
+                         (when element-connected-i
+                           (setf element-connected t))
+                         (if auto-connected
+                             (if element-connected
+                                 (setf #1# :auto-and-element-connected)
+                                 (setf #1# :auto-connected))
+                             (if element-connected
+                                 (setf #1# :element-connected)
+                                 (setf #1# :not-connected)))
+                         (if (and auto-connected element-connected) ;skip revisiting if settled
+                             (setf to-be-revisited nil)
+                             (when to-be-revisited-i
+                               ;; transition needs to be revisited, so does current state as well.
+                               (setf to-be-revisited t))))))
+                   ;; conclusion based on all traversed element transitions
+                   ;; this IF form is needed, since not all states have transitions out, so the
+                   ;; above incremental updates won't apply to them
+                   (if auto-connected
+                       (if element-connected
+                           (setf #1# :auto-and-element-connected)
+                           (setf #1# :auto-connected))
+                       (if element-connected
+                           (setf #1# :element-connected)
+                           (setf #1# :not-connected)))
+                   (if (and #+nil(not (and auto-connected element-connected))
+                            to-be-revisited)
+                       ;; state analysis not fully determined
+                       (setf (gethash state pending-states-table) :pending)
+                       ;; state analysis fully determined
+                       (progn
+                         (remhash state pending-states-table)
+                         (setf (gethash state confirmed-states-table) t))))
+                 (format t "State ~a traversal status: to-be-revisited = ~a, auto-connected = ~a,
+  element-connected = ~a.~%" state to-be-revisited auto-connected element-connected)
+                 (values to-be-revisited auto-connected element-connected))))
+      (loop
+        (format t "NFA state reachability analysis iteration # ~a, pending states: ~a ..~%"
+                iteration-count (hash-table-count pending-states-table))
+        (format t "==============================================================~%")
+        (setf traversal-table (make-hash-table))
+        (recurse start-state)
+        (decf iteration-count)
+        (when (or (zerop (hash-table-count pending-states-table))
+                  (<= iteration-count 0)) ;just during testing, to avoid infinite loop in case of bug
+          (return output-table))))))
 
 (defun states-have-trans-on-any-other-p (nfa-states)
   "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`

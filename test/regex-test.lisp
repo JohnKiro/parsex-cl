@@ -456,7 +456,7 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("AA" t "AA" "AA")
                       ("ABAB" t "ABA" "ABA")
                       ("ABA" t "ABA" "ABA")
-                      ("ABABC" t "ABA" "ABA") ;TODO: tolerance issue? (missing any-other trans?)
+                      ("ABABC" t "ABABC" "ABABC")
                       ("ABAC" t "ABAC" "ABAC")
                       ("ACB" t "AC" "AC")
                       ("BB" t "B" "B") ;same
@@ -494,6 +494,16 @@ negation test 2."
                       ("Yx" t nil "Y")
                       ("Zx" t "Z" "Z")
                       ("" t nil nil)))
+
+(deftest-n negation-tests-14
+  :desc "Tests negation of ORing, including inner negation."
+  :regex (not (or #\B (not #\E)))
+  :test-details-list (("BA" nil nil "B")
+                      ("E" t "E" "E")
+                      ("Ex" t "E" "E")
+                      ("xE" nil nil "x")
+                      ("" nil nil nil)))
+
 (deftest-n inv-matching-tests
   :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
