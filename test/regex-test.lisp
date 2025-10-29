@@ -311,7 +311,10 @@ includes empty string."
 
 (deftest-n negation-tests-2
   :desc "Tests success and failure for negation of ORing of single char and char range elements, the
-zero-or-one wrapper element removes the empty string from the negation set."
+zero-or-one wrapper element removes the empty string from the negation set. Note that negation here
+is inherently intolerant, for example, 'Bx' is not accepted, unlike the case for */+, which is
+inherently tolerant. This difference is caused by the way we handle :auto-and-element-connected
+states (found in */+, but not here). Later, may control this handling (config/regex option)."
   :regex (not (? (or #\B #\D (char-range #\L #\S) #\W #\Y)))
   :test-details-list (("Ax" t "A" "A")
                       ("Bx" nil nil "B")
@@ -351,7 +354,8 @@ zero-or-one wrapper element removes the empty string from the negation set."
 
 (deftest-n negation-tests-5
   :desc "Tests negation of closure: default implementation is 'tolerant', i.e. 'ABA' accepts. I will
-later implement the non-tolerant case (I see would mark the red states to disallow backtracking)."
+later implement the non-tolerant case (I see would mark the red states to disallow backtracking, and
+also probably will change/control the handling of the :auto-and-element-connected states)."
   :regex (not (* "AB"))
   :test-details-list (("AB" t "A" "A")  ;tolerance case (user would expect NO MATCH)
                       ("ABx" t "ABx" "ABx") ; same note
@@ -366,8 +370,6 @@ later implement the non-tolerant case (I see would mark the red states to disall
                       ("BAB" t "B" "B")
                       ("" nil nil nil)))
 
-;; TODO: recheck "xyABABCwv" (missing any-other?), comparing with NFA and DFA generated with old
-;; algo (see chapter 8 in ODT).
 (deftest-n negation-tests-6
   :desc "Tests negation of closure, inside a sequence. See notes about tolerance in previous TC,
 however, note that in this case, there is no backtracking to 'A', due to the trailing 'wv'."
@@ -376,8 +378,8 @@ however, note that in this case, there is no backtracking to 'A', due to the tra
                       ("xyAwv" t "xyAwv" "xyAwv")
                       ("xyAwwv" t "xyAwwv" "xyAwwv")
                       ("xyAxwv" t "xyAxwv" "xyAxwv")
-                      ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
-                      ("xyABABCwv" t "xyABABCwv" "xyABABCwv") ;TODO: tolerance is broken :( (missing "any-other"?)
+                      ("xyABAwv" t "xyABAwv" "xyABAwv") ;note the tolerance (default)
+                      ("xyABABCwv" t "xyABABCwv" "xyABABCwv") ;same
                       ("xyABABwv" nil nil "x")
                       ("xyAB" nil nil "x")
                       ("xyABx" nil nil "x")
@@ -419,8 +421,8 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("xyAwv" t "xyAwv" "xyAwv")
                       ("xyAwwv" t "xyAwwv" "xyAwwv")
                       ("xyAxwv" t "xyAxwv" "xyAxwv")
-                      ("xyABAwv" t "xyABAwv" "xyABAwv") ; note the tolerance (default)
-                      ("xyABABCwv" t "xyABABCwv" "xyABABCwv") ;TODO: tolerance is broken :( (missing "any-other"?)
+                      ("xyABAwv" t "xyABAwv" "xyABAwv") ;note the tolerance (default)
+                      ("xyABABCwv" t "xyABABCwv" "xyABABCwv") ;same
                       ("xyABABwv" nil nil "x")
                       ("xyAB" nil nil "x")
                       ("xyABx" nil nil "x")
@@ -438,7 +440,7 @@ negations out should not affect the result (to be verified, also for greedy and 
   :test-details-list (("AB" t "A" "A") ;tolerance case (user would expect NO MATCH)
                       ("ABx" t "ABx" "ABx") ; same note
                       ("ABA" t "ABA" "ABA") ; same note
-                      ("ABABC" t "ABABC" "ABABC") ; same note, but missing "any-other"? See also next TC
+                      ("ABABC" t "ABABC" "ABABC") ; same note
                       ("ABAB" t "ABA" "ABA") ; same note
                       ("ABAC" t "ABAC" "ABAC") ; same note
                       ("AA" t "AA" "AA")
@@ -461,7 +463,6 @@ negations out should not affect the result (to be verified, also for greedy and 
                       ("ACB" t "AC" "AC")
                       ("BB" t "B" "B") ;same
                       ("" t nil nil)))
-
 
 (deftest-n negation-tests-12
   :desc "Tests double negation of one-or-more."
