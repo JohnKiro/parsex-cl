@@ -360,7 +360,8 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                        ;; state analysis fully determined
                        (progn
                          (remhash state pending-states-table)
-                         (setf (gethash state confirmed-states-table) t))))
+                         (setf (gethash state confirmed-states-table) t)))
+                   (remhash state traversal-table))
                  (format t "State ~a traversal status: to-be-revisited = ~a, auto-connected = ~a,
   element-connected = ~a.~%" state to-be-revisited auto-connected element-connected)
                  (values to-be-revisited auto-connected element-connected))))
@@ -368,8 +369,8 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
         (format t "NFA state reachability analysis iteration # ~a, pending states: ~a ..~%"
                 iteration-count (hash-table-count pending-states-table))
         (format t "==============================================================~%")
-        (setf traversal-table (make-hash-table))
         (recurse start-state)
+        #+debug (assert (zerop (hash-table-count traversal-table)))
         (decf iteration-count)
         (when (or (zerop (hash-table-count pending-states-table))
                   (<= iteration-count 0)) ;just during testing, to avoid infinite loop in case of bug
