@@ -278,23 +278,14 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                    (:element-connected (setf element-connected t))
                    (:auto-and-element-connected (setf auto-connected t
                                                       element-connected t)))
-                 (format t "Analyzing reachability for state ~a ..~%" state)
-                 (format t "---------------------------------------------------~%")
-                 ;;(break)
                  ;; TODO: merge with following UNLESS into if/else.
                  (when (gethash state traversal-table)
-                   #+nil(unless (eq current-state-status :auto-and-element-connected)
-                          (setf (gethash state pending-states-table) t)
-                          (setf to-be-revisited t))
                    (unless (gethash state confirmed-states-table)
                      (setf to-be-revisited t)))
                  (unless (gethash state traversal-table)
                    (setf (gethash state traversal-table) t)
                    (dolist (normal-trans-i (normal-transitions state))
                      (let ((state-i (trans:next-state normal-trans-i)))
-                       (format t "Handling transition on ~a to ~a ..~%"
-                               (trans:element normal-trans-i)
-                               state-i)
                        (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
                            (recurse state-i)
                          (unless element-connected ;avoid redundant hash table updates
@@ -327,7 +318,6 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                ;; propagate revised flag only if no element conn found so far
                                (setf to-be-revisited t))))))
                    (dolist (state-i (auto-transitions state))
-                     (format t "Handling auto transition to ~a ..~%" state-i)
                      (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
                          (recurse state-i)
                        (unless (and auto-connected element-connected) ;avoid unnecessary processing
@@ -368,13 +358,8 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                          (remhash state pending-states-table)
                          (setf (gethash state confirmed-states-table) t)))
                    (remhash state traversal-table))
-                 (format t "State ~a traversal status: to-be-revisited = ~a, auto-connected = ~a,
-  element-connected = ~a.~%" state to-be-revisited auto-connected element-connected)
                  (values to-be-revisited auto-connected element-connected))))
       (loop
-        (format t "NFA state reachability analysis iteration # ~a, pending states: ~a ..~%"
-                iteration-count (hash-table-count pending-states-table))
-        (format t "==============================================================~%")
         (recurse start-state)
         #+debug (assert (zerop (hash-table-count traversal-table)))
         (decf iteration-count)
