@@ -300,7 +300,9 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                          (unless element-connected ;avoid redundant hash table updates
                            (if (setf element-connected (or auto-connected-i element-connected-i))
                                (progn (if auto-connected
-                                          (setf #1# :auto-and-element-connected)
+                                          (progn
+                                            (setf #1# :auto-and-element-connected)
+                                            (setf (gethash state confirmed-states-table) t))
                                           (setf #1# :element-connected))
                                       (setf to-be-revisited nil))
                                (when to-be-revisited-i
@@ -316,7 +318,9 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                        (unless element-connected ;avoid redundant hash table updates
                          (if (setf element-connected (or auto-connected-i element-connected-i))
                              (progn (if auto-connected
-                                        (setf #1# :auto-and-element-connected)
+                                        (progn
+                                          (setf #1# :auto-and-element-connected)
+                                          (setf (gethash state confirmed-states-table) t))
                                         (setf #1# :element-connected))
                                     (setf to-be-revisited nil))
                              (when to-be-revisited-i
@@ -333,16 +337,19 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                            (setf element-connected t))
                          (if auto-connected
                              (if element-connected
-                                 (setf #1# :auto-and-element-connected)
+                                 (progn
+                                   (setf #1# :auto-and-element-connected)
+                                        ;skip revisiting if settled
+                                   (setf to-be-revisited nil)
+                                   (setf (gethash state confirmed-states-table) t))
                                  (setf #1# :auto-connected))
                              (if element-connected
                                  (setf #1# :element-connected)
                                  (setf #1# :not-connected)))
-                         (if (and auto-connected element-connected) ;skip revisiting if settled
-                             (setf to-be-revisited nil)
-                             (when to-be-revisited-i
-                               ;; transition needs to be revisited, so does current state as well.
-                               (setf to-be-revisited t))))))
+                         (unless (and auto-connected element-connected)
+                           (when to-be-revisited-i
+                             ;; transition needs to be revisited, so does current state as well.
+                             (setf to-be-revisited t))))))
                    ;; conclusion based on all traversed element transitions
                    ;; this IF form is needed, since not all states have transitions out, so the
                    ;; above incremental updates won't apply to them
@@ -353,8 +360,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                        (if element-connected
                            (setf #1# :element-connected)
                            (setf #1# :not-connected)))
-                   (if (and #+nil(not (and auto-connected element-connected))
-                            to-be-revisited)
+                   (if to-be-revisited
                        ;; state analysis not fully determined
                        (setf (gethash state pending-states-table) :pending)
                        ;; state analysis fully determined
