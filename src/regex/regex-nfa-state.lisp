@@ -267,13 +267,9 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                #+nil(format t "DEBUG: Analyzing reachability for state ~a..~&" state)
                (let (auto-connected
                      element-connected
-                     to-be-revisited
-                     current-state-status)
-                 (setf current-state-status (or #1=(gethash state output-table)
-                                                (and (eq state end-state) :auto-connected)
-                                                ;; inital status
-                                                :not-connected))
-                 (case current-state-status
+                     to-be-revisited)
+                 (case (or #1=(gethash state output-table)
+                           (and (eq state end-state) :auto-connected))
                    (:auto-connected (setf auto-connected t))
                    (:element-connected (setf element-connected t))
                    (:auto-and-element-connected (setf auto-connected t
