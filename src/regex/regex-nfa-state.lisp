@@ -265,95 +265,92 @@ The typical usage is in handling the negation regex."
                "Recursively handle state and all states reachable from it, and return indication of
 its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :NOT-CONNECTED)."
                #+nil(format t "DEBUG: Analyzing reachability for state ~a..~&" state)
-               (let (auto-connected
-                     element-connected
-                     to-be-revisited)
+               (let (auto-connected element-connected to-be-revisited)
                  (case (or #1=(gethash state output-table)
                            (and (eq state end-state) :auto-connected))
                    (:auto-connected (setf auto-connected t))
                    (:element-connected (setf element-connected t))
                    (:auto-and-element-connected (setf auto-connected t
                                                       element-connected t)))
-                 ;; TODO: merge with following UNLESS into if/else.
-                 (when (gethash state traversal-table)
-                   (unless (gethash state confirmed-states-table)
-                     (setf to-be-revisited t)))
-                 (unless (gethash state traversal-table)
-                   (setf (gethash state traversal-table) t)
-                   (dolist (normal-trans-i (normal-transitions state))
-                     (let ((state-i (trans:next-state normal-trans-i)))
-                       (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
-                           (recurse state-i)
-                         (unless element-connected ;avoid redundant hash table updates
-                           (if (setf element-connected (or auto-connected-i element-connected-i))
-                               (progn (if auto-connected
-                                          (progn
-                                            (setf #1# :auto-and-element-connected)
-                                            (setf (gethash state confirmed-states-table) t))
-                                          (setf #1# :element-connected))
-                                      (setf to-be-revisited nil))
-                               (when to-be-revisited-i
-                                 ;; propagate revised flag only if no element conn found so far
-                                 (setf to-be-revisited t)))))))
-                   ;;TODO: code very similar to above (hope to remove this duplication)
-                   ;; probably I'll end up including the transitions on any char together with
-                   ;; the normal transitions (would simplify a lot of code, though not
-                   ;; necessarily better for efficiency.
-                   (dolist (state-i (transitions-on-any-char state))
-                     (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
-                         (recurse state-i)
-                       (unless element-connected ;avoid redundant hash table updates
-                         (if (setf element-connected (or auto-connected-i element-connected-i))
-                             (progn (if auto-connected
-                                        (progn
-                                          (setf #1# :auto-and-element-connected)
-                                          (setf (gethash state confirmed-states-table) t))
-                                        (setf #1# :element-connected))
-                                    (setf to-be-revisited nil))
-                             (when to-be-revisited-i
-                               ;; propagate revised flag only if no element conn found so far
-                               (setf to-be-revisited t))))))
-                   (dolist (state-i (auto-transitions state))
-                     (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
-                         (recurse state-i)
-                       (unless (and auto-connected element-connected) ;avoid unnecessary processing
-                         (when auto-connected-i
-                           (setf auto-connected t))
-                         (when element-connected-i
-                           (setf element-connected t))
-                         (if auto-connected
-                             (if element-connected
-                                 (progn
-                                   (setf #1# :auto-and-element-connected)
+                 (if (gethash state traversal-table)
+                     (unless (gethash state confirmed-states-table)
+                       (setf to-be-revisited t))
+                     (progn
+                       (setf (gethash state traversal-table) t)
+                       (dolist (normal-trans-i (normal-transitions state))
+                         (let ((state-i (trans:next-state normal-trans-i)))
+                           (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                               (recurse state-i)
+                             (unless element-connected ;avoid redundant hash table updates
+                               (if (setf element-connected (or auto-connected-i element-connected-i))
+                                   (progn (if auto-connected
+                                              (progn
+                                                (setf #1# :auto-and-element-connected)
+                                                (setf (gethash state confirmed-states-table) t))
+                                              (setf #1# :element-connected))
+                                          (setf to-be-revisited nil))
+                                   (when to-be-revisited-i
+                                     ;; propagate revised flag only if no element conn found so far
+                                     (setf to-be-revisited t)))))))
+                       ;;TODO: code very similar to above (hope to remove this duplication)
+                       ;; probably I'll end up including the transitions on any char together with
+                       ;; the normal transitions (would simplify a lot of code, though not
+                       ;; necessarily better for efficiency.
+                       (dolist (state-i (transitions-on-any-char state))
+                         (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                             (recurse state-i)
+                           (unless element-connected ;avoid redundant hash table updates
+                             (if (setf element-connected (or auto-connected-i element-connected-i))
+                                 (progn (if auto-connected
+                                            (progn
+                                              (setf #1# :auto-and-element-connected)
+                                              (setf (gethash state confirmed-states-table) t))
+                                            (setf #1# :element-connected))
+                                        (setf to-be-revisited nil))
+                                 (when to-be-revisited-i
+                                   ;; propagate revised flag only if no element conn found so far
+                                   (setf to-be-revisited t))))))
+                       (dolist (state-i (auto-transitions state))
+                         (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                             (recurse state-i)
+                           (unless (and auto-connected element-connected) ;avoid unnecessary processing
+                             (when auto-connected-i
+                               (setf auto-connected t))
+                             (when element-connected-i
+                               (setf element-connected t))
+                             (if auto-connected
+                                 (if element-connected
+                                     (progn
+                                       (setf #1# :auto-and-element-connected)
                                         ;skip revisiting if settled
-                                   (setf to-be-revisited nil)
-                                   (setf (gethash state confirmed-states-table) t))
-                                 (setf #1# :auto-connected))
-                             (if element-connected
-                                 (setf #1# :element-connected)
-                                 (setf #1# :not-connected)))
-                         (unless (and auto-connected element-connected)
-                           (when to-be-revisited-i
-                             ;; transition needs to be revisited, so does current state as well.
-                             (setf to-be-revisited t))))))
-                   ;; conclusion based on all traversed element transitions
-                   ;; this IF form is needed, since not all states have transitions out, so the
-                   ;; above incremental updates won't apply to them
-                   (if auto-connected
-                       (if element-connected
-                           (setf #1# :auto-and-element-connected)
-                           (setf #1# :auto-connected))
-                       (if element-connected
-                           (setf #1# :element-connected)
-                           (setf #1# :not-connected)))
-                   (if to-be-revisited
-                       ;; state analysis not fully determined
-                       (setf (gethash state pending-states-table) :pending)
-                       ;; state analysis fully determined
-                       (progn
-                         (remhash state pending-states-table)
-                         (setf (gethash state confirmed-states-table) t)))
-                   (remhash state traversal-table))
+                                       (setf to-be-revisited nil)
+                                       (setf (gethash state confirmed-states-table) t))
+                                     (setf #1# :auto-connected))
+                                 (if element-connected
+                                     (setf #1# :element-connected)
+                                     (setf #1# :not-connected)))
+                             (unless (and auto-connected element-connected)
+                               (when to-be-revisited-i
+                                 ;; transition needs to be revisited, so does current state as well.
+                                 (setf to-be-revisited t))))))
+                       ;; conclusion based on all traversed element transitions
+                       ;; this IF form is needed, since not all states have transitions out, so the
+                       ;; above incremental updates won't apply to them
+                       (if auto-connected
+                           (if element-connected
+                               (setf #1# :auto-and-element-connected)
+                               (setf #1# :auto-connected))
+                           (if element-connected
+                               (setf #1# :element-connected)
+                               (setf #1# :not-connected)))
+                       (if to-be-revisited
+                           ;; state analysis not fully determined
+                           (setf (gethash state pending-states-table) :pending)
+                           ;; state analysis fully determined
+                           (progn
+                             (remhash state pending-states-table)
+                             (setf (gethash state confirmed-states-table) t)))
+                       (remhash state traversal-table)))
                  (values to-be-revisited auto-connected element-connected))))
       (loop
         (recurse start-state)
