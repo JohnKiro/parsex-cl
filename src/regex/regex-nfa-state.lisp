@@ -307,9 +307,10 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                               (setf (gethash state confirmed-states-table) t))
                                             (setf #1# :element-connected))
                                         (setf to-be-revisited nil))
-                                 (when to-be-revisited-i
-                                   ;; propagate revised flag only if no element conn found so far
-                                   (setf to-be-revisited t))))))
+                                 (unless to-be-revisited
+                                   (when to-be-revisited-i
+                                     ;; propagate revised flag only if no element conn found so far
+                                     (setf to-be-revisited t)))))))
                        (dolist (state-i (auto-transitions state))
                          (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
                              (recurse state-i)
@@ -329,7 +330,8 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                  (if element-connected
                                      (setf #1# :element-connected)
                                      (setf #1# :not-connected)))
-                             (unless (and auto-connected element-connected)
+                             (unless (or to-be-revisited
+                                         (and auto-connected element-connected))
                                (when to-be-revisited-i
                                  ;; transition needs to be revisited, so does current state as well.
                                  (setf to-be-revisited t))))))
