@@ -247,6 +247,26 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
 ;;; states as a useful by-product.
+;;; TODO: Currently traversal starts with element transitions, then auto transitions. Think about the
+;;; other order (auto then element).
+;;; Some notes about the implementation:
+;;; - since NFA is generally cyclic graph, so I have to not only keep track of traversal, but also I try
+;;; to collect as much info as possible about each state as soon as possible, since this will help
+;;; resolve the type of other states as well (noting the recursive traversal).
+;;; - Element transitions contribute to resolution of :element-connected status, so once this status is
+;;; determined for a given state, we set to-be-revisited to false for that state, regardless of whether
+;;; the remaining element transitions in the loop need to be revisited or not. Auto transitions on the
+;;; other hand contribute to resolution of both :element-connected, :auto-connected, and
+;;; :auto-and-element-connected statuses.
+;;; - I tried to avoid SETF unless necessary, that's why the code has many WHEN and UNLESS forms that
+;;; check whether a SETF is needed.
+;;; - The only reason I'm using a separate table for the confirmed states' statuses (rather than keeping
+;;; that info in a single table together with the pending-states-table, is to make the check of
+;;; resolution completion as simple as checking for empty pending-states-table (rather than checking
+;;; all entries, ensuring none has 'pending' condition). HOWEVER, I see a simple way to monitor
+;;; resolution progress is to keep flags that are updated whenever a state has been updated recently
+;;; (with pending/resolved) status, so if an iteration is performed without any progress, we consider
+;;; the resolution is completed. I will consider trying this in upcoming revision.
 (defun analyze-nfa-state-reachability (start-state end-state)
   "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
 the traversed states (object reference), and values as condition of each state. Condition is one of:
@@ -297,7 +317,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                        (dolist (state-i (transitions-on-any-char state))
                          (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
                              (recurse state-i)
-                           (unless element-connected ;avoid redundant hash table updates
+                           (unless element-connected ;already settled?
                              (if (setf element-connected (or auto-connected-i element-connected-i))
                                  (progn (if auto-connected
                                             (setf #1# :auto-and-element-connected
