@@ -278,20 +278,18 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                      (progn
                        (setf (gethash state traversal-table) t)
                        (dolist (normal-trans-i (normal-transitions state))
-                         (let ((state-i (trans:next-state normal-trans-i)))
-                           (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
-                               (recurse state-i)
-                             (unless element-connected ;avoid redundant hash table updates
-                               (if (setf element-connected (or auto-connected-i element-connected-i))
-                                   (progn (if auto-connected
-                                              (progn
-                                                (setf #1# :auto-and-element-connected)
-                                                (setf (gethash state confirmed-states-table) t))
-                                              (setf #1# :element-connected))
-                                          (setf to-be-revisited nil))
-                                   (when to-be-revisited-i
-                                     ;; propagate revised flag only if no element conn found so far
-                                     (setf to-be-revisited t)))))))
+                         (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                             (recurse (trans:next-state normal-trans-i))
+                           (unless element-connected ;already settled?
+                             (if (setf element-connected (or auto-connected-i element-connected-i))
+                                 (progn (if auto-connected
+                                            (setf #1# :auto-and-element-connected
+                                                  (gethash state confirmed-states-table) t)
+                                            (setf #1# :element-connected))
+                                        (setf to-be-revisited nil))
+                                 (when to-be-revisited-i
+                                   ;; propagate revised flag only if no element conn found so far
+                                   (setf to-be-revisited t))))))
                        ;;TODO: code very similar to above (hope to remove this duplication)
                        ;; probably I'll end up including the transitions on any char together with
                        ;; the normal transitions (would simplify a lot of code, though not
