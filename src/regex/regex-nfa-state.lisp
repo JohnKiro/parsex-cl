@@ -300,9 +300,8 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                            (unless element-connected ;avoid redundant hash table updates
                              (if (setf element-connected (or auto-connected-i element-connected-i))
                                  (progn (if auto-connected
-                                            (progn
-                                              (setf #1# :auto-and-element-connected)
-                                              (setf (gethash state confirmed-states-table) t))
+                                            (setf #1# :auto-and-element-connected
+                                                  (gethash state confirmed-states-table) t)
                                             (setf #1# :element-connected))
                                         (setf to-be-revisited nil))
                                  (unless to-be-revisited
@@ -319,11 +318,10 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                (setf element-connected t))
                              (if auto-connected
                                  (if element-connected
-                                     (progn
-                                       (setf #1# :auto-and-element-connected)
-                                        ;skip revisiting if settled
-                                       (setf to-be-revisited nil)
-                                       (setf (gethash state confirmed-states-table) t))
+                                     (setf #1# :auto-and-element-connected
+                                           ;;skip revisiting (settled)
+                                           to-be-revisited nil
+                                           (gethash state confirmed-states-table) t)
                                      (setf #1# :auto-connected))
                                  (if element-connected
                                      (setf #1# :element-connected)
