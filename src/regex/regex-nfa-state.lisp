@@ -260,13 +260,9 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; :auto-and-element-connected statuses.
 ;;; - I tried to avoid SETF unless necessary, that's why the code has many WHEN and UNLESS forms that
 ;;; check whether a SETF is needed.
-;;; - The only reason I'm using a separate table for the confirmed states' statuses (rather than keeping
-;;; that info in a single table together with the pending-states-table, is to make the check of
-;;; resolution completion as simple as checking for empty pending-states-table (rather than checking
-;;; all entries, ensuring none has 'pending' condition). HOWEVER, I see a simple way to monitor
-;;; resolution progress is to keep flags that are updated whenever a state has been updated recently
-;;; (with pending/resolved) status, so if an iteration is performed without any progress, we consider
-;;; the resolution is completed. I will consider trying this in upcoming revision.
+;;; - To monitor resolution progress, we keep flags that are updated whenever a state has been updated
+;;; recently (with pending/resolved) status, so if an iteration is performed without any progress, we
+;;; consider the resolution to be completed.
 (defun analyze-nfa-state-reachability (start-state end-state)
   "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
 the traversed states (object reference), and values as condition of each state. Condition is one of:
@@ -278,8 +274,9 @@ transitions (but is not having `end-state` in its closure).
 The typical usage is in handling the negation regex."
   (let ((output-table (make-hash-table))
         (traversal-table (make-hash-table))
-        (pending-states-table (make-hash-table))
-        (confirmed-states-table (make-hash-table))
+        (resolution-progress-table (make-hash-table))
+        (new-pending-state-discovered nil)
+        (new-confirmed-state-discovered nil)
         (iteration-count 5))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
@@ -293,7 +290,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                    (:auto-and-element-connected (setf auto-connected t
                                                       element-connected t)))
                  (if (gethash state traversal-table)
-                     (unless (gethash state confirmed-states-table)
+                     (unless (eq (gethash state resolution-progress-table) :resolved)
                        (setf to-be-revisited t))
                      (progn
                        (setf (gethash state traversal-table) t)
@@ -304,7 +301,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                              (if (setf element-connected (or auto-connected-i element-connected-i))
                                  (progn (if auto-connected
                                             (setf #1# :auto-and-element-connected
-                                                  (gethash state confirmed-states-table) t)
+                                                  (gethash state resolution-progress-table) :resolved)
                                             (setf #1# :element-connected))
                                         (setf to-be-revisited nil))
                                  (when to-be-revisited-i
@@ -321,7 +318,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                              (if (setf element-connected (or auto-connected-i element-connected-i))
                                  (progn (if auto-connected
                                             (setf #1# :auto-and-element-connected
-                                                  (gethash state confirmed-states-table) t)
+                                                  (gethash state resolution-progress-table) :resolved)
                                             (setf #1# :element-connected))
                                         (setf to-be-revisited nil))
                                  (unless to-be-revisited
@@ -341,7 +338,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                      (setf #1# :auto-and-element-connected
                                            ;;skip revisiting (settled)
                                            to-be-revisited nil
-                                           (gethash state confirmed-states-table) t)
+                                           (gethash state resolution-progress-table) :resolved)
                                      (setf #1# :auto-connected))
                                  (if element-connected
                                      (setf #1# :element-connected)
@@ -363,20 +360,23 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                (setf #1# :not-connected)))
                        (if to-be-revisited
                            ;; state analysis not fully determined
-                           (setf (gethash state pending-states-table) :pending)
+                           (setf (gethash state resolution-progress-table) :pending
+                                 new-pending-state-discovered t)
                            ;; state analysis fully determined
-                           (progn
-                             (remhash state pending-states-table)
-                             (setf (gethash state confirmed-states-table) t)))
+                           (unless (eq (gethash state resolution-progress-table) :resolved)
+                             (setf (gethash state resolution-progress-table) :resolved)
+                             (setf new-confirmed-state-discovered t)))
                        (remhash state traversal-table)))
                  (values to-be-revisited auto-connected element-connected))))
       (loop
         (recurse start-state)
         #+debug (assert (zerop (hash-table-count traversal-table)))
         (decf iteration-count)
-        (when (or (zerop (hash-table-count pending-states-table))
+        (when (or (not (and new-pending-state-discovered new-confirmed-state-discovered))
                   (<= iteration-count 0)) ;just during testing, to avoid infinite loop in case of bug
-          (return output-table))))))
+          (return output-table))
+        (setf new-pending-state-discovered nil
+              new-confirmed-state-discovered nil)))))
 
 (defun states-have-trans-on-any-other-p (nfa-states)
   "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`
