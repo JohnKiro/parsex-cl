@@ -253,8 +253,13 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; - since NFA is generally cyclic graph, so I have to not only keep track of traversal, but also I try
 ;;; to collect as much info as possible about each state as soon as possible, since this will help
 ;;; resolve the type of other states as well (noting the recursive traversal).
+;;; - The idea of pending/resolved status is that a state's condition regarding connectivity to end-state
+;;; depends on the transitions it is having, so until we collect enough info about the state (via its
+;;; transitions), its condition remains unresolved. And resolution may be delayed in case of cycles, but
+;;; this is not generally the case, since even with the cycles, enough info could be collected from other
+;;; transitions. This is the main idea behind the iterative traversal algorithm I'm using.
 ;;; - Element transitions contribute to resolution of :element-connected status, so once this status is
-;;; determined for a given state, we set to-be-revisited to false for that state, regardless of whether
+;;; determined for a given state, we set not-yet-resolved to false for that state, regardless of whether
 ;;; the remaining element transitions in the loop need to be revisited or not. Auto transitions on the
 ;;; other hand contribute to resolution of both :element-connected, :auto-connected, and
 ;;; :auto-and-element-connected statuses.
@@ -282,7 +287,7 @@ The typical usage is in handling the negation regex."
                "Recursively handle state and all states reachable from it, and return indication of
 its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :NOT-CONNECTED)."
                #+nil(format t "DEBUG: Analyzing reachability for state ~a..~&" state)
-               (let (auto-connected element-connected to-be-revisited)
+               (let (auto-connected element-connected not-yet-resolved)
                  (case (or #1=(gethash state output-table)
                            (and (eq state end-state) :auto-connected))
                    (:auto-connected (setf auto-connected t))
@@ -291,11 +296,11 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                                       element-connected t)))
                  (if (gethash state traversal-table)
                      (unless (eq (gethash state resolution-progress-table) :resolved)
-                       (setf to-be-revisited t))
+                       (setf not-yet-resolved t))
                      (progn
                        (setf (gethash state traversal-table) t)
                        (dolist (normal-trans-i (normal-transitions state))
-                         (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                         (multiple-value-bind (not-yet-resolved-i auto-connected-i element-connected-i)
                              (recurse (trans:next-state normal-trans-i))
                            (unless element-connected ;already settled?
                              (if (setf element-connected (or auto-connected-i element-connected-i))
@@ -303,16 +308,16 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                             (setf #1# :auto-and-element-connected
                                                   (gethash state resolution-progress-table) :resolved)
                                             (setf #1# :element-connected))
-                                        (setf to-be-revisited nil))
-                                 (when to-be-revisited-i
+                                        (setf not-yet-resolved nil))
+                                 (when not-yet-resolved-i
                                    ;; propagate revised flag only if no element conn found so far
-                                   (setf to-be-revisited t))))))
+                                   (setf not-yet-resolved t))))))
                        ;;TODO: code very similar to above (hope to remove this duplication)
                        ;; probably I'll end up including the transitions on any char together with
                        ;; the normal transitions (would simplify a lot of code, though not
                        ;; necessarily better for efficiency.
                        (dolist (state-i (transitions-on-any-char state))
-                         (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                         (multiple-value-bind (not-yet-resolved-i auto-connected-i element-connected-i)
                              (recurse state-i)
                            (unless element-connected ;already settled?
                              (if (setf element-connected (or auto-connected-i element-connected-i))
@@ -320,13 +325,13 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                             (setf #1# :auto-and-element-connected
                                                   (gethash state resolution-progress-table) :resolved)
                                             (setf #1# :element-connected))
-                                        (setf to-be-revisited nil))
-                                 (unless to-be-revisited
-                                   (when to-be-revisited-i
+                                        (setf not-yet-resolved nil))
+                                 (unless not-yet-resolved
+                                   (when not-yet-resolved-i
                                      ;; propagate revised flag only if no element conn found so far
-                                     (setf to-be-revisited t)))))))
+                                     (setf not-yet-resolved t)))))))
                        (dolist (state-i (auto-transitions state))
-                         (multiple-value-bind (to-be-revisited-i auto-connected-i element-connected-i)
+                         (multiple-value-bind (not-yet-resolved-i auto-connected-i element-connected-i)
                              (recurse state-i)
                            (unless (and auto-connected element-connected) ;avoid unnecessary processing
                              (when auto-connected-i
@@ -337,17 +342,17 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                  (if element-connected
                                      (setf #1# :auto-and-element-connected
                                            ;;skip revisiting (settled)
-                                           to-be-revisited nil
+                                           not-yet-resolved nil
                                            (gethash state resolution-progress-table) :resolved)
                                      (setf #1# :auto-connected))
                                  (if element-connected
                                      (setf #1# :element-connected)
                                      (setf #1# :not-connected)))
-                             (unless (or to-be-revisited
+                             (unless (or not-yet-resolved
                                          (and auto-connected element-connected))
-                               (when to-be-revisited-i
-                                 ;; transition needs to be revisited, so does current state as well.
-                                 (setf to-be-revisited t))))))
+                               (when not-yet-resolved-i
+                                 ;; transition not yet resolved, so is current state as well.
+                                 (setf not-yet-resolved t))))))
                        ;; conclusion based on all traversed element transitions
                        ;; this IF form is needed, since not all states have transitions out, so the
                        ;; above incremental updates won't apply to them
@@ -358,7 +363,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                            (if element-connected
                                (setf #1# :element-connected)
                                (setf #1# :not-connected)))
-                       (if to-be-revisited
+                       (if not-yet-resolved
                            ;; state analysis not fully determined
                            (setf (gethash state resolution-progress-table) :pending
                                  new-pending-state-discovered t)
@@ -367,7 +372,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                              (setf (gethash state resolution-progress-table) :resolved)
                              (setf new-confirmed-state-discovered t)))
                        (remhash state traversal-table)))
-                 (values to-be-revisited auto-connected element-connected))))
+                 (values not-yet-resolved auto-connected element-connected))))
       (loop
         (recurse start-state)
         #+debug (assert (zerop (hash-table-count traversal-table)))
