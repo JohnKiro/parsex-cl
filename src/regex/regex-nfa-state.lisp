@@ -350,9 +350,8 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                                      (setf #1# :auto-and-element-connected
                                            (gethash state resolution-progress-table) :resolved)
                                      (setf #1# :auto-connected))
-                                 (if element-connected
-                                     (setf #1# :element-connected)
-                                     (setf #1# :not-connected))))))
+                                 (when element-connected
+                                   (setf #1# :element-connected))))))
                        ;; no element or auto connectivity, and nothing pending, so this state must be
                        ;; not connected to end-state (typically it has not transitions out at all)
                        (unless (or auto-connected
