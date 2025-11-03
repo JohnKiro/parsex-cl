@@ -267,7 +267,9 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; check whether a SETF is needed.
 ;;; - To monitor resolution progress, we keep flags that are updated whenever a state has been updated
 ;;; recently (with pending/resolved) status, so if an iteration is performed without any progress, we
-;;; consider the resolution to be completed.
+;;; consider the resolution to be completed. UPDATE: will ignore the resolution progress, and monitor the
+;;; "pending" discovery progress only: if an iteration passes without marking any states as "pending",
+;;; then we're done with all states.
 (defun analyze-nfa-state-reachability (start-state end-state)
   "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
 the traversed states (object reference), and values as condition of each state. Condition is one of:
@@ -281,7 +283,7 @@ The typical usage is in handling the negation regex."
         (traversal-table (make-hash-table))
         (resolution-progress-table (make-hash-table))
         (new-pending-state-discovered nil)
-        (new-confirmed-state-discovered nil)
+        ;cap iteration count, to avoid infinite loop in case of bug (5 is chosen arbitrarily!)
         (iteration-count 5))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
@@ -365,8 +367,7 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                        (if resolved
                            ;; state analysis fully determined
                            (unless (eq (gethash state resolution-progress-table) :resolved)
-                             (setf (gethash state resolution-progress-table) :resolved)
-                             (setf new-confirmed-state-discovered t))
+                             (setf (gethash state resolution-progress-table) :resolved))
                            ;; state analysis not fully determined
                            (setf (gethash state resolution-progress-table) :pending
                                  new-pending-state-discovered t))
@@ -376,11 +377,9 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
         (recurse start-state)
         #+debug (assert (zerop (hash-table-count traversal-table)))
         (decf iteration-count)
-        (when (or (not (and new-pending-state-discovered new-confirmed-state-discovered))
-                  (<= iteration-count 0)) ;just during testing, to avoid infinite loop in case of bug
+        (unless (and new-pending-state-discovered (> iteration-count 0))
           (return output-table))
-        (setf new-pending-state-discovered nil
-              new-confirmed-state-discovered nil)))))
+        (setf new-pending-state-discovered nil)))))
 
 (defun states-have-trans-on-any-other-p (nfa-states)
   "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`
