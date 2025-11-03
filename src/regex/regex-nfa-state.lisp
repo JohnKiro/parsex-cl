@@ -269,7 +269,8 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; recently (with pending/resolved) status, so if an iteration is performed without any progress, we
 ;;; consider the resolution to be completed. UPDATE: will ignore the resolution progress, and monitor the
 ;;; "pending" discovery progress only: if an iteration passes without marking any states as "pending",
-;;; then we're done with all states.
+;;; then we're done with all states. Note that each iteration, we traverse the whole NFA, so we
+;;; discover all pending states (not just the newly discovered ones).
 (defun analyze-nfa-state-reachability (start-state end-state)
   "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
 the traversed states (object reference), and values as condition of each state. Condition is one of:
@@ -282,7 +283,7 @@ The typical usage is in handling the negation regex."
   (let ((output-table (make-hash-table))
         (traversal-table (make-hash-table))
         (resolution-progress-table (make-hash-table))
-        (new-pending-state-discovered nil)
+        (pending-state-discovered nil)
         ;cap iteration count, to avoid infinite loop in case of bug (5 is chosen arbitrarily!)
         (iteration-count 5))
     (labels ((recurse (state)
@@ -370,16 +371,16 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                              (setf (gethash state resolution-progress-table) :resolved))
                            ;; state analysis not fully determined
                            (setf (gethash state resolution-progress-table) :pending
-                                 new-pending-state-discovered t))
+                                 pending-state-discovered t))
                        (remhash state traversal-table)))
                  (values resolved auto-connected element-connected))))
       (loop
         (recurse start-state)
         #+debug (assert (zerop (hash-table-count traversal-table)))
         (decf iteration-count)
-        (unless (and new-pending-state-discovered (> iteration-count 0))
+        (unless (and pending-state-discovered (> iteration-count 0))
           (return output-table))
-        (setf new-pending-state-discovered nil)))))
+        (setf pending-state-discovered nil)))))
 
 (defun states-have-trans-on-any-other-p (nfa-states)
   "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`
