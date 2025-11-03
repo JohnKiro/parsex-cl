@@ -259,7 +259,7 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
 ;;; this is not generally the case, since even with the cycles, enough info could be collected from other
 ;;; transitions. This is the main idea behind the iterative traversal algorithm I'm using.
 ;;; - Element transitions contribute to resolution of :element-connected status, so once this status is
-;;; determined for a given state, we set not-yet-resolved to false for that state, regardless of whether
+;;; determined for a given state, we reach element resolution for that state, regardless of whether
 ;;; the remaining element transitions in the loop need to be revisited or not. Auto transitions on the
 ;;; other hand contribute to resolution of both :element-connected, :auto-connected, and
 ;;; :auto-and-element-connected statuses.
