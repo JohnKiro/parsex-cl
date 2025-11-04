@@ -165,12 +165,26 @@ TODO: THINK ALSO ABOUT ANY-CHAR TRANSITIONS!"
   "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
 when any of the NFA states in the closure is the terminus state produced by the NFA. Since the
 terminus state indicates matching success, then terminal also means acceptance.
-UPDATE (EXPERIMENTAL): if it's negated, then not necessarily it's acceptance (depending on the
-scanned char)."
+UPDATE: with the introduction of negation (and dead-end states), a terminus may not indicate acceptance,
+because if the closure `nfa-states` includes also a dead-end state, then the terminus should not be
+accepting. For this reason, I'll introduce a separate function to check acceptance (to be used in
+matchinginstead of this one, however, as the implementation of negation matures more, this interface
+remains experimental."
   ;;TODO: (find-if #'terminus-p nfa-states)
   (dolist (s nfa-states nil)
     (when (terminus-p s)
       (return t))))
+
+(defun acceptance-nfa-closure-union-p (nfa-states)
+  "Determines whether the NFA closure provided in NFA-STATES is accepting, which is the case
+when any of the NFA states in the closure is the terminus state produced by the NFA, and none of the NFA
+states is dead-end. See also `terminal-nfa-closure-union-p`."
+  (let (terminus)
+    (dolist (s nfa-states terminus)
+      (when (dead-end-p s)
+        (return nil))
+      (when (terminus-p s)
+        (setf terminus t)))))
 
 (defun collect-char-range-splitting-points (nfa-states)
   "Collects char range splitting points (characters) into a sorted vector of characters."

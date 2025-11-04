@@ -33,7 +33,7 @@ NFA-STATES, but included as separate slot to avoid computation each time it is n
 (defmethod initialize-instance :after ((dfa-state dfa-state) &key)
   "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
   (with-slots (%nfa-states %candidate-matching-point) dfa-state
-    (let ((matching-or-not (nfa-state:terminal-nfa-closure-union-p %nfa-states)))
+    (let ((matching-or-not (nfa-state:acceptance-nfa-closure-union-p %nfa-states)))
       (setf %candidate-matching-point matching-or-not))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
@@ -47,7 +47,11 @@ still not sure if we'll have such case in DFA, will revise if we need this chang
 UPDATE: I'm also taking dead-end status into consideration, since it should override terminal
 status. Actually I need to investigate this further, as I think this condition should not happen,
 and would indicate bug. Also more likely that the matching function would need to be modified to
-check the dead-end status."
+check the dead-end status. UPDATE: consider (not (or (not #\B) (not #\D))), this results in the
+case of a transition from 'B' to two NFA states, one is terminal, and the other is dead-end. Now the
+meaning should reject all characters, since the inner OR accepts all characters. This means that the
+condition in fact could happen, and in this example, we see that the dead-end status should override
+the terminal (acceptance) status."
   (and (null (transitions dfa-state))
        (null (transition-on-any-other dfa-state))
        (candidate-matching-point-p dfa-state)))

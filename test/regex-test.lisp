@@ -505,6 +505,18 @@ negation test 2."
                       ("xE" nil nil "x")
                       ("" nil nil nil)))
 
+(deftest-n negation-tests-15
+  :desc "Tests negation of ORing of two negations (leading to rejection of all chars). See negation
+TC 4. This TC demonstrates that in an NFA closure (corresponding to a DFA state), the dead-end
+status overrides the terminus status, leading to no acceptance."
+  :regex (not (or (not #\B) (not #\D)))
+  :test-details-list (("Ax" nil nil "A")
+                      ("Bx" nil nil "B")
+                      ("Cx" nil nil "C")
+                      ("Dx" nil nil "D")
+                      ("Ex" nil nil "E")
+                      ("" nil nil nil)))
+
 (deftest-n inv-matching-tests
   :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
