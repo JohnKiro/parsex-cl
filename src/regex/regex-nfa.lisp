@@ -180,16 +180,6 @@ this one from now on."
     output-state))
 
 
-(defmethod regex-to-nfa% ((regex elm:inv-element) input-nfa-state)
-  (loop for elm of-type (or elm:single-char-element elm:char-range-element)
-          across (elm:inner-elements regex)
-        ;; TODO: alternatively, since elm is restricted to be char/char-range, I could just add
-        ;; normal transition from input state on elm, to a dead-end state (to be created)
-        do (regex-to-nfa elm input-nfa-state))
-  (let ((output-state (make-instance 'state:nfa-state)))
-    (state:set-nfa-transition-on-any-other input-nfa-state output-state)
-    output-state))
-
 (defmethod regex-to-nfa ((regex elm:inv-element) input-nfa-state)
   (loop for elm of-type (or elm:single-char-element elm:char-range-element)
           across (elm:inner-elements regex)

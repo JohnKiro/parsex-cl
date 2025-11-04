@@ -156,48 +156,13 @@ or start character (if element is char range).
 Note: this function is destructive. I.e. it modifies the passed sequence."
   (sort elements #'simple-element-before))
 
-(defun invert-elements%% (elements)
-  "Invert (complement) elements, by finding elements that correspond to characters that do not
-belong to any of the elements provided. This operation is used in regex negation.
-Note: it assumes elements are sorted, with no overlaps between them. To guarantee this, user could
-use the range splitting function to remove overlaps, then use `sort-simple-elements`, before calling
-this function.
-TODO: vector instead of list.
-TODO: for ranges containing a single char, no need to return a range object (single char instead).
-NOTE: THIS IS THE PREVIOUS VERSION (NOW OBSOLETE, KEPT FOR NOW FOR REFERENCE)."
-  (labels ((find-surrounding-chars (elem)
-             (etypecase elem
-               (single-char-element (let ((ch (single-char elem)))
-                                      (values (chars:dec-char ch) (chars:inc-char ch))))
-               (char-range-element (let ((s (char-start elem))
-                                         (e (char-end elem)))
-                                     (values (if (eq s :min)
-                                                 nil ;nothing is left to MIN
-                                                 (chars:dec-char s))
-                                             (if (eq e :max)
-                                                 nil ;nothing is right to MAX
-                                                 (chars:inc-char e))))))))
-    (loop with output = nil ;TODO: may use vector instead of list
-          with slider = :min
-          for e in elements
-          do (multiple-value-bind (left-char right-char) (find-surrounding-chars e)
-               (when (and left-char slider (char> left-char slider))
-                 (push (make-char-range :start slider :end left-char) output))
-               (setf slider right-char))
-          unless slider do (return output) ; exit early when finding an open-ended range (--> MAX)
-          finally (progn
-                    (when slider ;actually no need to recheck, since we have "unless" clause in LOOP
-                      (push (make-char-range :start slider :end :max) output))
-                    (return output)))))
-
 (defun invert-elements (elements)
   "Invert (complement) elements, by finding elements that correspond to characters that do not
 belong to any of the elements provided. This operation is used in regex negation.
 Note: it assumes elements are sorted, with no overlaps between them. To guarantee this, user could
 use the range splitting function to remove overlaps, then use `sort-simple-elements`, before calling
 this function.
-TODO: vector instead of list.
-TODO: for ranges containing a single char, no need to return a range object (single char instead)."
+TODO: vector instead of list."
   (loop with output = nil ;TODO: may use vector instead of list
         with slider = :min
         for elem in elements

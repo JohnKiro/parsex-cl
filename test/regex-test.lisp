@@ -517,17 +517,67 @@ status overrides the terminus status, leading to no acceptance."
                       ("Ex" nil nil "E")
                       ("" nil nil nil)))
 
-(deftest-n inv-matching-tests
-  :desc "Tests for the INV element, including match/no match, with SEQ and OR elements."
+(deftest-n inv-matching-tests-1
+  :desc "Tests for the INV element, including match/no match, no overlaps."
   :regex (inv #\a #\c (char-range #\l #\s) #\x #\z)
-  :test-details-list (("a" nil nil "a")
+  :test-details-list (("`" t "`" "`")
+                      ("ab" nil nil "a")
+                      ("bc" t "b" "b")
+                      ("cd" nil nil "c")
+                      ("de" t "d" "d")
                       ("l" nil nil "l")
-                      ("a" nil nil "a")
+                      ("m" nil nil "m")
+                      ("p" nil nil "p")
                       ("s" nil nil "s")
-                      ("d" t)
-                      ("dyy" t)
-                      ("123" t)
-                      ("syy" nil nil "s")))
+                      ("ts" t "t" "t")
+                      ("ws" t "w" "w")
+                      ("x" nil nil "x")
+                      ("y" t "y" "y")
+                      ("z" nil nil "z")))
+
+(deftest-n inv-matching-tests-2
+  :desc "Tests for the INV element, including match/no match, with overlaps."
+  :regex (inv #\a (char-range #\a #\b) #\c #\l #\o (char-range #\l #\s) #\q #\s #\x #\z)
+  :test-details-list (("`" t "`" "`")
+                      ("ab" nil nil "a")
+                      ("bc" nil nil "b")
+                      ("cd" nil nil "c")
+                      ("de" t "d" "d")
+                      ("l" nil nil "l")
+                      ("m" nil nil "m")
+                      ("o" nil nil "o")
+                      ("p" nil nil "p")
+                      ("q" nil nil "q")
+                      ("s" nil nil "s")
+                      ("ts" t "t" "t")
+                      ("ws" t "w" "w")
+                      ("x" nil nil "x")
+                      ("y" t "y" "y")
+                      ("z" nil nil "z")))
+
+(deftest-n inv-matching-tests-3
+  :desc "Tests INV of two range elements (one inside the other). Outer range dominates."
+  :regex (inv (char-range #\a #\l) (char-range #\d #\f))
+  :test-details-list (("`" t "`" "`")
+                      ("ab" nil nil "a")
+                      ("cd" nil nil "c")
+                      ("de" nil nil "d")
+                      ("f" nil nil "f")
+                      ("g" nil nil "g")
+                      ("l" nil nil "l")
+                      ("m" t "m" "m")))
+
+(deftest-n inv-matching-tests-4
+  :desc "Tests INV of two overlapping range elements. Accepts outside extremities."
+  :regex (inv (char-range #\a #\g) (char-range #\d #\l))
+  :test-details-list (("`" t "`" "`")
+                      ("ab" nil nil "a")
+                      ("cd" nil nil "c")
+                      ("de" nil nil "d")
+                      ("f" nil nil "f")
+                      ("g" nil nil "g")
+                      ("l" nil nil "l")
+                      ("m" t "m" "m")))
 
 (deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."
