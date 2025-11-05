@@ -194,15 +194,13 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
                  (vector-push-extend (chars:dec-char char-left) result))
                (when (typep char-right 'character)
                  (vector-push-extend char-right result))))
-      (dolist (nfa-state nfa-states result)
-        (dolist (trans (normal-transitions nfa-state))
-          (let ((element (trans:element trans)))
-            (etypecase element
-              (elm:single-char-element (let ((bound (elm:single-char element)))
-                                         (append-bounds bound bound)))
-              (elm:char-range-element (append-bounds (elm:char-start element)
-                                                     (elm:char-end element))))))))
-    (sort (remove-duplicates result :test #'char=) #'char<)))
+      (do-normal-transitions (_ element _) nfa-states
+        (etypecase element
+          (elm:single-char-element (let ((bound (elm:single-char element)))
+                                     (append-bounds bound bound)))
+          (elm:char-range-element (append-bounds (elm:char-start element)
+                                                 (elm:char-end element)))))
+      (sort (remove-duplicates result :test #'char=) #'char<))))
 
 ;;;TODO: REFACTOR (e.g. extract normalized transition table as abstract data type)
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)
