@@ -199,20 +199,13 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
         (setf terminus t)))))
 
 (defun collect-char-range-splitting-points (nfa-states)
-  "Collects char range splitting points (characters) into a sorted vector of characters."
-  (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
-    (labels ((append-bounds (char-left char-right)
-               (when (typep char-left 'character)
-                 (vector-push-extend (chars:dec-char char-left) result))
-               (when (typep char-right 'character)
-                 (vector-push-extend char-right result))))
-      (do-normal-transitions (_ element _) nfa-states
-        (etypecase element
-          (elm:single-char-element (let ((bound (elm:single-char element)))
-                                     (append-bounds bound bound)))
-          (elm:char-range-element (append-bounds (elm:char-start element)
-                                                 (elm:char-end element)))))
-      (sort (remove-duplicates result :test #'char=) #'char<))))
+  "Collects char range splitting points (characters) from `nfa-states` into a sorted vector of
+ characters. NFA states argument should be a list of normal transitions."
+  (declare (type list nfa-states))
+  (multiple-value-bind (iter-fn get-result-fn) (elm::make-char-range-splitting-points-extractor)
+    (do-normal-transitions (_ state _) nfa-states
+      (funcall iter-fn state))
+    (funcall get-result-fn)))
 
 ;;;TODO: REFACTOR (e.g. extract normalized transition table as abstract data type)
 (defun create-nfa-normalized-transition-table (nfa-state-closure-union)

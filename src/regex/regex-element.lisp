@@ -115,11 +115,47 @@ we do not care about element range end."
   "Utility macro to simplify char-range-element construction."
   `(make-instance 'char-range-element :char-start ,start :char-end ,end))
 
+(defun make-char-range-splitting-points-extractor ()
+  "Returns two functions as values: the first function receives a simple element as argument,
+computes its contribution to char range splitting points, and append those to internal result array.
+The second function returns the splitting points (result) array.
+Note: the result array is sorted based on character order, and with no duplications."
+  (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
+    (flet ((extract-and-append-splitting-points (element)
+             (declare (inline)
+                      (type simple-element element))
+             "Extract, compute, and append the splitting points (characters) that the simple element
+`element`contributes. Note that any of the two values could be NIL, which corresponds to :min or :max
+ (i.e. irrelevant to splitting)."
+             (etypecase element
+               (single-char-element (let ((ch (single-char element)))
+                                      (vector-push-extend (chars:dec-char ch) result)
+                                      (vector-push-extend ch result)))
+               (char-range-element (let ((ch-l (char-start element))
+                                         (ch-r (char-end element)))
+                                     (when (typep ch-l 'character)
+                                       (vector-push-extend (chars:dec-char ch-l) result))
+                                     (when (typep ch-r 'character)
+                                       (vector-push-extend ch-r result))))))
+           (get-result ()
+             (sort (remove-duplicates result :test #'char=) #'char<)))
+      (values #'extract-and-append-splitting-points #'get-result))))
+
+(defun collect-char-range-splitting-points (elements)
+  "Collects char range splitting points (characters) from `elements` into a sorted vector of
+ characters. Elements should be a vector of simple elements."
+  (declare (type (simple-array simple-element) elements))
+  (multiple-value-bind (iter-fn get-result-fn) (make-char-range-splitting-points-extractor)
+    (loop for element across elements
+          do (funcall iter-fn element))
+    (funcall get-result-fn)))
+
 ;;; TODO: may use other data structures later.
 (defun split-char-range (char-range-element splitting-points)
   "Split a char range CHAR-RANGE-ELEMENT into a number of ranges/single chars, based on
 SPLITTING-POINTS (vector of characters).
-Preconditions: splitting points must be a sorted vector.
+Preconditions: splitting points must be a sorted vector (for example, as prepared using
+`char-range-splitting-points-extractor-factory`).
 Note: it takes into consideration half-open/full-open ranges.
 TODO: add optimization declaration!"
   (declare (type char-range-element char-range-element)
