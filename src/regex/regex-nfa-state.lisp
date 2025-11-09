@@ -161,6 +161,18 @@ TODO: THINK ALSO ABOUT ANY-CHAR TRANSITIONS!"
                           (,next-state-reader-name-var trans:next-state)) ,transition-var
            ,@body)))))
 
+(defmacro with-split-element ((element split-element-var splitting-points) &body body)
+  "Analyze the `element` and splits it if necessary, according to `splitting-points`. The split element
+is made available with the name `split-element-var`, for use in the `body`. If the element is a single
+character element, then it is provided as it is, without splitting."
+  `(etypecase ,element
+     (elm:char-range-element
+      (dolist (,split-element-var (elm:split-char-range ,element ,splitting-points))
+        ,@body))
+     (elm:single-char-element
+      (let ((,split-element-var ,element))
+        ,@body))))
+
 (defun terminal-nfa-closure-union-p (nfa-states)
   "Determines whether the NFA closure provided in NFA-STATES is terminal, which is the case
 when any of the NFA states in the closure is the terminus state produced by the NFA. Since the
@@ -235,15 +247,9 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
         ;; handle normal transitions
         (dolist (trans (normal-transitions nfa-state))
           (with-accessors ((element trans:element) (next-state trans:next-state)) trans
-            (etypecase element
-              (elm:char-range-element
-               (let ((split-ranges (elm:split-char-range element splitting-points)))
-                 (dolist (r split-ranges)
-                   (add-trans r next-state)
-                   (add-trans-on-any-char nfa-state-closure-union r))))
-              (elm:single-char-element
-               (add-trans element next-state)
-               (add-trans-on-any-char nfa-state-closure-union element)))))
+            (with-split-element (element e splitting-points)
+              (add-trans e next-state)
+              (add-trans-on-any-char nfa-state-closure-union e))))
         ;; TODO: probably no reason to keep the following types of transitions in the same assoc
         ;;       table. Consider separating, and consider creating a class for normalized transition
         ;;       table.

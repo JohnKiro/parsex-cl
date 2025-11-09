@@ -158,13 +158,8 @@ this one from now on."
                   ;; check to avoid inverting an inverted element (not sure if this is possible, but
                   ;; maybe in NFAs having complex closures, due to recursion)
                   (unless (eq next-state glue-state)
-                    (etypecase element
-                      (elm:char-range-element
-                       (let ((split-ranges (elm:split-char-range element splitting-pts)))
-                         (dolist (r split-ranges)
-                           (push r split-elements))))
-                      (elm:single-char-element
-                       (push element split-elements)))))
+                    (state::with-split-element (element e splitting-pts)
+                      (push e split-elements))))
                 (loop for inv-elem in (elm::invert-elements
                                        (elm::sort-simple-elements split-elements))
                       do (state:add-nfa-normal-transition state inv-elem glue-state))))
