@@ -130,7 +130,7 @@ in NIL."
   :expected nil)
 
 (define-element-inversion-test element-inversion-test9
-  :doc "Inversion of two adjacent elements (no gap between them), including an open-ended range.."
+  :doc "Inversion of two adjacent elements (no gap between them), including an open-ended range."
   :input-elements ((:min . #\a)
                    (#\b))
   :expected ((#\c . :max)))

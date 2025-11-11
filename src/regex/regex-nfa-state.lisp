@@ -180,8 +180,8 @@ terminus state indicates matching success, then terminal also means acceptance.
 UPDATE: with the introduction of negation (and dead-end states), a terminus may not indicate acceptance,
 because if the closure `nfa-states` includes also a dead-end state, then the terminus should not be
 accepting. For this reason, I'll introduce a separate function to check acceptance (to be used in
-matchinginstead of this one, however, as the implementation of negation matures more, this interface
-remains experimental."
+matching instead of this one, however, as the implementation of negation matures more, this interface
+may change."
   ;;TODO: (find-if #'terminus-p nfa-states)
   (dolist (s nfa-states nil)
     (when (terminus-p s)
@@ -295,7 +295,7 @@ The typical usage is in handling the negation regex."
         (traversal-table (make-hash-table))
         (resolution-progress-table (make-hash-table))
         (pending-state-discovered nil)
-        ;cap iteration count, to avoid infinite loop in case of bug (5 is chosen arbitrarily!)
+        ;;cap iteration count, to avoid infinite loop in case of bug (5 is chosen arbitrarily!)
         (iteration-count 5))
     (labels ((recurse (state)
                "Recursively handle state and all states reachable from it, and return indication of
