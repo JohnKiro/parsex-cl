@@ -167,3 +167,12 @@ in NIL."
   :expected ((:min . #\a)
              (#\n)
              (#\s)))
+
+(define-element-inversion-test element-inversion-test14
+  :doc "Inversion of duplicate element (same element repeated in input)."
+  :input-elements ((#\b . #\m)
+                   (#\b . #\m)
+                   (#\o . #\r))
+  :expected ((:min . #\a)
+             (#\n)
+             (#\s . :max)))

@@ -174,15 +174,18 @@ this one from now on."
     ;; connect the NOT element to the rest of the NFA
     output-state))
 
-
 (defmethod regex-to-nfa ((regex elm:inv-element) input-nfa-state)
-  (loop for elm of-type (or elm:single-char-element elm:char-range-element)
-          across (elm:inner-elements regex)
-        ;; TODO: alternatively, since elm is restricted to be char/char-range, I could just add
-        ;; normal transition from input state on elm, to a dead-end state (to be created)
-        do (regex-to-nfa elm input-nfa-state))
-  (let ((output-state (make-instance 'state:nfa-state)))
-    (state:set-nfa-transition-on-any-other input-nfa-state output-state)
+  (let* ((output-state (make-instance 'state:nfa-state))
+         (elements (elm:inner-elements regex))
+         (splitting-pts (elm::collect-char-range-splitting-points elements))
+         (split-elements nil))
+    (loop for element across elements
+          do (state::with-split-element (element e splitting-pts)
+               (push e split-elements)))
+    (let* ((sorted-elements (elm::sort-simple-elements split-elements))
+           (inverted-elements (elm::invert-elements sorted-elements)))
+      (dolist (e inverted-elements)
+        (state:add-nfa-normal-transition input-nfa-state e output-state)))
     output-state))
 
 (defun produce-nfa (regex)

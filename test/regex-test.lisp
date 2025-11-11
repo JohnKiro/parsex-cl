@@ -579,6 +579,50 @@ status overrides the terminus status, leading to no acceptance."
                       ("l" nil nil "l")
                       ("m" t "m" "m")))
 
+(deftest-n inv-matching-tests-5
+  :desc "Tests ORing between two INV elements (one inside the other). Inner range dominates."
+  :regex (or (inv (char-range #\a #\l)) (inv (char-range #\d #\f)))
+  :test-details-list (("`" t "`" "`")
+                      ("ab" t "a" "a")
+                      ("cd" t "c" "c")
+                      ("de" nil nil "d")
+                      ("f" nil nil "f")
+                      ("g" t "g" "g")
+                      ("l" t "l" "l")
+                      ("m" t "m" "m")))
+
+(deftest-n inv-matching-tests-6
+  :desc "Tests ORing between two overlapping INV elements. Accepts all outside overlap."
+  :regex (or (inv (char-range #\a #\g)) (inv (char-range #\d #\l)))
+  :test-details-list (("`" t "`" "`")
+                      ("ab" t "a" "a")
+                      ("cd" t "c" "c")
+                      ("de" nil nil "d")
+                      ("e" nil nil "e")
+                      ("f" nil nil "f")
+                      ("g" nil nil "g")
+                      ("h" t "h" "h")
+                      ("l" t "l" "l")
+                      ("m" t "m" "m")))
+
+(deftest-n inv-matching-tests-7
+  :desc "Tests INV of two identical range elements. Accepts outside it (duplication ignored)."
+  :regex (inv (char-range #\a #\g) (char-range #\a #\g))
+  :test-details-list (("`" t "`" "`")
+                      ("ab" nil nil "a")
+                      ("f" nil nil "f")
+                      ("g" nil nil "g")
+                      ("h" t "h" "h")))
+
+(deftest-n inv-matching-tests-8
+  :desc "Tests ORing between two identical INV elements. Accepts all outside (redundancy ignored)."
+  :regex (or (inv (char-range #\a #\g)) (inv (char-range #\a #\g)))
+  :test-details-list (("`" t "`" "`")
+                      ("ab" nil nil "a")
+                      ("f" nil nil "f")
+                      ("g" nil nil "g")
+                      ("h" t "h" "h")))
+
 (deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."
   :regex (or (seq #\X #\Y) (seq #\A #\B))

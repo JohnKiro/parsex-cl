@@ -186,6 +186,7 @@ TODO: add optimization declaration!"
     (format t "DEBUG: Range split into: ~a~&" acc)
     acc))
 
+(declaim (inline sort-simple-elements))
 (defun sort-simple-elements (elements)
   "Sort a sequence of simple elements `elements` according to character (if element is single char)
 or start character (if element is char range).
@@ -193,11 +194,10 @@ Note: this function is destructive. I.e. it modifies the passed sequence."
   (sort elements #'simple-element-before))
 
 (defun invert-elements (elements)
-  "Invert (complement) elements, by finding elements that correspond to characters that do not
-belong to any of the elements provided. This operation is used in regex negation.
-Note: it assumes elements are sorted, with no overlaps between them. To guarantee this, user could
-use the range splitting function to remove overlaps, then use `sort-simple-elements`, before calling
-this function.
+  "Invert (complement) elements, by finding elements that excludes all chars and char ranges
+specified in the provided elements. This operation is used in regex negation and inversion.
+Note: it assumes elements are sorted, with no overlaps between them. To guarantee this, client code
+needs to first split the char ranges to remove overlaps, then use `sort-simple-elements`.
 TODO: vector instead of list."
   (loop with output = nil ;TODO: may use vector instead of list
         with slider = :min
