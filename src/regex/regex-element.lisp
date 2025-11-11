@@ -187,11 +187,17 @@ TODO: add optimization declaration!"
     acc))
 
 (declaim (inline sort-simple-elements))
-(defun sort-simple-elements (elements)
+(defun sort-simple-elements (elements &optional (remove-duplicates T))
   "Sort a sequence of simple elements `elements` according to character (if element is single char)
-or start character (if element is char range).
-Note: this function is destructive. I.e. it modifies the passed sequence."
-  (sort elements #'simple-element-before))
+or start character (if element is char range). It also optionally removes duplicates based on the
+argument `remove-duplicates` (default is T).
+Note: this function is destructive. I.e. it modifies the passed sequence.
+Note: removing duplicates is not supposed to alter behavior, and is provided just to simplify the
+generated NFA."
+  (let ((sorted (sort elements #'simple-element-before)))
+    (if remove-duplicates
+        (remove-duplicates sorted :test #'simple-element-equal)
+        sorted)))
 
 (defun invert-elements (elements)
   "Invert (complement) elements, by finding elements that excludes all chars and char ranges
