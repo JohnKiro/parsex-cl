@@ -73,10 +73,11 @@ For example, if char-start is :min, then then range covers all characters less t
 
 (defun char-range-equal (char-range-1 char-range-2)
   "Equality test for two char range elements."
+  (check-type char-range-1 char-range-element)
   (or (and char-range-1 (eql char-range-1 char-range-2))
       (with-slots ((s1 %char-start) (e1 %char-end)) char-range-1
         (with-slots ((s2 %char-start) (e2 %char-end)) char-range-2
-               (and (eql s1 s2) (eql e1 e2))))))
+          (and (eql s1 s2) (eql e1 e2))))))
 
 (defun match-char-against-simple-element (ch elem)
   "Matches a character CH against a simple element (single char/char range)."
