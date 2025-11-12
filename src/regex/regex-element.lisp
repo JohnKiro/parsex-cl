@@ -281,3 +281,30 @@ TODO: probably won't use it (`invert-elements` instead). But may keep it as a ut
   (:documentation "Equivalent to the caret (^) inside a square bracket pair in conventional regular
 expressions. It matches any character other than the ones given in the inner elements.
 Note: the inner elements have to be of type char/char-range."))
+
+(defclass repeated-element (single-element-wrapper-element)
+  ((%min-count :initarg :min-count
+               :initform (error "Minimum count must be supplied!")
+               :reader min-count
+               :type (unsigned-byte 8))
+   (%max-count :initarg :max-count
+               :initform nil
+               :reader max-count
+               :type (or null (unsigned-byte 8))))
+  (:documentation "Specifies a regex element formed by repeating the inner element between
+min-count and max-count times."))
+
+(defmethod initialize-instance :after ((element repeated-element) &key
+                                                                      min-count
+                                                                      (max-count min-count))
+  "Validate counts (min must be less than or equal to max), and initializes max to same value as
+min, if not supplied."
+  (declare (type (unsigned-byte 8) min-count)
+           (type (or null (unsigned-byte 8)) max-count))
+  (unless max-count
+    (setf max-count min-count))
+  (when (> min-count max-count)
+      (error "Invalid repetition range initialization (min must be less than or equal to max)!"))
+  (with-slots ((min %min-count) (max %max-count)) element
+    (setf min min-count
+          max max-count)))

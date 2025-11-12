@@ -623,6 +623,41 @@ status overrides the terminus status, leading to no acceptance."
                       ("g" nil nil "g")
                       ("h" t "h" "h")))
 
+(deftest-n rep-matching-tests-0
+  :desc "Test simple repeated element, with 'a' repeated between 3 and 5."
+  :regex (rep #\a 3 5)
+  :test-details-list (("a" nil nil "a")
+                      ("aa" nil nil "a")
+                      ("aaab" t "aaa" "aaa")
+                      ("aaaab" t "aaaa" "aaaa")
+                      ("aaaaab" t "aaaaa" "aaaaa")
+                      ("aaaaaa" t "aaaaa" "aaaaa")
+                      ("baaaaaa" nil nil "b")))
+
+(deftest-n rep-matching-tests-1
+  :desc "Test simple repeated element, with OR repeated between 3 and 5."
+  :regex (rep (or #\a #\x) 3 5)
+  :test-details-list (("a" nil nil "a")
+                      ("aa" nil nil "a")
+                      ("ax" nil nil "a")
+                      ("axab" t "axa" "axa")
+                      ("axaxb" t "axax" "axax")
+                      ("xaaxab" t "xaaxa" "xaaxa")
+                      ("xxxxxy" t "xxxxx" "xxxxx")
+                      ("baaaaaa" nil nil "b")))
+
+(deftest-n rep-matching-tests-2
+  :desc "Test simple repeated element, with OR repeated exactly 3 times."
+  :regex (rep (or #\a #\x) 3)
+  :test-details-list (("a" nil nil "a")
+                      ("aa" nil nil "a")
+                      ("ax" nil nil "a")
+                      ("axab" t "axa" "axa")
+                      ("axaxb" t "axa" "axa")
+                      ("xaaxab" t "xaa" "xaa")
+                      ("xxxxxy" t "xxx" "xxx")
+                      ("baaaaaa" nil nil "b")))
+
 (deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."
   :regex (or (seq #\X #\Y) (seq #\A #\B))

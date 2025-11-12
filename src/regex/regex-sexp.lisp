@@ -59,7 +59,12 @@ package."
             ;; TODO: ENSURE TYPE OF ALL INNER REGEX ELEMENTS TO BE CHAR/CHAR-RANGE!!!
             ;; currently handled in the NFA code
             (:inv (make-instance 'elm:inv-element
-                                 :elements (map 'vector #'prepare-regex-tree (cdr regex))))))
+                                 :elements (map 'vector #'prepare-regex-tree (cdr regex))))
+            (:rep (destructuring-bind (element-sexp min-count &optional max-count) (cdr regex)
+                    (make-instance 'elm:repeated-element
+                                   :element (prepare-regex-tree element-sexp)
+                                   :min-count min-count
+                                   :max-count max-count)))))
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element

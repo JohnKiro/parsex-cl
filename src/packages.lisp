@@ -121,6 +121,9 @@
            #:negated-element ; TODO: not yet sure
            #:greedy-p
            #:inv-element
+           #:repeated-element
+           #:min-count
+           #:max-count
            ))
 
 (defpackage :parsex-cl/regex/fsm

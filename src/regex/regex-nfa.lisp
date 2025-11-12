@@ -188,6 +188,21 @@ this one from now on."
         (state:add-nfa-normal-transition input-nfa-state e output-state)))
     output-state))
 
+(defmethod regex-to-nfa ((regex elm:repeated-element) input-nfa-state)
+  (let* ((output-state (make-instance 'state:nfa-state)))
+    (with-accessors ((inner-element elm:inner-element)
+                     (min-count elm:min-count)
+                     (max-count elm:max-count)) regex
+      (let ((input-nfa-state-i input-nfa-state))
+        ;; 1 to min
+        (loop repeat min-count
+              do #1=(setf input-nfa-state-i (regex-to-nfa inner-element input-nfa-state-i)))
+        #2=(state:add-nfa-auto-transition input-nfa-state-i output-state)
+        ;; min + 1 to max
+        (loop repeat (- max-count min-count)
+              do #1# #2#)))
+    output-state))
+
 (defun produce-nfa (regex)
   "Produces NFA starting at root regex element. Its importance is in identifying the terminus
 state."
