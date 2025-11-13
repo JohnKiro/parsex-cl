@@ -10,11 +10,6 @@ it together with char-range-element as simple-element).
 - string (string of character corresponds to a sequence-element where all elements are characters).
 ||#
 
-(defconstant +any-char-element+ :any-char
-  "Centralized reference to any ANY-CHAR element. This corresponds to '.' (dot) in conventional
-regular expressions. For example, for the regex fragment (:or (:seq #\a #\b) (seq :any-char #\x)),
-the :any-char would match any char, including #\a.")
-
 (defconstant +any-other-char-element+ :any-other-char
   "Centralized reference to any ANY-OTHER-CHAR element. This element is currently generated during
 negation and inversion, and for now, I'm not allowing it for the user. Later, I may allow it, so
@@ -48,6 +43,13 @@ match, but not 'ax'.")
   (:documentation "Char range regex element. Either or both ends may be open.
 For example, if char-start is :min, then then range covers all characters less than or equal to
  end-char."))
+
+(defparameter *any-char-element* (make-instance 'char-range-element :char-start :min :char-end :max)
+  "Centralized reference to any ANY-CHAR element. This corresponds to '.' (dot) in conventional
+regular expressions. For example, for the regex fragment (:or (:seq #\a #\b) (seq :any-char #\x)),
+the :any-char would match any char, including #\a. I'm creating this object like a singleton, since
+there is no need to have multiple instances (reduced memory usage, and a bit quicker equality test
+for it.")
 
 (defmethod print-object ((object single-char-element) stream)
   (print-unreadable-object (object stream :type t :identity nil)
@@ -89,15 +91,13 @@ For example, if char-start is :min, then then range covers all characters less t
 
 ;; TODO: cleanup/simplify
 (defun simple-element-equal (element other-obj)
-  "Equality test for all types of simple elements (single char, char-range, symbol)."
+  "Equality test for all types of simple elements (single char, char-range)."
   (or (eq element other-obj)
       (etypecase element
         (#1=single-char-element (and (typep other-obj '#1#)
                                      (char= (single-char element) (single-char other-obj))))
         (#2=char-range-element (and (typep other-obj '#2#)
-                                    (char-range-equal element other-obj)))
-        ;; since the above EQ evaluated to nil, we're sure no equality
-        (symbol nil))))
+                                    (char-range-equal element other-obj))))))
 
 (defun simple-element-before (element1 element2)
   "Compare two simple elements according to character order (character/start character). Note that
@@ -112,6 +112,7 @@ we do not care about element range end."
         (and (not (eq c2 :min))
              (char<= c1 c2)))))
 
+;; TODO: may change into a function that returns the singleton any-char, if :min - :max
 (defmacro make-char-range (&key (start :min) (end :max))
   "Utility macro to simplify char-range-element construction."
   `(make-instance 'char-range-element :char-start ,start :char-end ,end))

@@ -99,7 +99,7 @@
 (defpackage :parsex-cl/regex/element
   (:use #:cl #:iterate)
   (:local-nicknames (:chars #:parsex-cl/char-util))
-  (:export #:+any-char-element+
+  (:export #:*any-char-element*
            #:single-char-element
            #:char-range-element
            #:single-char
@@ -150,12 +150,12 @@
   (:export #:nfa-state
            #:normal-transitions
            #:auto-transitions
-           #:transitions-on-any-char
            #:transition-on-any-other
            #:terminus-p
            #:set-terminus
            #:add-nfa-normal-transition
            #:add-nfa-transition-on-any-char
+           #:states-have-trans-on-any-other-p
            #:add-nfa-auto-transition
            #:delete-auto-transition
            #:set-dead-end

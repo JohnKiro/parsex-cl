@@ -3,7 +3,6 @@
 (defclass nfa-state ()
   ((%normal-transitions :initform nil :type list :reader normal-transitions)
    (%auto-transitions :initform nil :type list :reader auto-transitions)
-   (%transitions-on-any-char :initform nil :type list :reader transitions-on-any-char)
    (%transition-on-any-other :initform nil :type (or null nfa-state)
                              :reader transition-on-any-other)
    (%dead-end :initform nil :type boolean :reader dead-end-p)
@@ -20,7 +19,7 @@
 (defmethod print-object ((object nfa-state) stream)
   (print-unreadable-object (object stream :type t :identity t)
     (when *verbose-printing*
-      (with-slots (%normal-transitions %auto-transitions %transitions-on-any-char %terminus) object
+      (with-slots (%normal-transitions %auto-transitions %terminus) object
         (if %normal-transitions
             (princ "Normal transitions on: " stream)
             (princ "No normal transitions, " stream))
@@ -28,19 +27,18 @@
               do (princ (trans:element nt) stream)
               do (princ ", " stream))
         (format stream "~a auto transitions, " (length %auto-transitions))
-        (format stream "~a transitions on any char, " (length %transitions-on-any-char))
         (format stream "terminus: ~a " %terminus)))))
 
 (defun set-dead-end (state)
   "Set dead-end flag for state. This is normally called upon NFA negation, to convert a continuation
 point into a dead-end. It also clears all transitions out of it."
-  (with-slots (#1=%normal-transitions #2=%auto-transitions #3=%transitions-on-any-char #4=%dead-end)
+  (with-slots (#1=%normal-transitions #2=%auto-transitions #3=%dead-end)
       state
     #+nil(setf #1# nil
           #2# nil
           #3# nil)
     ;; TODO: needed??
-    (setf #4# t)))
+    (setf #3# t)))
 
 (defun unset-dead-end (state)
   "Unset dead-end flag for state. This is normally called upon NFA negation, to convert a dead-end
@@ -58,7 +56,7 @@ into a continuation point."
 
 (defun add-nfa-transition-on-any-char (orig-state dest-state)
   "Add NFA transition on any char from ORIG-STATE to DEST-STATE."
-  (push dest-state (slot-value orig-state '%transitions-on-any-char)))
+  (add-nfa-normal-transition orig-state elm:*any-char-element* dest-state))
 
 (defun add-nfa-auto-transition (orig-state dest-state)
   "Add NFA auto transition from ORIG-STATE to DEST-STATE."
@@ -77,30 +75,21 @@ of state objects, hence, we use the default EQL test."
 (defun delete-all-outgoing-transitions (orig-state)
   "Delete all outgoing transitions from `orig-state`, including auto, normal, and any-char
 transitions (TODO: may also include any-other - EXPERIMENT!)."
-  (with-slots (#1=%auto-transitions #2=%normal-transitions #3=%transitions-on-any-char) orig-state
+  (with-slots (#1=%auto-transitions #2=%normal-transitions) orig-state
     (setf #1# nil
-          #2# nil
-          #3# nil)))
+          #2# nil)))
 
 (defun set-nfa-transition-on-any-other (orig-state dest-state)
-  "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except in one of two
-cases:
-1) If a transition on any-char is found for ORIG-STATE, then this transition is skipped, since it
-won't be effective anyway (since any-char matches any char, so the path on any-other-char will never
-be used. This is just for purpose of optimization.
-2) If a transition on any other char from ORIG-STATE already exists. In this case, I'm throwing an
-error.
-The returned value is either the newly-set value, or NIL otherwise.
+  "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except if it's already set,
+in which case, an error is thrown.
 TODO: I WON'T NEED DEST-STATE ACTUALLY (T/NIL will do the job)."
-  (with-slots (#1=%transitions-on-any-char #2=%transition-on-any-other) orig-state
-    (cond
-      (#1# nil)
-      (#2# (error "Transition on any other char is already set for origin state ~a (BUG??)!"
-                  orig-state))
-      (t (setf #2# dest-state)))))
+  (with-slots (#1=%transition-on-any-other) orig-state
+    (when #1#
+      (error "Transition on any other char is already set for origin state ~a (BUG??)!" orig-state))
+    (setf #1# dest-state)))
 
 (defun unset-nfa-transition-on-any-other (orig-state)
-  "Unset the NFA transition on any char from ORIG-STATE. It has no effect if it's already not set."
+  "Unset the NFA transition on any other char from ORIG-STATE. It has no effect if it's already not set."
   (setf (slot-value orig-state '%transition-on-any-other) nil))
 
 (defun toggle-negation (nfa-state)
@@ -212,43 +201,23 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
 each normalized element to corresponding set of destination NFA states (representing a destination
 state's closure). by normalized, we mean that range elements are split as needed, to remove any
-overlaps. Each element could be single char, char range, any-char, or any-other-char. We also add
-all destination states of the transition on any-char to the destination states of the normal
-transition being handled. This is since all normal elements are implicitly part of the any-char
-space. Note that both any-char and any-other-char are merged, and inserted as any-other-char. This
-is since as far as DFA is concerned, both will be handled as any-other-char.
-UPDATE: this last part is not accurate, since any-other-char merging should be treated in a special
-way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each other)."
+overlaps. Each element could be single char, char range, or any-other-char."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
                "Add unique transition on ELEMENT to NEXT-STATE."
-               (when (eq element elm:+ANY-CHAR-ELEMENT+)
-                 (setf element elm::+ANY-OTHER-CHAR-ELEMENT+))
                (let* ((entry (assoc element assoc-list :test #'elm:simple-element-equal))
                       (arr (or (cdr entry)
                                (make-array 10 :adjustable t :fill-pointer 0))))
                  (vector-push-extend next-state arr)
                  (unless entry
-                   (push (cons element arr) assoc-list))))
-             (add-trans-on-any-char (orig-closure-union element)
-               "Add all transitions on any-char to the transitions on ELEMENT."
-               (dolist (orig-state orig-closure-union)
-                 (dolist (next-state-on-any-char (transitions-on-any-char orig-state))
-                   (add-trans element next-state-on-any-char)))))
+                   (push (cons element arr) assoc-list)))))
       (dolist (nfa-state nfa-state-closure-union assoc-list)
         ;; handle normal transitions
         (dolist (trans (normal-transitions nfa-state))
           (with-accessors ((element trans:element) (next-state trans:next-state)) trans
             (with-split-element (element e splitting-points)
               (add-trans e next-state)
-              (add-trans-on-any-char nfa-state-closure-union e))))
-        ;; TODO: probably no reason to keep the following types of transitions in the same assoc
-        ;;       table. Consider separating, and consider creating a class for normalized transition
-        ;;       table.
-        ;; handle transitions on any-char
-        (dolist (next-state-on-any-char (transitions-on-any-char nfa-state))
-          (add-trans elm:+ANY-CHAR-ELEMENT+ next-state-on-any-char))
         ;; handle transitions on any-other-char
         ;; TODO: REMOVE, since in latest changes (Sept 2025), there won't be such transition
         (let ((next-state-on-any-other-char (transition-on-any-other nfa-state)))
@@ -286,8 +255,8 @@ way (e.g. merging any-other than 'a' with any-other than 'b' ==> cancel each oth
   "Traverse a portion of the NFA, starting at START-STATE, and prepares a hash table with keys as
 the traversed states (object reference), and values as condition of each state. Condition is one of:
 :AUTO-CONNECTED - having `end-state` in its closure.
-:ELEMENT-CONNECTED - can reach `end-state` via a combination of auto and normal/any-char
-transitions (but is not having `end-state` in its closure).
+:ELEMENT-CONNECTED - can reach `end-state` via a combination of auto and normal transitions (but is not
+ having `end-state` in its closure).
 :AUTO-AND-ELEMENT-CONNECTED - having paths of both of the previous types to `end-state`.
 :NOT-CONNECTED - does not reach `end-state` in any way.
 The typical usage is in handling the negation regex."
@@ -322,23 +291,6 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
                        (dolist (normal-trans-i (normal-transitions state))
                          (multiple-value-bind (resolved-i auto-connected-i element-connected-i)
                              (recurse (trans:next-state normal-trans-i))
-                           (unless element-connected ;already settled?
-                             (if (setf element-connected (or auto-connected-i element-connected-i))
-                                 (progn (if auto-connected
-                                            (setf #1# :auto-and-element-connected
-                                                  (gethash state resolution-progress-table) :resolved)
-                                            (setf #1# :element-connected)))
-                                 ;; set pending resolution flag when trans not resolved (unless flag
-                                 ;; already set) - note that we ignore this if EC is already settled
-                                 (unless (and resolved-i pending-elem-trans-resolution)
-                                   (setf pending-elem-trans-resolution t))))))
-                       ;;TODO: code very similar to above (hope to remove this duplication)
-                       ;; probably I'll end up including the transitions on any char together with
-                       ;; the normal transitions (would simplify a lot of code, though not
-                       ;; necessarily better for efficiency.
-                       (dolist (state-i (transitions-on-any-char state))
-                         (multiple-value-bind (resolved-i auto-connected-i element-connected-i)
-                             (recurse state-i)
                            (unless element-connected ;already settled?
                              (if (setf element-connected (or auto-connected-i element-connected-i))
                                  (progn (if auto-connected
@@ -420,9 +372,6 @@ the FSM root state."
                        for next-state = (trans:next-state trans)
                        do (funcall traversal-fn nfa-state elem next-state)
                           (iter next-state))
-                 (loop for dest in (transitions-on-any-char nfa-state)
-                       do (funcall traversal-fn nfa-state elm:+ANY-CHAR-ELEMENT+ dest)
-                          (iter dest))
                  (loop for dest in (auto-transitions nfa-state)
                        do (funcall traversal-fn nfa-state :auto dest)
                           (iter dest))

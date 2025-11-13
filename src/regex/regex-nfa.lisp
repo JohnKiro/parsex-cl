@@ -10,11 +10,6 @@ and returns output state as continuation point."))
     (state:add-nfa-normal-transition input-nfa-state regex output-state)
     output-state))
 
-(defmethod regex-to-nfa ((regex (eql elm:+ANY-CHAR-ELEMENT+)) input-nfa-state)
-  (let* ((output-state (make-instance 'state:nfa-state)))
-    (state:add-nfa-transition-on-any-char input-nfa-state output-state)
-    output-state))
-
 (defmethod regex-to-nfa ((regex elm:char-range-element) input-nfa-state)
   (let* ((output-state (make-instance 'state:nfa-state)))
     (state:add-nfa-normal-transition input-nfa-state regex output-state)
@@ -85,7 +80,7 @@ this one from now on."
          (glue-state (make-instance 'state:nfa-state))
          (output-state (if (elm:greedy-p regex)
                            (regex-to-nfa (make-instance 'elm:zero-or-more-element
-                                                        :element elm:+any-char-element+)
+                                                        :element elm:*any-char-element*)
                                          glue-state)
                            glue-state))
          (state-reachability (state:analyze-nfa-state-reachability input-nfa-state

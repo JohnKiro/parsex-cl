@@ -64,13 +64,13 @@ for the corresponding transition."))
   (format nil "~a" (elm:single-char element)))
 
 (defmethod element-to-edge ((element elm:char-range-element))
-  (format nil "~a - ~a" (elm:char-start element) (elm:char-end element)))
+  (with-accessors ((s elm:char-start) (e elm:char-end)) element
+    (if (and (eq s :min) (eq e :max))
+        (format nil "<ANY-CHAR>")
+        (format nil "~a - ~a" s e ))))
 
 (defmethod element-to-edge ((element (eql :auto)))
   #\GREEK_SMALL_LETTER_EPSILON)
-
-(defmethod element-to-edge ((element (eql elm:+ANY-CHAR-ELEMENT+)))
-  "<any char>")
 
 (defmethod element-to-edge ((element (eql elm::+ANY-OTHER-CHAR-ELEMENT+)))
   "[any other]")
