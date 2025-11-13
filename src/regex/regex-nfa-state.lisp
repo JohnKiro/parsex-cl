@@ -192,7 +192,7 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
   "Given an NFA state closure union (NFA-STATE-CLOSURE-UNION), prepare a transition table that maps
 each normalized element to corresponding set of destination NFA states (representing a destination
 state's closure). by normalized, we mean that range elements are split as needed, to remove any
-overlaps. Each element could be single char, char range, or any-other-char."
+overlaps. Each element could be single char or char range."
   (let ((assoc-list nil)
         (splitting-points (collect-char-range-splitting-points nfa-state-closure-union)))
     (labels ((add-trans (element next-state)
@@ -203,12 +203,10 @@ overlaps. Each element could be single char, char range, or any-other-char."
                  (vector-push-extend next-state arr)
                  (unless entry
                    (push (cons element arr) assoc-list)))))
-      (dolist (nfa-state nfa-state-closure-union assoc-list)
-        ;; handle normal transitions
-        (dolist (trans (normal-transitions nfa-state))
-          (with-accessors ((element trans:element) (next-state trans:next-state)) trans
-            (with-split-element (element e splitting-points)
-              (add-trans e next-state))))))))
+      (do-normal-transitions (_ element next-state) nfa-state-closure-union
+        (with-split-element (element e splitting-points)
+          (add-trans e next-state)))
+      assoc-list)))
 
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
