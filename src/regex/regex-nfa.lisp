@@ -74,7 +74,7 @@ and returns output state as continuation point."))
 (defmethod regex-to-nfa ((regex elm:negated-element) input-nfa-state)
   "Testing new implementation of ANALYZE-NFA-STATE-REACHABILITY -- VERY PROMISING. I will build on
 this one from now on."
-  (format t "DEBUG: Regex to NFA for a negation, input state: ~a~&" input-nfa-state)
+  #+debug(format t "Regex to NFA for a negation, input state: ~a~&" input-nfa-state)
   (let* ((inner-regex (elm:inner-element regex))
          (output-state-inner (regex-to-nfa inner-regex input-nfa-state))
          (glue-state (make-instance 'state:nfa-state))
@@ -148,7 +148,7 @@ this one from now on."
               ;; closure gets the transitions)
               (let ((splitting-pts (state::collect-char-range-splitting-points closure))
                     (split-elements nil))
-                #+nil(format t "DEBUG: Splitting points: ~s.~&" splitting-pts)
+                #+debug(format t "Splitting points: ~s.~&" splitting-pts)
                 (state::do-normal-transitions (_ element next-state) closure
                   ;; check to avoid inverting an inverted element (not sure if this is possible, but
                   ;; maybe in NFAs having complex closures, due to recursion)

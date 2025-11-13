@@ -121,14 +121,15 @@ we do not care about element range end."
   "Returns two functions as values: the first function receives a simple element as argument,
 computes its contribution to char range splitting points, and append those to internal result array.
 The second function returns the splitting points (result) array.
-Note: the result array is sorted based on character order, and with no duplications."
+Note: the result array is sorted based on character order, and with no duplications.
+Note: values :min and :max are ignored, since they don't form splitting points."
   (let ((result (make-array 10 :element-type 'character :adjustable t :fill-pointer 0)))
     (flet ((extract-and-append-splitting-points (element)
              (declare (inline)
                       (type simple-element element))
              "Extract, compute, and append the splitting points (characters) that the simple element
-`element`contributes. Note that any of the two values could be NIL, which corresponds to :min or :max
- (i.e. irrelevant to splitting)."
+`element`contributes. Note that any of the two values could be NIL, which corresponds to :min or
+ :max (i.e. irrelevant to splitting)."
              (etypecase element
                (single-char-element (let ((ch (single-char element)))
                                       (vector-push-extend (chars:dec-char ch) result)
@@ -162,7 +163,7 @@ Note: it takes into consideration half-open/full-open ranges.
 TODO: add optimization declaration!"
   (declare (type char-range-element char-range-element)
            (type (vector character) splitting-points))
-  (format t "DEBUG: splitting range ~a on characters ~s..~&" char-range-element splitting-points)
+  #+debug(format t "Splitting range ~a on characters ~s..~&" char-range-element splitting-points)
   (let ((slider (char-start char-range-element))
         (end (char-end char-range-element))
         (acc nil))
@@ -185,9 +186,11 @@ TODO: add optimization declaration!"
         (push (make-instance 'single-char-element :single-char slider) acc)
         (push (make-char-range :start slider :end end) acc))
     ;; return accumulator, containing all sub-ranges
-    (format t "DEBUG: Range split into: ~a~&" acc)
+    #+debug(format t "Range split into: ~a~&" acc)
     acc))
 
+;; TODO: do we need to consider range end, if both starts are equal? May do this in
+;; `simple-element-before`
 (declaim (inline sort-simple-elements))
 (defun sort-simple-elements (elements &optional (remove-duplicates T))
   "Sort a sequence of simple elements `elements` according to character (if element is single char)
