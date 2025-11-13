@@ -208,19 +208,18 @@ overlaps. Each element could be single char or char range."
           (add-trans e next-state)))
       assoc-list)))
 
-;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
-;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
-;;; states as a useful by-product.
-;;; TODO: Currently traversal starts with element transitions, then auto transitions. Think about the
+;;; TODO: this function is candidate to be transformed into a generic traversal, with flexibility
+;;; in whether to traverse normal/auto/both transitions.
+;;; TODO: currently traversal starts with element transitions, then auto transitions. Think about the
 ;;; other order (auto then element).
 ;;; Some notes about the implementation:
-;;; - since NFA is generally cyclic graph, so I have to not only keep track of traversal, but also I try
-;;; to collect as much info as possible about each state as soon as possible, since this will help
+;;; - since NFA is generally cyclic graph, I have to not only keep track of traversal, but also I try
+;;; to collect as much info as possible about each state, as soon as possible, since this will help
 ;;; resolve the type of other states as well (noting the recursive traversal).
 ;;; - The idea of pending/resolved status is that a state's condition regarding connectivity to end-state
 ;;; depends on the transitions it is having, so until we collect enough info about the state (via its
 ;;; transitions), its condition remains unresolved. And resolution may be delayed in case of cycles, but
-;;; this is not generally the case, since even with the cycles, enough info could be collected from other
+;;; this is not generally the case, since even with cycles, enough info could be collected from other
 ;;; transitions. This is the main idea behind the iterative traversal algorithm I'm using.
 ;;; - Element transitions contribute to resolution of :element-connected status, so once this status is
 ;;; determined for a given state, we reach element resolution for that state, regardless of whether
