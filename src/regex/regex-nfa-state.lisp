@@ -3,10 +3,9 @@
 (defclass nfa-state ()
   ((%normal-transitions :initform nil :type list :reader normal-transitions)
    (%auto-transitions :initform nil :type list :reader auto-transitions)
-   (%transition-on-any-other :initform nil :type (or null nfa-state)
+   (%transition-on-any-other :initform nil :type boolean
                              :reader transition-on-any-other)
    (%dead-end :initform nil :type boolean :reader dead-end-p)
-   (%negated :initform nil :initarg :negated :type boolean :reader negated-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
    ;;However, terminus state is not known when the state is constructed, so cannot determine its
@@ -79,25 +78,17 @@ transitions (TODO: may also include any-other - EXPERIMENT!)."
     (setf #1# nil
           #2# nil)))
 
-(defun set-nfa-transition-on-any-other (orig-state dest-state)
-  "Set the NFA transition on any other char from ORIG-STATE to DEST-STATE, except if it's already set,
-in which case, an error is thrown.
-TODO: I WON'T NEED DEST-STATE ACTUALLY (T/NIL will do the job)."
+(defun set-nfa-transition-on-any-other (orig-state)
+  "Set the NFA transition on any other char from ORIG-STATE, except if it's already set,
+in which case, an error is thrown."
   (with-slots (#1=%transition-on-any-other) orig-state
     (when #1#
       (error "Transition on any other char is already set for origin state ~a (BUG??)!" orig-state))
-    (setf #1# dest-state)))
+    (setf #1# t)))
 
-(defun unset-nfa-transition-on-any-other (orig-state)
+(defun reset-nfa-transition-on-any-other (orig-state)
   "Unset the NFA transition on any other char from ORIG-STATE. It has no effect if it's already not set."
   (setf (slot-value orig-state '%transition-on-any-other) nil))
-
-(defun toggle-negation (nfa-state)
-  "Toggle the NFA state negation flag. A negated NFA state indicates no matching. For example, for
-a (not #\b) regex, the state coming from 'b' is negated. This function toggles the negation flag
-(t -> nil, nil -> t).
-UPDATE: probably won't need it!"
-  (setf #1=(slot-value nfa-state '%negated) (not #1#)))
 
 (defun set-terminus (nfa-state)
   "Mark state `nfa-state` as terminus."
@@ -217,12 +208,7 @@ overlaps. Each element could be single char, char range, or any-other-char."
         (dolist (trans (normal-transitions nfa-state))
           (with-accessors ((element trans:element) (next-state trans:next-state)) trans
             (with-split-element (element e splitting-points)
-              (add-trans e next-state)
-        ;; handle transitions on any-other-char
-        ;; TODO: REMOVE, since in latest changes (Sept 2025), there won't be such transition
-        (let ((next-state-on-any-other-char (transition-on-any-other nfa-state)))
-          (when next-state-on-any-other-char
-            (add-trans elm::+ANY-OTHER-CHAR-ELEMENT+ next-state-on-any-other-char)))))))
+              (add-trans e next-state))))))))
 
 ;;; TODO: THIS FUNCTION IS CANDIDATE TO BE TRANSFORMED INTO A GENERIC TRAVERSAL, with flexibility
 ;;; in whether to traverse normal/auto/both transitions, also can return the list of traversed
@@ -374,12 +360,5 @@ the FSM root state."
                           (iter next-state))
                  (loop for dest in (auto-transitions nfa-state)
                        do (funcall traversal-fn nfa-state :auto dest)
-                          (iter dest))
-                 ;; TODO: might just call the traversal function, even if transition on any other
-                 ;; is NIL
-                 (alexandria:when-let (next-state (transition-on-any-other nfa-state))
-                   (funcall traversal-fn nfa-state elm::+ANY-OTHER-CHAR-ELEMENT+ next-state)
-                   (iter next-state)))))
+                          (iter dest)))))
       (iter root-state))))
-
-

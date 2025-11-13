@@ -150,7 +150,6 @@
   (:export #:nfa-state
            #:normal-transitions
            #:auto-transitions
-           #:transition-on-any-other
            #:terminus-p
            #:set-terminus
            #:add-nfa-normal-transition
@@ -162,7 +161,7 @@
            #:unset-dead-end
            #:dead-end-p
            #:set-nfa-transition-on-any-other
-           #:unset-nfa-transition-on-any-other
+           #:reset-nfa-transition-on-any-other
            #:terminal-nfa-closure-union-p
            #:acceptance-nfa-closure-union-p
            #:prepare-nfa-state-closure

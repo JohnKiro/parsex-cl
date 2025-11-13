@@ -119,11 +119,11 @@ this one from now on."
                   #+nil(state::delete-all-outgoing-transitions state-i))
                  (:auto-and-element-connected
                   (state:set-dead-end state-i)
-                  (state:set-nfa-transition-on-any-other state-i glue-state))
+                  (state:set-nfa-transition-on-any-other state-i))
                  (:element-connected
                   ;; add any-other trans, unless this state was marked as dead-end in inner negation
                   (unless (state:dead-end-p state-i)
-                    (state:set-nfa-transition-on-any-other state-i glue-state))
+                    (state:set-nfa-transition-on-any-other state-i))
                   (unless (member state-i inner-cont-pts-closures :test #'eql)
                     ;; TODO: give user the choice (greedy/non-greedy)
                     (state:add-nfa-auto-transition state-i output-state)
@@ -140,7 +140,7 @@ this one from now on."
               ;;we'll convert them to normal transitions (inversion)
               ;; TODO: try to avoid having to do this
               (dolist (s closure)
-                (state:unset-nfa-transition-on-any-other s))
+                (state:reset-nfa-transition-on-any-other s))
               ;; convert "any-other" transitions into normal transitions (using
               ;; inversion)
               ;; note that we add the created transitions to the closure's
