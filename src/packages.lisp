@@ -195,7 +195,6 @@
            #:candidate-matching-point-p
            #:dead-end-p
            #:transitions
-           #:transition-on-any-other
            #:find-matching-transition
            ))
 

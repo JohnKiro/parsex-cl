@@ -15,10 +15,6 @@
                  :initform nil
                  :type list
                  :documentation "Transitions to other DFA states, based on single char/char range")
-   (%transition-on-any-other :accessor transition-on-any-other
-                             :initform nil
-                             :type (or null dfa-state)
-                             :documentation "destination DFA state on any other char")
    (%candidate-matching-point :reader candidate-matching-point-p
                               :type boolean
                               :documentation "whether this is accepting state. It is derived from
@@ -53,7 +49,6 @@ meaning should reject all characters, since the inner OR accepts all characters.
 condition in fact could happen, and in this example, we see that the dead-end status should override
 the terminal (acceptance) status."
   (and (null (transitions dfa-state))
-       (null (transition-on-any-other dfa-state))
        (candidate-matching-point-p dfa-state)))
 
 (defun dfa-state-dead-end-p (dfa-state)
@@ -66,7 +61,6 @@ matching status. Also I see confusion: dead-end in NFA VS dead-end in DFA (diffe
 These states are ones that were negated by an outer negation element. Currently not used, and may
 remove it (see DFA-STATE-DEFINITELY-TERMINAL-P)."
   (and (null (transitions dfa-state))
-       (null (transition-on-any-other dfa-state))
        (not (candidate-matching-point-p dfa-state))))
 
 (defun create-dfa-state-set ()
@@ -76,26 +70,18 @@ remove it (see DFA-STATE-DEFINITELY-TERMINAL-P)."
 ;;; This is because I don't think we need to keep the NFA closure after the DFA state machine is
 ;;; prepared.
 
-
 (defun lookup-dfa-transition (simple-element origin-dfa-state)
   "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE. A simple
-element can be either single char, char range, or any-other-char. Note that during normalized
-transition table preparation, elements any-char and any-other-char are merged (if both found in the
-same NFA closure union. This is because in DFA, both will have the meaning of any-other-char."
+element can be either single char, char range."
   (declare (dfa-state origin-dfa-state))
   (assoc simple-element (slot-value origin-dfa-state '%transitions)
          :test #'elm:simple-element-equal))
 
 (defun add-dfa-transition (origin-dfa-state simple-element destination-dfa-state)
   (declare (dfa-state origin-dfa-state destination-dfa-state))
-  ;; TODO: revise later (these are element types or transition types?)
-  (if (or (eq simple-element :any-char) (eq simple-element elm::+ANY-OTHER-CHAR-ELEMENT+))
-      (if (transition-on-any-other origin-dfa-state)
-          (error "A transition on any other is already present!")
-          (setf (transition-on-any-other origin-dfa-state) destination-dfa-state))
-      (if (lookup-dfa-transition simple-element origin-dfa-state)
-          (error "Transition already present (BUG?):")
-          (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state)))))
+  (if (lookup-dfa-transition simple-element origin-dfa-state)
+      (error "Transition already present (BUG?):")
+      (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state))))
 
 ;;; TODO: produce-dfa and parse-and-produce-dfa can be converted into methods of a single generic
 (defun produce-dfa (nfa-root-state)
@@ -162,9 +148,8 @@ found or newly created."
 Returns destination DFA state. This function is used by the regex matching logic, unlike the
 above functions which are used during the DFA tree preparation. Later may rearange to make this
 distiction clear."
-  (or (cdr (assoc char (transitions origin-dfa-state)
-                  :test #'elm:match-char-against-simple-element))
-      (transition-on-any-other origin-dfa-state)))
+  (cdr (assoc char (transitions origin-dfa-state)
+              :test #'elm:match-char-against-simple-element)))
 
 ;;; ---------
 ;;; FSM methods are currently used in Graphviz Dot diagram generation only
@@ -177,17 +162,13 @@ distiction clear."
   (dead-end-p fsm-state))
 
 (defmethod fsm:traverse-fsm-transitions ((root-state dfa-state) traversal-fn)
-  "Traverse all transitions in the DFA state machine, starting from ROOT-STATE. This includes
-both normal and transitions on any other char. TRAVERSAL-FN is called for each transition."
+  "Traverse all transitions in the DFA state machine, starting from ROOT-STATE. TRAVERSAL-FN is
+ called for each transition."
   (let ((traversal-mark-lookup-table (make-hash-table)))
     (labels ((iter (dfa-state)
                (unless (gethash dfa-state traversal-mark-lookup-table)
                  (setf (gethash dfa-state traversal-mark-lookup-table) t)
                  (loop for (elem . next-state) in (transitions dfa-state)
                        do (funcall traversal-fn dfa-state elem next-state)
-                          (iter next-state))
-                 (let ((dest-on-any-other (transition-on-any-other dfa-state)))
-                   (when dest-on-any-other
-                     (funcall traversal-fn dfa-state :any-other-char dest-on-any-other)
-                     (iter dest-on-any-other))))))
+                          (iter next-state)))))
       (iter root-state))))
