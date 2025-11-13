@@ -108,6 +108,7 @@
            #:make-char-range-element
            #:char-range-equal
            #:match-char-against-simple-element
+           #:make-char-range-splitting-points-extractor
            #:split-char-range
            #:inner-element
            #:inner-elements
@@ -124,6 +125,9 @@
            #:repeated-element
            #:min-count
            #:max-count
+           #:sort-simple-elements
+           #:invert-elements
+           #:collect-char-range-splitting-points
            ))
 
 (defpackage :parsex-cl/regex/fsm
@@ -131,6 +135,7 @@
   (:local-nicknames )
   (:export #:traverse-fsm-transitions
            #:fsm-acceptance-state-p
+           #:fsm-dead-end-state-p
            #:with-unique-visit
            ))
 
@@ -167,7 +172,10 @@
            #:prepare-nfa-state-closure
            #:prepare-nfa-state-closure-union
            #:create-nfa-normalized-transition-table
+           #:collect-char-range-splitting-points
            #:analyze-nfa-state-reachability
+           #:do-normal-transitions
+           #:with-split-element
            ))
 
 (defpackage :parsex-cl/regex/nfa

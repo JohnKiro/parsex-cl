@@ -182,7 +182,7 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
   "Collects char range splitting points (characters) from `nfa-states` into a sorted vector of
  characters. NFA states argument should be a list of normal transitions."
   (declare (type list nfa-states))
-  (multiple-value-bind (iter-fn get-result-fn) (elm::make-char-range-splitting-points-extractor)
+  (multiple-value-bind (iter-fn get-result-fn) (elm:make-char-range-splitting-points-extractor)
     (do-normal-transitions (_ state _) nfa-states
       (funcall iter-fn state))
     (funcall get-result-fn)))
@@ -338,7 +338,7 @@ the function, since it is typically already prepared by the client code."
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
   (terminus-p fsm-state))
 
-(defmethod fsm::fsm-dead-end-state-p ((fsm-state nfa-state))
+(defmethod fsm:fsm-dead-end-state-p ((fsm-state nfa-state))
   (dead-end-p fsm-state))
 
 ;; TODO: a macro would be more convenient

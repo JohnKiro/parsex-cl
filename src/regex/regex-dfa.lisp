@@ -158,7 +158,7 @@ distiction clear."
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state dfa-state))
   (candidate-matching-point-p fsm-state))
 
-(defmethod fsm::fsm-dead-end-state-p ((fsm-state dfa-state))
+(defmethod fsm:fsm-dead-end-state-p ((fsm-state dfa-state))
   (dead-end-p fsm-state))
 
 (defmethod fsm:traverse-fsm-transitions ((root-state dfa-state) traversal-fn)
