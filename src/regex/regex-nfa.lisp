@@ -161,9 +161,7 @@ this one from now on."
             ;; else: no any-other trans, => traverse closure
             (dolist (s closure)
               (add-inversion-transitions s)))
-        ;; traverse normal transitions (TODO: and ANY-CHAR transitions as
-        ;; well?? Not making difference, since inverting any-char gives
-        ;; "no char") -- TODO: test (not :any-char)
+        ;; traverse normal transitions
         (state::do-normal-transitions (trans elm next-state) closure
           (add-inversion-transitions next-state))))
     ;; connect the NOT element to the rest of the NFA
