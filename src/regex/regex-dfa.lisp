@@ -63,13 +63,6 @@ remove it (see DFA-STATE-DEFINITELY-TERMINAL-P)."
   (and (null (transitions dfa-state))
        (not (candidate-matching-point-p dfa-state))))
 
-(defun create-dfa-state-set ()
-  (make-array 50 :adjustable t :fill-pointer 0))
-;;; TODO: alternative to storing NFA closure union in the DFA state, just for the purpose of
-;;; this lookup, use an a-list instead of a vector, that associates the NFA closure to DFA state.
-;;; This is because I don't think we need to keep the NFA closure after the DFA state machine is
-;;; prepared.
-
 (defun lookup-dfa-transition (simple-element origin-dfa-state)
   "Find whether there is already a transition on SIMPLE-ELEMENT in ORIGIN-DFA-STATE. A simple
 element can be either single char, char range."
@@ -84,9 +77,13 @@ element can be either single char, char range."
       (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state))))
 
 ;;; TODO: produce-dfa and parse-and-produce-dfa can be converted into methods of a single generic
+;;; TODO: alternative to storing NFA closure union in the DFA state, just for the purpose of
+;;; this lookup, use an a-list instead of a vector, that associates the NFA closure to DFA state.
+;;; This is because I don't think we need to keep the NFA closure after the DFA state machine is
+;;; prepared.
 (defun produce-dfa (nfa-root-state)
   (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
-        (dfa-state-set (create-dfa-state-set)))
+        (dfa-state-set (make-array 50 :adjustable t :fill-pointer 0)))
     ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
 
@@ -146,8 +143,8 @@ found or newly created."
 (defun find-matching-transition (origin-dfa-state char)
   "Find matching transition from ORIGIN-DFA-STATE, based on input CHAR.
 Returns destination DFA state. This function is used by the regex matching logic, unlike the
-above functions which are used during the DFA tree preparation. Later may rearange to make this
-distiction clear."
+above functions which are used during the DFA tree preparation. Later may rearrange to make this
+distinction clear."
   (cdr (assoc char (transitions origin-dfa-state)
               :test #'elm:match-char-against-simple-element)))
 
