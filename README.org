@@ -2,11 +2,10 @@
 #+subtitle: Experimental project for regular expressions, lexer and parser design
 
 * Purpose of this Project
-I started this project as an exercise to practice Common Lisp. It is not meant by any means to compete with the well-established, feature-rich *[[https://github.com/edicl/cl-ppcre][CL-PPCRE]]*. However, as this one gets more mature, it could become a component of a bigger idea.
-
+This is an experimental regex project, with "lispy" syntax, that could hopefully be part of a bigger lexer-parser system. At this stage, I'm fairly satisfied with the regex feature coverage it provides. However, it is not meant to compete with the well-established, feature-rich *[[https://github.com/edicl/cl-ppcre][CL-PPCRE]]*.
 
 * Status
-While it's still at an early experimental condition, it is already capable of matching strings against classical *regular expressions*, that are provided in the form of *s-expressions*. See section entitled [[unit-tests][Unit Tests]] for information about how to experiment with the regex matcher.
+While it's still at an early experimental status, it is already capable of matching strings against classical *regular expressions*, that are provided in the form of *s-expressions*. See section entitled [[unit-tests][Unit Tests]] for information about how to experiment with the regex matcher.
 
 * Features
 
@@ -16,32 +15,36 @@ I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to d
 - I get regex parsing almost for free, thanks to the *Common Lisp Reader*. This also allows adding more features in the future, without the need for complicated parser updates.
 - Ambiguity related to order of evalution is avoided, thanks to the parentheses.
 
+Having said that, it's designed with separation between regex presentation and processing in mind. This means that different "front-ends" could be implemented, allowing regex to be expressed in different forms (e.g. string with wildcards or JSON).
 
 ** Supported Constructs
 Regex constructs are either simple (that is, matching a single character), or composed of other constructs.
 
 The following table describes the supported constructs. For brievity, I'm assuming that the reader is already familiar with regular expressions in general.
 
-|-----------------+---------------------------------------------------------------------------------+--------------------------------|
-| Regex Element   | Description                                                                     | Example                        |
-|-----------------+---------------------------------------------------------------------------------+--------------------------------|
-| Character       | Individual characters                                                           | #\a                            |
-| Any Character   | An element matching any single character                                        | :any-char                      |
-| Character Range | Character range, based on char-code order                                       | (char-range #\A #\F)           |
-| Sequence        | Sequence of one or more elements                                                | (seq #\x #\y)                  |
-| String          | Sequence of characters                                                          | "xy" (same as previous one)    |
-| Choice          | Choice between multiple elements                                                | (or "Hello" "Hi")              |
-| Zero or More    | Zero or more occurrences of a specific element (Kleene closure)                 | (* "a")                        |
-| One or more     | One or more occurrences of a specific element                                   | (seq "Hell" (+ #\o) #\!)       |
-| Zero or One     | Zero or one occurrence of a specific element                                    | (? (or "Mr." "Mrs."))          |
-| Regex Negation  | Matches anything other than the specified regex element                         | (not "abc")                    |
-| Regex Inversion | Equivalent to the caret (^) inside square brackets in conventional regex format | (inv #\a (char-range #\d #\m)) |
-|-----------------+---------------------------------------------------------------------------------+--------------------------------|
+|-----------------+------------------------------------------------------------------------------+--------------------------------|
+| Regex Element   | Description                                                                  | Example                        |
+|-----------------+------------------------------------------------------------------------------+--------------------------------|
+| Character       | Individual characters                                                        | #\a                            |
+| Any Character   | An element matching any single character                                     | :any-char                      |
+| Character Range | Character range, based on char-code order                                    | (char-range #\A #\F)           |
+| Sequence        | Sequence of one or more elements (of any type)                               | (seq #\x #\y)                  |
+| String          | Sequence of characters                                                       | "xy" (same as previous one)    |
+| Choice          | Choice between multiple elements                                             | (or "Hello" "Hi")              |
+| Zero or More    | Zero or more occurrences of a specific element (Kleene closure)              | (* "a")                        |
+| One or more     | One or more occurrences of a specific element                                | (+ "Hello ")                   |
+| Zero or One     | Zero or one occurrence of a specific element                                 | (? (or "Mr." "Mrs."))          |
+| Regex Negation  | Matches anything other than the specified regex element                      | (not "abc")                    |
+| Regex Inversion | Equivalent to the caret (^) inside square brackets in classical regex format | (inv #\a (char-range #\d #\m)) |
+| Repetition      | Equivalent to ={m, n}= in classical regex format                             | (rep (or "X" "O") 1 3)         |
+|-----------------+------------------------------------------------------------------------------+--------------------------------|
 
-Note in the previous table that single character and string elements are specified as they would be read by the Common Lisp *reader*. Construct types (*seq*, *or*, etc.) are specified using symbols.
+Note:
 
-Note that the *negation* and *inversion* are subject to change. The negation specifically is experimental and tricky (you may not expect the behavior), so it might not be very useful. I may consider merging the negation and inversion into a single construct, with the actual behavior specified by flags.
-
+- Single character and string elements are specified as they would be read by the Common Lisp *reader*.
+- Construct types (*seq*, *or*, etc.) are specified using symbols.
+- Character overlaps are handled decently.
+- The *negation* element is still subject to changes, and its behavior will most probably be controlled using flags (to be added).
 
 ** Some Implementation Notes
 
@@ -51,14 +54,15 @@ Here are some assorted implementation details, which need to be addressed by exp
 Backtracking in case of no match and in case of /candidate match/ are both implemented in the input source. These features are transparent to the regex matching function itself. There are two benefits from this:
 
 1. The contract between the matching function and the input handling is simple.
-2. Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only.
-
+2. Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only. Note that currently, only one implemententation is provided for the input source.
 
 * Prerequisites
 - Git
 - A Common Lisp installation, including ASDF (e.g. SBCL).
 - Quicklisp
 
+* Libraries (Dependencies)
+Only *alexandria* is used, however, *iterate* is also declared as dependency (I'm content with the standard *loop*, though).
 
 * Installation
 
@@ -78,29 +82,27 @@ To load "parsex-cl":
     parsex-cl
 ; Loading "parsex-cl"
 [package parsex-cl]...............................
-[package parsex-cl.tokenizer-states]..............
-[package parsex-cl.tokenizer-transitions].........
-[package parsex-cl.tokenizer].....................
-[package parsex-cl.basic-string-tokenizer]........
-[package parsex-cl.common-transition-finders].....
-[package parsex-cl.common-atom-matchers]..........
-[package parsex-cl.regex].........................
-[package parsex-cl.fsm-traversal].................
-[package parsex-cl]...............................
-[package parsex-cl.graphviz-util].................
-[package parsex-cl.test]..........................
-[package parsex-cl.tokenizer.test]................
-[package parsex-cl.regex.test]..
+
+<other packages here>
 (PARSEX-CL)
 #+end_example
 
-TODO: Enhance.
+TODO: Enhance this section.
 
 * Usage
 
+** User Interface
+TODO: so far, I was focusing on test cases, and the only available matching function takes a DFA. This means that before matching, NFA and DFA need to be generated in a separate step (which is useful in case a single regex will be used in many matching operations, for performance). Next, I will focus on the user interface (API / command line), and update this section.
+
 ** Unit Tests <<unit-tests>>
 
-Running regex unit test cases selectively can be done by first changing into the regex unit tests package:
+First, the unit tests system needs to be loaded as follows:
+
+#+begin_src lisp
+  (ql:quickload "parsex-cl/test")
+#+end_src
+
+Then, running test cases can be done by first changing into the regex unit tests package:
 
 #+begin_src lisp
   (in-package :parsex-cl.test/regex.test)
@@ -113,13 +115,16 @@ The output and updated prompt will indicate the *test* package:
 TEST>
 #+end_example
 
-Then, all defined test cases could be executed as follows:
+Finally, all defined test cases could be executed as follows:
 
 #+begin_example
 TEST> (run! :parsex-cl.regex.test-suite)
 #+end_example
 
-The output will provide information about the test cases (controlled by dynamic variables), including the following:
+Of course, specific test suites or individual test cases could be ran by using the corresponding test name.
+
+The output will provide information about the test cases (controlled by dynamic variables), including the following (depending on
+some configuration variables):
 - Text being matched.
 - Regular expression being matched against.
 - Text consumed by the matching process (updated accumulator).
@@ -192,59 +197,40 @@ In order to inspect the NFA or DFA visually, the *dot* utility provided with *Gr
 
 *Note*: A Graphviz installation is required for this step.
 
-For example, to visualize the DFA corresponding to the test case described in the previous section ([[unit-tests][Unit Tests]]), the following commands can be used (assuming a Unix/Linux terminal):
+For example, to generate NFA and DFA for the regex =(or (seq :any-char #\z) "hello")=, and visualize it, you can use the following code:
 
-- Save the Dot output for the DFA into a text file:
+#+begin_src lisp
+(let* ((*print-case* :downcase)
+       (regex '(or (seq :any-char #\z) "hello"))
+       (regex-obj-tree (parsex-cl/regex/sexp:prepare-regex-tree regex)))
+  (multiple-value-bind (start end) (parsex-cl/regex/nfa:produce-nfa regex-obj-tree)
+    (let ((dfa (parsex-cl/regex/dfa:produce-dfa start)))
+      (print end)
+      (parsex-cl/graphviz-util:generate-graphviz-dot-diagram start "/tmp/sample-nfa.svg"
+                                                             :regex regex
+                                                             :dot-output-file "/tmp/sample-nfa.dot")
+      (parsex-cl/graphviz-util:generate-graphviz-dot-diagram dfa "/tmp/sample-dfa.svg"
+                                                             :regex regex
+                                                             :dot-output-file "/tmp/sample-dfa.dot"))))
+#+end_src
 
-#+begin_example
-cat > sample-dfa.dot
+Then, view the generated SVG files with any modern web browser or vector graphics tool that supports it.
 
-digraph {
-rankdir = LR;
-
-    0 -> 1 [label="e - e"];
-    1 -> 2 [label="e - e"];
-    2 -> 2 [label="e - e"];
-    2 -> 3 [label="b - d"];
-    3 -> 2 [label="e - e"];
-    3 -> 3 [label="b - d"];
-    3 -> 4 [label="a - a"];
-    4 -> 2 [label="e - e"];
-    4 -> 3 [label="b - d"];
-    4 -> 4 [label="a - a"];
-    2 -> 4 [label="a - a"];
-    1 -> 3 [label="b - d"];
-    1 -> 4 [label="a - a"];
-    0 -> 5 [label="b - d"];
-    5 -> 2 [label="e - e"];
-    5 -> 3 [label="b - d"];
-    5 -> 4 [label="a - a"];
-    0 -> 6 [label="a - a"];
-    6 -> 2 [label="e - e"];
-    6 -> 3 [label="b - d"];
-    6 -> 4 [label="a - a"];
-}
-^C
-#+end_example
-
-- Export the file as SVG:
-
-#+begin_example
-dot -Tsvg -Nfontcolor=red -Nshape=circle sample-dfa.dot > sample-dfa.svg
-#+end_example
-
-- View the SVG file in any modern web browser, or any vector graphics tool that supports opening/importing files in SVG format.
+#+CAPTION: Sample NFA finite state machine diagram
+#+NAME:   fig:nfa-fsm-diagram
+[[./images/sample-nfa.svg]]
 
 #+CAPTION: Sample DFA finite state machine diagram
 #+NAME:   fig:dfa-fsm-diagram
 [[./images/sample-dfa.svg]]
 
 
-* TODO
+* TODO: Up Next
 
-- Complete the implementation of negation.
-- may split code into multiple packages.
-- There are also some TODOs in the source code (to be added in this section).
+- Complete the implementation of negation (add customizable behavior).
+- Implement *anchors*, via specific matching functions. This won't affect the regex engine itself.
+- There are also some TODOs in the source code that are worth checking out/cleaning up.
+- Lexer and parser!
 
 * Author
 + John Badie (johnkirollos@gmail.com)
