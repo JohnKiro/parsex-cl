@@ -76,7 +76,7 @@ specific error (for unit testing)."
   (let ((macro-names-and-slot-readers (mapcar #'(lambda (e)
                                                   (cons e (prepare-function-slot-name e)))
                                               operation-names)))
-    `(class-util:with-function-slots-funcall-macros (,@macro-names-and-slot-readers) ,obj
+    `(class-util:with-function-slots-funcall-macros ,macro-names-and-slot-readers ,obj
        ,@body)))
 
 (defun create-basic-regex-input (initial-input-text &key
