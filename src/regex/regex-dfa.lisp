@@ -7,11 +7,7 @@
 ;;; A DFA state contains the union of NFA states that form the DFA state, as well as an
 ;;; association of transitions (simple element --> next DFA state).
 (defclass dfa-state ()
-  ((%nfa-states :initarg :nfa-states
-                :reader nfa-states
-                :initform (error "nfa-states must be specified!")
-                :documentation "List of NFA states represented by this DFA state")
-   (%transitions :accessor transitions
+  ((%transitions :accessor transitions
                  :initform nil
                  :type list
                  :documentation "Transitions to other DFA states, based on single char/char range")
@@ -26,11 +22,16 @@ NFA-STATES, but included as separate slot to avoid computation each time it is n
               :documentation "Dead-end status, derived from corresponding NFA states."))
   (:documentation "DFA state corresponding to an NFA closure union."))
 
-(defmethod initialize-instance :after ((dfa-state dfa-state) &key)
-  "Object initializer that sets CANDIDATE-TERMINAL flag (accepting / non-accepting)"
-  (with-slots (%nfa-states %candidate-matching-point) dfa-state
-    (let ((matching-or-not (nfa-state:acceptance-nfa-closure-union-p %nfa-states)))
-      (setf %candidate-matching-point matching-or-not))))
+(defmethod initialize-instance :after ((dfa-state dfa-state) &key nfa-states)
+  "Object initializer that sets candidate-terminal (accepting / non-accepting) and dead-end flags,
+based on NFA states corresponding to DFA state being created."
+  (let ((matching-or-not (nfa-state:acceptance-nfa-closure-union-p nfa-states))
+        (dead-end (dolist (nfa-state nfa-states nil)
+                    (when (nfa-state:dead-end-p nfa-state)
+                      (return t)))))
+    (with-slots (#1=%candidate-matching-point #2=%dead-end) dfa-state
+      (setf #1# matching-or-not
+            #2# dead-end))))
 
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
@@ -77,63 +78,54 @@ element can be either single char, char range."
       (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state))))
 
 ;;; TODO: produce-dfa and parse-and-produce-dfa can be converted into methods of a single generic
-;;; TODO: alternative to storing NFA closure union in the DFA state, just for the purpose of
-;;; this lookup, use an a-list instead of a vector, that associates the NFA closure to DFA state.
-;;; This is because I don't think we need to keep the NFA closure after the DFA state machine is
-;;; prepared.
-(defun produce-dfa (nfa-root-state)
-  (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
-        (dfa-state-set (make-array 50 :adjustable t :fill-pointer 0)))
-    (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
-
-(defun lookup-dfa-state (nfa-states traversed-dfa-states)
-  (declare (cons nfa-states))
-  (loop for dfa-state across traversed-dfa-states
-        do (let* ((nfa-states-loop (slot-value dfa-state '%nfa-states))
-                  (difference (set-exclusive-or nfa-states nfa-states-loop)))
-             (unless difference
-               (return-from lookup-dfa-state dfa-state))))
-  nil)
-
-(defun find-dfa-state (nfa-states traversed-dfa-states)
-  "Look up NFA state closure union provided in NFA-STATES, in the TRAVERSED-DFA-STATES 
-DFA lookup vector. If not found, it creates a new DFA state and appends it to
-TRAVERSED-DFA-STATES. Finally it returns the DFA state, indicating whether it's already
-found or newly created."
-  (declare (cons nfa-states))
-  (let ((dfa-state (lookup-dfa-state nfa-states traversed-dfa-states)))
-    (if dfa-state
-        (values dfa-state 'already-found)
-        (let* ((dead-end (dolist (nfa-state nfa-states nil)
-                           (when (nfa-state:dead-end-p nfa-state)
-                             (return t))))
-               (new-dfa-state (make-instance 'dfa-state :nfa-states nfa-states :dead-end dead-end)))
-          (vector-push-extend new-dfa-state traversed-dfa-states)
-          (values new-dfa-state 'newly-created)))))
-
-;;; Note that we cannot pass the state union instead of closure union, and this is
+;;; Note that in lookup, we cannot pass the state union instead of closure union, and this is
 ;;; because the same closure union could result from two different state unions,
 ;;; and we need to lookup the same entry for both, in such case. Of course, we could still pass the,
 ;;; closure, and compute the union inside `find-dfa-state`, but we also need the union in
 ;;; `create-nfa-normalized-transition-table`, so we would need to compute it twice (may think about
 ;;; rearranging code.
-(defun produce-dfa-rec (nfa-state-closure-union traversed-dfa-states)
-  (multiple-value-bind (dfa-state found-or-new) (find-dfa-state nfa-state-closure-union
-                                                                traversed-dfa-states)
-    (if (eq found-or-new 'already-found)
-        dfa-state
-        (let ((nfa-normalized-transition-table
-                (nfa-state:create-nfa-normalized-transition-table nfa-state-closure-union)))
-          ;;replace each entry value with union of state closures (in place of union of states)
-          (loop for (element . dest-state-union) in nfa-normalized-transition-table
-                ;; TODO: can't we do this prepare call within the call to
-                ;; nfa:create-nfa-normalized-transition-table? See comment above (we need it also in
-                ;; find-dfa-state.
-                for dest-closure-union = (nfa-state:prepare-nfa-state-closure-union
-                                          dest-state-union)
-                for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
-                do (add-dfa-transition dfa-state element dest-dfa))
-          dfa-state))))
+(defun produce-dfa (nfa-root-state)
+  (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
+        ( traversed-dfa-states nil))
+    (labels ((produce-dfa-rec (nfa-states)
+               "Produce DFA recursively, starting from `nfa-states`, which represent an NFA states
+ closure union, to which the DFA state will correspond."
+               (declare (cons nfa-states))
+               #+debug (format t "Traversed DFA lookup table so far: ~a.~&" traversed-dfa-states)
+               (labels ((lookup-dfa-state ()
+                          "Look up entry in traversal lookup table, return DFA if found, or NIL."
+                          (loop for (nfa-states-i . dfa-state-i) in traversed-dfa-states
+                                unless (set-exclusive-or nfa-states nfa-states-i)
+                                  do (return-from lookup-dfa-state dfa-state-i))
+                          nil)
+                        (find-dfa-state ()
+                          "Look up NFA state closure union provided in NFA-STATES, in the
+TRAVERSED-DFA-STATES DFA lookup a-list. If not found, it creates a new DFA state and appends an
+entry for it it to TRAVERSED-DFA-STATES. Finally it returns the DFA state, indicating whether it's
+already found or newly created."
+                          (let ((dfa-state (lookup-dfa-state)))
+                            (if dfa-state
+                                (values dfa-state 'already-found)
+                                (let ((new-dfa-state (make-instance 'dfa-state
+                                                                    :nfa-states nfa-states)))
+                                  (push (cons nfa-states new-dfa-state) traversed-dfa-states)
+                                  (values new-dfa-state 'newly-created))))))
+                 (multiple-value-bind (dfa-state found-or-new) (find-dfa-state)
+                   (if (eq found-or-new 'already-found)
+                       dfa-state
+                       (let ((nfa-normalized-transition-table
+                               (nfa-state:create-nfa-normalized-transition-table nfa-states)))
+                         ;; compute union of state closures from union of states
+                         (loop for (element . dest-state-union) in nfa-normalized-transition-table
+                               ;; TODO: can't we do this prepare call within the call to
+                               ;; nfa:create-nfa-normalized-transition-table? See comment above (we
+                               ;; need it also in find-dfa-state.
+                               for dest-closure-union = (nfa-state:prepare-nfa-state-closure-union
+                                                         dest-state-union)
+                               for dest-dfa = (produce-dfa-rec dest-closure-union)
+                               do (add-dfa-transition dfa-state element dest-dfa))
+                         dfa-state))))))
+      (produce-dfa-rec nfa-root-state-closure))))
 
 ;;; Public interface function (regex --> DFA root state)
 (defun parse-and-produce-dfa (regex)
