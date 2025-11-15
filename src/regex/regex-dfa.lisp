@@ -113,7 +113,10 @@ found or newly created."
 
 ;;; Note that we cannot pass the state union instead of closure union, and this is
 ;;; because the same closure union could result from two different state unions,
-;;; and we need to lookup the same entry for both, in such case.
+;;; and we need to lookup the same entry for both, in such case. Of course, we could still pass the,
+;;; closure, and compute the union inside `find-dfa-state`, but we also need the union in
+;;; `create-nfa-normalized-transition-table`, so we would need to compute it twice (may think about
+;;; rearranging code.
 (defun produce-dfa-rec (nfa-state-closure-union traversed-dfa-states)
   (multiple-value-bind (dfa-state found-or-new) (find-dfa-state nfa-state-closure-union
                                                                 traversed-dfa-states)
@@ -124,7 +127,8 @@ found or newly created."
           ;;replace each entry value with union of state closures (in place of union of states)
           (loop for (element . dest-state-union) in nfa-normalized-transition-table
                 ;; TODO: can't we do this prepare call within the call to
-                ;; nfa:create-nfa-normalized-transition-table??
+                ;; nfa:create-nfa-normalized-transition-table? See comment above (we need it also in
+                ;; find-dfa-state.
                 for dest-closure-union = (nfa-state:prepare-nfa-state-closure-union
                                           dest-state-union)
                 for dest-dfa = (produce-dfa-rec dest-closure-union traversed-dfa-states)
