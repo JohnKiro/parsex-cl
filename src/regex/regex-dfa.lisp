@@ -84,7 +84,6 @@ element can be either single char, char range."
 (defun produce-dfa (nfa-root-state)
   (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
         (dfa-state-set (make-array 50 :adjustable t :fill-pointer 0)))
-    ;;root state's closure union is root state's closure (union of one).
     (produce-dfa-rec nfa-root-state-closure dfa-state-set)))
 
 (defun lookup-dfa-state (nfa-states traversed-dfa-states)
