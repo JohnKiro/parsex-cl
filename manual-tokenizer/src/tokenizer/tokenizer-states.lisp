@@ -1,4 +1,4 @@
-(in-package :parsex-cl/tokenizer/states)
+(in-package :parsex-cl/manual-tokenizer/states)
 
 ;;; Scanner normal state.
 ;;; Slots:

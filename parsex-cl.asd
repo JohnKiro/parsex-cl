@@ -37,14 +37,6 @@
                              (:file "regex-sexp")
                              (:file "regex-fsm")
                              ))
-               (:module "tokenizer"
-                :components ((:file "tokenizer-states")
-                             (:file "tokenizer-transitions")
-                             (:file "tokenizer")
-                             (:file "basic-string-tokenizer")))
-               (:module "commons"
-                :components ((:file "common-atom-matchers")
-                             (:file "common-transition-finders")))
                (:module "addons"
                 :components ((:file "graphviz-export"))))
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
@@ -67,7 +59,6 @@
   :pathname "test"
   :components ((:file "packages")
                (:file "test")
-               (:file "tokenizer-test")
                (:file "regex-test")
                (:file "regex-input-test")
                (:file "chars-test")

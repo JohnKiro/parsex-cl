@@ -4,17 +4,6 @@
   (:export :parsex-cl.test-suite
            :test-it))
 
-(defpackage :parsex-cl.test/tokenizer.test
-  (:use :cl
-        :fiveam
-        :parsex-cl.test ;package containing root test suite
-        :parsex-cl/tokenizer
-        :parsex-cl/tokenizer/states
-        :parsex-cl/tokenizer/transitions
-        :parsex-cl/commons/common-transition-finders
-        :parsex-cl/commons/common-atom-matchers
-        :parsex-cl/tokenizer/basic-string-tokenizer))
-
 (defpackage :parsex-cl.test/nfa-element.test
   (:use #:cl
         #:fiveam

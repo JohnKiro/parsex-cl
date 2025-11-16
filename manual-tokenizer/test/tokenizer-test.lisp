@@ -1,4 +1,4 @@
-(in-package :parsex-cl/manual-tokenizer/test/tokenizer.test)
+(in-package :parsex-cl/manual-tokenizer/tokenizer/test)
 
 ;; Test suite to contain all tokenizer tests
 (def-suite :parsex-cl/manual-tokenizer/tokenizer/test-suite
@@ -29,7 +29,7 @@
     (let* ((input (make-instance 'string-input :input-text "one$two$three$"))
            (sample-tokenizer (create-tokenizer initial-state input #'init-accumulator)))
       (loop for i from 1 to 4
-            collecting (funcall sample-tokenizer))))
+         collecting (funcall sample-tokenizer))))
 
   (defun tokenize-just-one-time ()
     (let* ((input (make-instance 'string-input :input-text "AAA$BBB$CCC$"))
