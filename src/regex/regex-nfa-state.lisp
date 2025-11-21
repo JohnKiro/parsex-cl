@@ -72,8 +72,7 @@ of state objects, hence, we use the default EQL test."
   (setf (slot-value orig-state '%auto-transitions) nil))
 
 (defun delete-all-outgoing-transitions (orig-state)
-  "Delete all outgoing transitions from `orig-state`, including auto, normal, and any-char
-transitions (TODO: may also include any-other - EXPERIMENT!)."
+  "Delete all outgoing transitions from `orig-state`, including auto, normal."
   (with-slots (#1=%auto-transitions #2=%normal-transitions) orig-state
     (setf #1# nil
           #2# nil)))
@@ -343,7 +342,7 @@ the function, since it is typically already prepared by the client code."
 ;; TODO: a macro would be more convenient
 (defmethod fsm:traverse-fsm-transitions ((root-state nfa-state) traversal-fn)
   "Traverse all transitions in the NFA state machine, starting from an initial state ROOT-STATE.
-This includes both normal, transitions on any-char, any-other-char, and auto transitions.
+This includes both normal and auto transitions.
 TRAVERSAL-FN is called for each transition. Note that initial state does not necessarily have to be
 the FSM root state."
   (let ((traversal-mark-lookup-table (make-hash-table)))
