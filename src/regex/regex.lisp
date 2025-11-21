@@ -11,7 +11,7 @@
 
 
 (defstruct regex-matching-result
-  (status nil :type (or (eql :regex-matched) (eql :regex-not-matched) nil))
+  (status nil :type (member :regex-matched :regex-not-matched nil))
   (token :tokens-not-implemented-yet))
 
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
