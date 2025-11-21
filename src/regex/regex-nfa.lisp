@@ -84,7 +84,9 @@ this one from now on."
                                          glue-state)
                            glue-state))
          (state-reachability (state:analyze-nfa-state-reachability input-nfa-state
-                                                                   output-state-inner)))
+                                                                   output-state-inner))
+         (inversion-marks nil))
+    (declare (dynamic-extent inversion-marks))
     ;; traverse NFA sub-tree, and states that have output-state-inner in their closures will
     ;; be converted to dead-ends, and states that can reach output-state-inner via elements
     ;; will get a transition on any-char to output-state (later: optionally via a
@@ -119,11 +121,11 @@ this one from now on."
                   #+nil(state::delete-all-outgoing-transitions state-i))
                  (:auto-and-element-connected
                   (state:set-dead-end state-i)
-                  (state:set-nfa-transition-on-any-other state-i))
+                  (push state-i inversion-marks))
                  (:element-connected
                   ;; add any-other trans, unless this state was marked as dead-end in inner negation
                   (unless (state:dead-end-p state-i)
-                    (state:set-nfa-transition-on-any-other state-i))
+                    (push state-i inversion-marks))
                   (unless (member state-i inner-cont-pts-closures :test #'eql)
                     ;; TODO: give user the choice (greedy/non-greedy)
                     (state:add-nfa-auto-transition state-i output-state)
@@ -133,16 +135,9 @@ this one from now on."
                   (state:unset-dead-end state-i)))))
     (fsm:with-unique-visit (state input-nfa-state add-inversion-transitions)
       (let ((closure (state:prepare-nfa-state-closure state)))
-        (if (state:states-have-trans-on-any-other-p closure)
-            #+nil(state:transition-on-any-other state)
+        (if (loop for s in closure
+                    thereis (member s inversion-marks))
             (progn
-              ;; clear "any-other" transitions from the whole closure, since
-              ;;we'll convert them to normal transitions (inversion)
-              ;; TODO: try to avoid having to do this
-              (dolist (s closure)
-                (state:reset-nfa-transition-on-any-other s))
-              ;; convert "any-other" transitions into normal transitions (using
-              ;; inversion)
               ;; note that we add the created transitions to the closure's
               ;; initial point (actually it doesn't matter which state in the
               ;; closure gets the transitions)
@@ -158,7 +153,7 @@ this one from now on."
                 (loop for inv-elem in (elm:invert-elements
                                        (elm:sort-simple-elements split-elements))
                       do (state:add-nfa-normal-transition state inv-elem glue-state))))
-            ;; else: no any-other trans, => traverse closure
+            ;; else: no inversion at this point, => traverse closure
             (dolist (s closure)
               (add-inversion-transitions s)))
         ;; traverse normal transitions

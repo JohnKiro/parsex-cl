@@ -3,8 +3,6 @@
 (defclass nfa-state ()
   ((%normal-transitions :initform nil :type list :reader normal-transitions)
    (%auto-transitions :initform nil :type list :reader auto-transitions)
-   (%transition-on-any-other :initform nil :type boolean
-                             :reader transition-on-any-other)
    (%dead-end :initform nil :type boolean :reader dead-end-p)
    ;;NOTE: terminus state will not have any normal transitions, so may enhance by
    ;;prohibiting inconsistency (introduce class hierarchy level).
@@ -76,18 +74,6 @@ of state objects, hence, we use the default EQL test."
   (with-slots (#1=%auto-transitions #2=%normal-transitions) orig-state
     (setf #1# nil
           #2# nil)))
-
-(defun set-nfa-transition-on-any-other (orig-state)
-  "Set the NFA transition on any other char from ORIG-STATE, except if it's already set,
-in which case, an error is thrown."
-  (with-slots (#1=%transition-on-any-other) orig-state
-    (when #1#
-      (error "Transition on any other char is already set for origin state ~a (BUG??)!" orig-state))
-    (setf #1# t)))
-
-(defun reset-nfa-transition-on-any-other (orig-state)
-  "Unset the NFA transition on any other char from ORIG-STATE. It has no effect if it's already not set."
-  (setf (slot-value orig-state '%transition-on-any-other) nil))
 
 (defun set-terminus (nfa-state)
   "Mark state `nfa-state` as terminus."
@@ -326,12 +312,6 @@ its type (:AUTO-CONNECTED, :ELEMENT-CONNECTED, :AUTO-AND-ELEMENT-CONNECTED or :N
         (unless (and pending-state-discovered (> iteration-count 0))
           (return output-table))
         (setf pending-state-discovered nil)))))
-
-(defun states-have-trans-on-any-other-p (nfa-states)
-  "Finds if any of the argument `nfa-states` has a transition on any-other-char. The `nfa-states`
-is a list of NFA states, that could typically be a closure. We avoid to compute the closure inside
-the function, since it is typically already prepared by the client code."
-  (find-if #'transition-on-any-other nfa-states))
 
 (defmethod fsm:fsm-acceptance-state-p ((fsm-state nfa-state))
   (terminus-p fsm-state))
