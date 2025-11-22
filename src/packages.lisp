@@ -141,7 +141,7 @@
                     (:fsm #:parsex-cl/regex/fsm))
   (:export #:produce-dfa
            #:dfa-state
-           #:parse-and-produce-dfa ;wrapper that simplifies the above
+           #:regex-element-to-dfa
            #:dfa-state-definitely-terminal-p
            #:candidate-matching-point-p
            #:dead-end-p

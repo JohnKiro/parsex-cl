@@ -85,6 +85,9 @@ element can be either single char, char range."
 ;;; `create-nfa-normalized-transition-table`, so we would need to compute it twice (may think about
 ;;; rearranging code.
 (defun produce-dfa (nfa-root-state)
+  "Produce DFA state machine, given NFA state machine's root state `nfa-root-state` Returns root
+DFA state."
+  (declare (type nfa-state:nfa-state nfa-root-state))
   (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
         ( traversed-dfa-states nil))
     (labels ((produce-dfa-rec (nfa-states)
@@ -127,8 +130,8 @@ already found or newly created."
                          dfa-state))))))
       (produce-dfa-rec nfa-root-state-closure))))
 
-;;; Public interface function (regex --> DFA root state)
-(defun parse-and-produce-dfa (regex)
+(defun regex-element-to-dfa (regex)
+  "Produce DFA state machine, given given regex element `regex`. Returns root DFA state."
   (let ((root-nfa-state (nfa:produce-nfa regex)))
     (produce-dfa root-nfa-state)))
 
