@@ -129,7 +129,7 @@ already found or newly created."
       (produce-dfa-rec nfa-root-state-closure))))
 
 (defun regex-element-to-dfa (regex)
-  "Produce DFA state machine, given given regex element `regex`. Returns root DFA state."
+  "Produce DFA state machine, given regex element `regex`. Returns root DFA state."
   (let ((root-nfa-state (nfa:produce-nfa regex)))
     (produce-dfa root-nfa-state)))
 
