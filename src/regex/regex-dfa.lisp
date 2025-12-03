@@ -15,9 +15,7 @@
                               :type boolean
                               :documentation "whether this is accepting state. It is derived from
 NFA-STATES, but included as separate slot to avoid computation each time it is needed.")
-   (%dead-end :initarg :dead-end
-              :initform nil
-              :type boolean
+   (%dead-end :type boolean
               :reader dead-end-p
               :documentation "Dead-end status, derived from corresponding NFA states."))
   (:documentation "DFA state corresponding to an NFA closure union."))
