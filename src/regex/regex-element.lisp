@@ -313,3 +313,10 @@ min, if not supplied."
   (with-slots ((min %min-count) (max %max-count)) element
     (setf min min-count
           max max-count)))
+
+(defclass token-holder-element (single-element-wrapper-element)
+  ((%token :initarg :token
+           :initform (error "Token must be supplied!")
+           :reader token))
+  (:documentation "Specifies a regex element that associate a token value to the inner element.
+When this element is accepted, the token will be provided with the acceptance output."))

@@ -68,6 +68,8 @@
            #:repeated-element
            #:min-count
            #:max-count
+           #:token-holder-element
+           #:token
            #:sort-simple-elements
            #:invert-elements
            #:collect-char-range-splitting-points
@@ -98,6 +100,8 @@
   (:export #:nfa-state
            #:normal-transitions
            #:auto-transitions
+           #:token-holder-nfa-state
+           #:token
            #:terminus-p
            #:set-terminus
            #:add-nfa-normal-transition
@@ -146,6 +150,7 @@
            #:candidate-matching-point-p
            #:dead-end-p
            #:transitions
+           #:tokens
            #:find-matching-transition
            ))
 
@@ -170,7 +175,7 @@
            #:regex-matching-result-input-interface-fn
            #:regex-matching-result-p
            #:regex-matching-result-status
-           #:regex-matching-result-token
+           #:regex-matching-result-tokens
            ))
 
 (defpackage :parsex-cl/graphviz-util

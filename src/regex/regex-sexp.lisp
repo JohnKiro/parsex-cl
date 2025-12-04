@@ -64,7 +64,11 @@ package."
                     (make-instance 'elm:repeated-element
                                    :element (prepare-regex-tree element-sexp)
                                    :min-count min-count
-                                   :max-count max-count)))))
+                                   :max-count max-count)))
+            (:tok (destructuring-bind (element-sexp token) (cdr regex)
+                    (make-instance 'elm:token-holder-element
+                                   :element (prepare-regex-tree element-sexp)
+                                   :token token)))))
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element

@@ -12,7 +12,7 @@
 
 (defstruct regex-matching-result
   (status nil :type (member :regex-matched :regex-not-matched nil))
-  (token :tokens-not-implemented-yet))
+  (tokens nil))
 
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   (input:with-regex-input-handler-funcall-macros (input:source-empty-p
@@ -20,11 +20,15 @@
                                                   input:advance-reading-position
                                                   input:register-candidate-matching-point
                                                   input:notify-match-termination) input-source
-    (labels ((prepare-result (status)
-               "Prepare result based on matching status (STATUS); T: match, NIL: no match."
+    (labels ((prepare-result (dfa-state)
+               "Prepare result based on `dfa-state`. Note that NIL means no match."
                ;;putting this here since we need to call it when scanning is terminated
+               ;;TODO: either rename label (to be more meaningful, or move this elsewhere)
                (input:notify-match-termination)
-               (make-regex-matching-result :status (if status :regex-matched :regex-not-matched)))
+               (if dfa-state
+                   (make-regex-matching-result :status :regex-matched
+                                               :tokens (dfa:tokens dfa-state))
+                   (make-regex-matching-result :status :regex-not-matched)))
              (transit (origin-dfa-state)
                (when (dfa:candidate-matching-point-p origin-dfa-state)
                  (setf last-candidate-terminal-dfa origin-dfa-state)
@@ -32,7 +36,7 @@
                (if (dfa:dfa-state-definitely-terminal-p origin-dfa-state)
                    ;; I'm not checking whether input is empty or not here (e.g. to determine if the
                    ;; match is exact or not). Leaving this up to the caller.
-                   (prepare-result t)
+                   (prepare-result origin-dfa-state)
                    (if (input:source-empty-p)
                        (prepare-result last-candidate-terminal-dfa)
                        (let* ((next-ch (input:read-next-item))

@@ -77,10 +77,11 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
       (dolist (match-details match-details-list)
         (let* ((result (regex:match-regex input-source dfa))
                (matching-status (regex:regex-matching-result-status result))
+               (tokens (regex:regex-matching-result-tokens result))
                (updated-acc (input:retrieve-last-accumulated-value))
                (consumed (input:retrieve-last-consumed-value)))
-          (assert-match-result match-details (match-result matching-status
-                                                           updated-acc consumed))
+          (assert-match-result match-details (match-result matching-status updated-acc consumed
+                                                           tokens))
           (when *verbose*
             (format t "~%~%Consumed value: ~a." consumed)
             (format t "~&Accumulated value: ~a." updated-acc)
@@ -89,10 +90,11 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
             (format t "~&Upcoming character in input: ~a~%" (and (not (input:source-empty-p))
                                                                  (input:read-next-item)))))))))
 
-(defun match-result (match &optional (accumul nil acc-supplied-p) (consum nil cons-supplied-p))
+(defun match-result (match &optional (accumul nil acc-supplied-p) (consum nil cons-supplied-p)
+                      tokens)
   "Prepare matching result (whether expected or actual) in the form of a plist (GETF-friendly),
-with only the MATCH value mandatory, and accumulated and consumed values are both optional. Note
-that only the present arguments are included in the returned plist.
+with only the MATCH value mandatory, accumulated and consumed values and tokens are all optional.
+Note that only the present arguments are included in the returned plist.
 Note: it normalizes the value of MATCH by accepting either boolean or keyword.
 Note: it also normalizes the accumulator and consumed values by changing NIL into empty string.
 This is in order to simplify equality test (within the ASSERT-MATCH-RESULT call)."
@@ -101,7 +103,8 @@ This is in order to simplify equality test (within the ASSERT-MATCH-RESULT call)
                         :regex-matched
                         :regex-not-matched))
           (and acc-supplied-p `(:accumulated ,(or accumul "")))
-          (and cons-supplied-p `(:consumed ,(or consum "")))))
+          (and cons-supplied-p `(:consumed ,(or consum "")))
+          (and tokens `(:tokens ,tokens))))
 
 (defun match-results (match-result-list)
   "Prepares a list of match result plists for the input list of match results (MATCH-RESULT-LIST).
@@ -109,15 +112,35 @@ This is done by applying MATCH-RESULT to each element of the input list."
   (loop for r in match-result-list
         collect (apply #'match-result r)))
 
+(defgeneric match-parameter (expected-param-val actual-param-val)
+  (:documentation "Match actual parameter value against expected. The result is either T or NIL."))
+
+(defmethod match-parameter ((expected-param-val t) (actual-param-val t))
+  (equal expected-param-val actual-param-val))
+
+(defmethod match-parameter ((expected-param-val symbol) (actual-param-val simple-vector))
+  (find expected-param-val actual-param-val :test #'equal))
+
+(defmethod match-parameter ((expected-param-val list) (actual-param-val simple-vector))
+  (and (= (length expected-param-val) (length actual-param-val))
+       (every (lambda (e) (find e actual-param-val :test #'equal)) expected-param-val)))
+
 (defun assert-match-result (expected actual)
   "Tests equality of two plists of matching result. Equality is satisfied only if the key is found
-in both EXPECTED and ACTUAL plists, and the corresponding values are equal (using EQUAL).
+in both EXPECTED and ACTUAL plists, and the corresponding values are equal. Equality is tested
+differently based on the type; for vectors (currently used to store tokens), we compare vector
+contents as sets (regardless of order), using EQUAL for element equality test. For all other types
+(typically string and boolean), we use EQUAL. Note that this equality logic is implemented in the
+generec function `match-parameter`, which is used here.
 Note: this function is generic and is not specific to certain keys. Rather, it extracts the keys
 from the EXPECTED plist. TODO: consider moving to generic utils.
 Note: it assumes results are already normalized (for example, empty strings should be represented
-in a single way, such as NIL or \"\"."
+in a single way, such as NIL or \"\")."
   (loop for (k . _) on expected by #'cddr
-        do (is (equal (getf expected k) (getf actual k '#:not-found)))))
+        for expected-val = (getf expected k)
+        for actual-val = (getf actual k '#:not-found)
+        do (fiveam:is (match-parameter expected-val actual-val)
+               "~a: actual value ~a did not match expected value ~a!" k actual-val expected-val)))
 
 
 (deftest-1 single-regex-matching-test-1
@@ -657,6 +680,60 @@ status overrides the terminus status, leading to no acceptance."
                       ("xaaxab" t "xaa" "xaa")
                       ("xxxxxy" t "xxx" "xxx")
                       ("baaaaaa" nil nil "b")))
+
+(deftest-n tokenization-tests-1
+  :desc "Basic tokenization tests."
+  :regex (or (tok (+ (char-range #\a #\z)) alpha)
+             (tok (+ (char-range #\0 #\9)) numeric)
+             (tok (or #\~ #\! #\$ #\% #\^ #\& #\*) some-symbols))
+  :test-details-list (("xywv9" t "xywv" "xywv" alpha)
+                      ("123456x" t "123456" "123456" numeric)
+                      ("$#" t "$" "$" some-symbols)
+                      ("!#" t "!" "!" some-symbols)))
+
+(deftest-n tokenization-tests-2
+  :desc "More tokenization tests, including hexadecimal and US dollar amount tokens."
+  :regex (or (tok (+ (char-range #\a #\z)) alpha)
+             (tok (seq "0" (or #\X "x") (+ (or (char-range #\0 #\9)
+                                                 (char-range #\a #\f)
+                                                 (char-range #\A #\F)))) hexa)
+             (tok (+ (char-range #\0 #\9)) decimal)
+             (tok (seq #\$
+                         (+ (char-range #\0 #\9))
+                         (? (seq "." (rep (char-range #\0 #\9) 1 2))))
+                    us-dollars))
+  :test-details-list (("xywv9" t "xywv" "xywv" alpha)
+                      ("123456x" t "123456" "123456" decimal)
+                      ("0x123a4d5f9x" t "0x123a4d5f9" "0x123a4d5f9" hexa)
+                      ("0X123A4D5F9X" t "0X123A4D5F9" "0X123A4D5F9" hexa)
+                      ("0X12c3C459X" t "0X12c3C459" "0X12c3C459" hexa)
+                      ("$123459X" t "$123459" "$123459" us-dollars)
+                      ("$123459.505X" t "$123459.50" "$123459.50" us-dollars)
+                      ("$123459.6X" t "$123459.6" "$123459.6" us-dollars)))
+
+(deftest-n tokenization-tests-3
+  :desc "Tokenization tests, with common arithmetic operators (C, C++ etc.)."
+  :regex (or (tok "==" equal-equal)
+             (tok "=" equal)
+             (tok "+=" plus-equal)
+             (tok "++" plus-plus)
+             (tok "+" plus))
+  :test-details-list (("===" t "==" "==" equal-equal)
+                      ("=+" t "=" "=" equal)
+                      ("+=+" t "+=" "+=" plus-equal)
+                      ("++=" t "++" "++" plus-plus)
+                      ("+1" t "+" "+" plus)))
+
+(deftest-n tokenization-tests-4
+  :desc "Tokenization tests, with token overlaps (matching all matched token)."
+  :regex (or (tok "hello" hello)
+             (tok "helloo" helloo)
+             (tok "bye" bye)
+             (tok (+ (char-range #\a #\z)) alpha))
+  :test-details-list (("hello there" t "hello" "hello" (hello alpha))
+                      ("helloo there" t "helloo" "helloo" (helloo alpha))
+                      ("bye," t "bye" "bye" bye)
+                      ("bye," t "bye" "bye" (bye alpha))))
 
 (deftest regex-matching-loop-test-1
   :desc "Tests: OR, SEQ of chars, invalid chars consumed but not accumulated."

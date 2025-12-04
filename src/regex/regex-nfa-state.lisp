@@ -11,6 +11,17 @@
    ;;complexity.
    (%terminus :initform nil :type (or null t) :reader terminus-p)))
 
+(defclass token-holder-nfa-state (nfa-state)
+  ((%token :initarg :token)))
+
+(defgeneric token (nfa-state))
+
+(defmethod token ((nfa-state token-holder-nfa-state))
+  (slot-value nfa-state '%token))
+
+(defmethod token ((nfa-state nfa-state))
+  nil)
+
 (defparameter *verbose-printing* nil "Enable/disable verbose object printing.")
 
 (defmethod print-object ((object nfa-state) stream)

@@ -191,6 +191,12 @@ this one from now on."
               do #1# #2#)))
     output-state))
 
+(defmethod regex-to-nfa ((regex elm:token-holder-element) input-nfa-state)
+  (let ((output-state-inner (regex-to-nfa (elm:inner-element regex) input-nfa-state))
+        (output-state (make-instance 'state:token-holder-nfa-state :token (elm:token regex))))
+    (state:add-nfa-auto-transition output-state-inner output-state)
+    output-state))
+
 (defun produce-nfa (regex)
   "Produces NFA starting at root regex element. Its importance is in identifying the terminus
 state."

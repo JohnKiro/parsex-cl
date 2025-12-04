@@ -31,6 +31,34 @@ based on NFA states corresponding to DFA state being created."
       (setf #1# matching-or-not
             #2# dead-end))))
 
+(defclass token-holder-dfa-state (dfa-state)
+  ((%tokens :initarg :tokens)))
+
+(defmethod initialize-instance :after ((dfa-state token-holder-dfa-state) &key tokens)
+  "Object initializer that sets token."
+  (setf (slot-value dfa-state '%tokens) tokens))
+
+(defun create-dfa-state (nfa-states)
+  "Factory function that creates convenient DFA state type (w/o token)."
+  (let ((tokens (loop for nfa-state in nfa-states
+                      for nfa-token = (nfa-state:token nfa-state)
+                      when nfa-token
+                        ;; we collect all tokens (think of scenarios where this would be useful
+                        ;; use case
+                        collect nfa-token)))
+    (if tokens
+        (make-instance 'token-holder-dfa-state :nfa-states nfa-states
+                                               :tokens (coerce tokens 'simple-vector))
+        (make-instance 'dfa-state :nfa-states nfa-states))))
+
+(defgeneric tokens (dfa-state))
+
+(defmethod tokens ((dfa-state token-holder-dfa-state))
+  (slot-value dfa-state '%tokens))
+
+(defmethod tokens ((dfa-state dfa-state))
+  nil)
+
 (defun dfa-state-definitely-terminal-p (dfa-state)
   "Indicate whether the DFA state DFA-STATE is definitely terminal, in other words, having no
 transitions out, besides being candidate terminal (i.e. acceptance). It must be used only in regex
@@ -107,8 +135,7 @@ already found or newly created."
                           (let ((dfa-state (lookup-dfa-state)))
                             (if dfa-state
                                 (values dfa-state 'already-found)
-                                (let ((new-dfa-state (make-instance 'dfa-state
-                                                                    :nfa-states nfa-states)))
+                                (let ((new-dfa-state (create-dfa-state nfa-states)))
                                   (push (cons nfa-states new-dfa-state) traversed-dfa-states)
                                   (values new-dfa-state 'newly-created))))))
                  (multiple-value-bind (dfa-state found-or-new) (find-dfa-state)
