@@ -64,7 +64,7 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
                                                        :advance-on-no-consumption-on-match t))
          (regex-obj-tree (sexp:prepare-regex-tree regex))
          (nfa (nfa:produce-nfa regex-obj-tree))
-         (dfa (dfa:produce-dfa nfa)))
+         (dfa (dfa:nfa-to-dfa nfa)))
     (input:with-regex-input-handler-funcall-macros (input:retrieve-last-accumulated-value
                                                     input:retrieve-last-consumed-value
                                                     input:remaining-length

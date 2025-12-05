@@ -143,7 +143,7 @@
                     (:nfa #:parsex-cl/regex/nfa)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm))
-  (:export #:produce-dfa
+  (:export #:nfa-to-dfa
            #:dfa-state
            #:regex-element-to-dfa
            #:dfa-state-definitely-terminal-p

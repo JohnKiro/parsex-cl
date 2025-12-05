@@ -103,20 +103,20 @@ element can be either single char, char range."
       (error "Transition already present (BUG?):")
       (push (cons simple-element destination-dfa-state) (transitions origin-dfa-state))))
 
-;;; TODO: produce-dfa and parse-and-produce-dfa can be converted into methods of a single generic
+;;; TODO: nfa-to-dfa and regex-element-to-dfa can be converted into methods of a single generic
 ;;; Note that in lookup, we cannot pass the state union instead of closure union, and this is
 ;;; because the same closure union could result from two different state unions,
 ;;; and we need to lookup the same entry for both, in such case. Of course, we could still pass the,
 ;;; closure, and compute the union inside `find-dfa-state`, but we also need the union in
 ;;; `create-nfa-normalized-transition-table`, so we would need to compute it twice (may think about
 ;;; rearranging code.
-(defun produce-dfa (nfa-root-state)
+(defun nfa-to-dfa (nfa-root-state)
   "Produce DFA state machine, given NFA state machine's root state `nfa-root-state` Returns root
 DFA state."
   (declare (type nfa-state:nfa-state nfa-root-state))
   (let ((nfa-root-state-closure (nfa-state:prepare-nfa-state-closure nfa-root-state))
         ( traversed-dfa-states nil))
-    (labels ((produce-dfa-rec (nfa-states)
+    (labels ((nfa-to-dfa-rec (nfa-states)
                "Produce DFA recursively, starting from `nfa-states`, which represent an NFA states
  closure union, to which the DFA state will correspond."
                (declare (cons nfa-states))
@@ -150,15 +150,15 @@ already found or newly created."
                                ;; need it also in find-dfa-state.
                                for dest-closure-union = (nfa-state:prepare-nfa-state-closure-union
                                                          dest-state-union)
-                               for dest-dfa = (produce-dfa-rec dest-closure-union)
+                               for dest-dfa = (nfa-to-dfa-rec dest-closure-union)
                                do (add-dfa-transition dfa-state element dest-dfa))
                          dfa-state))))))
-      (produce-dfa-rec nfa-root-state-closure))))
+      (nfa-to-dfa-rec nfa-root-state-closure))))
 
 (defun regex-element-to-dfa (regex)
   "Produce DFA state machine, given regex element `regex`. Returns root DFA state."
   (let ((root-nfa-state (nfa:produce-nfa regex)))
-    (produce-dfa root-nfa-state)))
+    (nfa-to-dfa root-nfa-state)))
 
 
 ;;; Note: currently returning only destination DFA state, may find later that I need
