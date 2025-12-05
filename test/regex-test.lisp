@@ -46,7 +46,7 @@ match."
 
 (defmacro deftest-n (name &key desc regex test-details-list)
   "Allows defining multiple tests at once, all of them are against a single regex but with different
-inputs (and hence different expected matching results. This helps avoid redundancy in case we need
+inputs (and hence different expected matching results). This helps avoid redundancy in case we need
 to test matching against a single regex.
 Note: I'm defining all as a single test, rather than one test per matching operation. This is since
 we have a single description for simplicity (otherwise, I'd have to supply description per test)."

@@ -39,7 +39,7 @@ based on NFA states corresponding to DFA state being created."
   (setf (slot-value dfa-state '%tokens) tokens))
 
 (defun create-dfa-state (nfa-states)
-  "Factory function that creates convenient DFA state type (w/o token)."
+  "Factory function that creates convenient DFA state type (with or without token)."
   (let ((tokens (loop for nfa-state in nfa-states
                       for nfa-token = (nfa-state:token nfa-state)
                       when nfa-token
