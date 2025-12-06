@@ -26,7 +26,7 @@
         #:fiveam
         #:parsex-cl.test ;package containing root test suite
         )
-  (:local-nicknames (:regex #:parsex-cl/regex)
+  (:local-nicknames (:match #:parsex-cl/regex/match)
                     (:nfa #:parsex-cl/regex/nfa)
                     (:dfa #:parsex-cl/regex/dfa)
                     (:sexp #:parsex-cl/regex/sexp)

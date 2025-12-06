@@ -33,7 +33,7 @@
                              (:file "regex-nfa-state")
                              (:file "regex-nfa-transition")
                              (:file "regex-dfa")
-                             (:file "regex")
+                             (:file "regex-match")
                              (:file "regex-sexp")
                              (:file "regex-fsm")
                              ))

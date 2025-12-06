@@ -162,7 +162,7 @@
   (:export #:prepare-regex-tree
            ))
 
-(defpackage :parsex-cl/regex
+(defpackage :parsex-cl/regex/match
   (:use #:cl #:iterate)
   (:local-nicknames (:dfa #:parsex-cl/regex/dfa)
                     (:chars #:parsex-cl/char-util)

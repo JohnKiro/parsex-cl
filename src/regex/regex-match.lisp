@@ -1,4 +1,4 @@
-(in-package :parsex-cl/regex)
+(in-package :parsex-cl/regex/match)
 
 ;;;; -----------------------
 ;;;; Code for regex matching
@@ -8,7 +8,11 @@
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
 ;;;; TODO: flatten (simplify specific cases such as seq within seq)
 ;;;; TODO: more unit test cases, reorganize packages
-
+;;;; TODO: may consider removing this struct, and just returning the DFA itself, which contains the
+;;;; tokens, and if the returned value is NIL, then we understand that there is no match (instead
+;;;; of :regex-not-matched) - the gain is: getting rid of this struct (hence, less concepts, less
+;;;; complexity, and also retrieving the token only when needed (in the client code instead of
+;;;; in `match-regex` itself).
 
 (defstruct regex-matching-result
   (status nil :type (member :regex-matched :regex-not-matched nil))

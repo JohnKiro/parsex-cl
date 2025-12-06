@@ -75,9 +75,9 @@ of the MATCH-DETAILS-LIST list. The loop stops when the match-details is fully t
       (when *graphvizdot-dfa*
         (format t "~%Graphviz for DFA:~%~a~%" (graphviz:fsm-to-graphvizdot dfa)))
       (dolist (match-details match-details-list)
-        (let* ((result (regex:match-regex input-source dfa))
-               (matching-status (regex:regex-matching-result-status result))
-               (tokens (regex:regex-matching-result-tokens result))
+        (let* ((result (match:match-regex input-source dfa))
+               (matching-status (match:regex-matching-result-status result))
+               (tokens (match:regex-matching-result-tokens result))
                (updated-acc (input:retrieve-last-accumulated-value))
                (consumed (input:retrieve-last-consumed-value)))
           (assert-match-result match-details (match-result matching-status updated-acc consumed
