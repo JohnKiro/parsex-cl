@@ -152,11 +152,20 @@
            #:find-matching-transition
            ))
 
+(defpackage :parsex-cl/regex
+  (:use #:cl)
+  (:local-nicknames (:nfa :parsex-cl/regex/nfa)
+                    (:dfa :parsex-cl/regex/dfa))
+  (:export #:parse-regex-expression
+           #:prepare-regex-machine
+           ))
+
 (defpackage :parsex-cl/regex/sexp
   (:use #:cl #:iterate)
   (:local-nicknames (:elm #:parsex-cl/regex/element)
                     (:chars #:parsex-cl/char-util)
-                    (:sym #:parsex-cl/symbol-util))
+                    (:sym #:parsex-cl/symbol-util)
+                    (:regex #:parsex-cl/regex))
   (:export #:prepare-regex-tree
            ))
 

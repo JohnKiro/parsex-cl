@@ -34,6 +34,7 @@
                              (:file "regex-nfa-transition")
                              (:file "regex-dfa")
                              (:file "regex-match")
+                             (:file "regex")
                              (:file "regex-sexp")
                              (:file "regex-fsm")
                              ))
