@@ -140,12 +140,10 @@
   (:use #:cl #:iterate)
   (:local-nicknames (:alex :alexandria)
                     (:nfa-state #:parsex-cl/regex/nfa/state)
-                    (:nfa #:parsex-cl/regex/nfa)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm))
   (:export #:nfa-to-dfa
            #:dfa-state
-           #:regex-element-to-dfa
            #:dfa-state-definitely-terminal-p
            #:candidate-matching-point-p
            #:dead-end-p

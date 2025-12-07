@@ -155,12 +155,6 @@ already found or newly created."
                          dfa-state))))))
       (nfa-to-dfa-rec nfa-root-state-closure))))
 
-(defun regex-element-to-dfa (regex)
-  "Produce DFA state machine, given regex element `regex`. Returns root DFA state."
-  (let ((root-nfa-state (nfa:produce-nfa regex)))
-    (nfa-to-dfa root-nfa-state)))
-
-
 ;;; Note: currently returning only destination DFA state, may find later that I need
 ;;; the match criterion as well (i.e. not extracting the CDR part).
 (defun find-matching-transition (origin-dfa-state char)
