@@ -65,4 +65,4 @@
                (:file "chars-test")
                (:file "nfa-element-test"))
   :perform (test-op (o c)
-                    (uiop:symbol-call :fiveam '#:runnn! :parsex-cl.test-suite)))
+                    (uiop:symbol-call :fiveam '#:run! :parsex-cl.test-suite)))
