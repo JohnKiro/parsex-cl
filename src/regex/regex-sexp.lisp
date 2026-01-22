@@ -34,7 +34,7 @@ package."
  object."
   (etypecase regex
     (character (make-instance 'elm:single-char-element :single-char regex))
-    (keyword regex) ;"any char" (TODO: pass unchanged, or generate any-char element?)
+    (keyword regex) ;supports :any-char, translated into a char-range-element in regex-to-nfa
     (list (case-list-regex (car regex)
             ;; note that I could use any symbols (no need for keywords), but keywords are better to
             ;; avoid confusing the syntax coloring

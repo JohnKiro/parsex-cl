@@ -15,6 +15,9 @@ and returns output state as continuation point."))
     (state:add-nfa-normal-transition input-nfa-state regex output-state)
     output-state))
 
+(defmethod regex-to-nfa ((regex (eql :any-char)) input-nfa-state)
+  (regex-to-nfa elm:*any-char-element* input-nfa-state))
+
 (defmethod regex-to-nfa ((regex elm:sequence-element) input-nfa-state)
   (reduce #'(lambda (previous-output-nfa-state elem)
               (regex-to-nfa elem previous-output-nfa-state))
