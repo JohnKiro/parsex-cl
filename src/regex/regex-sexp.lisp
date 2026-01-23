@@ -16,35 +16,32 @@
   (etypecase regex
     (character (make-instance 'elm:single-char-element :single-char regex))
     (keyword regex) ;supports :any-char, translated into a char-range-element in regex-to-nfa
-    (list (ecase (ensure-tag-dsl-package (car regex))
-            (dsl:char-range (make-instance 'elm:char-range-element
-                                           :char-start (second regex)
-                                           :char-end (third regex)))
-            (dsl:seq (make-instance 'elm:sequence-element
-                                    :elements (map 'vector #'prepare-regex-tree (cdr regex))))
-            (dsl:or (make-instance 'elm:or-element
-                                   :elements (map 'vector #'prepare-regex-tree (cdr regex))))
-            (dsl:* (make-instance 'elm:zero-or-more-element :element (prepare-regex-tree
-                                                                      (second regex))))
-            (dsl:+ (make-instance 'elm:one-or-more-element :element (prepare-regex-tree
-                                                                     (second regex))))
-            (dsl:? (make-instance 'elm:zero-or-one-element :element (prepare-regex-tree
-                                                                     (second regex))))
-            (dsl:not (make-instance 'elm:negated-element :element (prepare-regex-tree
-                                                                   (second regex))))
+    (list (alex:destructuring-ecase (cons (ensure-tag-dsl-package (car regex)) (cdr regex))
+            ((dsl:char-range start end)
+             (make-instance 'elm:char-range-element :char-start start :char-end end))
+            ((dsl:seq &rest elements)
+             (make-instance 'elm:sequence-element :elements (map 'vector #'prepare-regex-tree elements)))
+            ((dsl:or &rest elements)
+             (make-instance 'elm:or-element :elements (map 'vector #'prepare-regex-tree elements)))
+            ((dsl:* element)
+             (make-instance 'elm:zero-or-more-element :element (prepare-regex-tree element)))
+            ((dsl:+ element)
+             (make-instance 'elm:one-or-more-element :element (prepare-regex-tree element)))
+            ((dsl:? element)
+             (make-instance 'elm:zero-or-one-element :element (prepare-regex-tree element)))
+            ((dsl:not element)
+             (make-instance 'elm:negated-element :element (prepare-regex-tree element)))
             ;; TODO: ENSURE TYPE OF ALL INNER REGEX ELEMENTS TO BE CHAR/CHAR-RANGE!!!
             ;; currently handled in the NFA code
-            (dsl:inv (make-instance 'elm:inv-element
-                                    :elements (map 'vector #'prepare-regex-tree (cdr regex))))
-            (dsl:rep (destructuring-bind (element-sexp min-count &optional max-count) (cdr regex)
-                       (make-instance 'elm:repeated-element
-                                      :element (prepare-regex-tree element-sexp)
-                                      :min-count min-count
-                                      :max-count max-count)))
-            (dsl:tok (destructuring-bind (element-sexp token) (cdr regex)
-                       (make-instance 'elm:token-holder-element
-                                      :element (prepare-regex-tree element-sexp)
-                                      :token token)))))
+            ((dsl:inv &rest elements)
+             (make-instance 'elm:inv-element :elements (map 'vector #'prepare-regex-tree elements)))
+            ((dsl:rep element min-count &optional max-count)
+             (make-instance 'elm:repeated-element :element (prepare-regex-tree element)
+                                                  :min-count min-count
+                                                  :max-count max-count))
+            ((dsl:tok element token)
+             (make-instance 'elm:token-holder-element :element (prepare-regex-tree element)
+                                                      :token token))))
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element
