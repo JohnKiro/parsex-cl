@@ -23,6 +23,20 @@
            #:let-slots
            #:with-function-slots-funcall-macros))
 
+(defpackage :parsex-cl/regex/sexp/dsl
+  (:export #:regex
+           #:char-range
+           #:seq
+           #:or
+           #:*
+           #:+
+           #:?
+           #:not
+           #:inv
+           #:rep
+           #:tok
+           ))
+
 (defpackage :parsex-cl/regex/input
   (:use #:cl #:iterate)
   (:local-nicknames (:class-util #:parsex-cl/class-util))
@@ -162,10 +176,12 @@
 
 (defpackage :parsex-cl/regex/sexp
   (:use #:cl #:iterate)
-  (:local-nicknames (:elm #:parsex-cl/regex/element)
+  (:local-nicknames (:alex #:alexandria)
+                    (:elm #:parsex-cl/regex/element)
                     (:chars #:parsex-cl/char-util)
                     (:sym #:parsex-cl/symbol-util)
-                    (:regex #:parsex-cl/regex))
+                    (:regex #:parsex-cl/regex)
+                    (:dsl #:parsex-cl/regex/sexp/dsl))
   (:export #:prepare-regex-tree
            ))
 

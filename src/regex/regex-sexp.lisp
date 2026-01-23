@@ -1,27 +1,22 @@
 (in-package :parsex-cl/regex/sexp)
 
 ;;; Handling of regex in the form of sexp (sexp --> regex object tree).
-
-;;; TODO: check alternatives to define var / func for use in the macro, and ensure no error during
-;;; expansion for "unknown var / func"!!!
-(defconstant +regex-element-tags-package+ (let ((pkg-name :regex-sexp.element.tags))
-                                            (or (find-package pkg-name)
-                                                (make-package pkg-name)))
-  "Package dedicated for regex tag names (SEQ, OR, +, etc.), for local use only.")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun ensure-tag-dsl-package (element-tag)
+    "Ensure/re-intern element tag (e.g. SEQ, CHAR-RANGE etc.) in regex DSL package."
+    (alex:ensure-symbol element-tag (find-package :parsex-cl/regex/sexp/dsl))))
 
 (defmacro case-list-regex (element-tag &body body)
   "Expands into an ECASE clause, with case variable evaluating into the value of ELEMENT-TAG, but
-after being reinterned into the package specified in +REGEX-ELEMENT-TAGS-PACKAGE+. The BODY should
-be in the form of an ECASE body. The idea is to be able to do equality tests on symbols that are
-possibly coming from different packages, by reintering the two operands of the EQ function into
-the package specified in +REGEX-ELEMENT-TAGS-PACKAGE+. This allows to specify regex tags in any
-package."
+after being reinterned into the DSL package. The BODY should be in the form of an ECASE body. The idea is
+to be able to do equality tests on symbols that are possibly coming from different packages, by
+reintering the two operands of the EQ function into the DSL package. This allows to specify regex tags in
+any package."
   (labels ((prepare-body (body)
              (loop for (each-tag . each-clause) in body
-                   collect (cons (sym:reintern each-tag +regex-element-tags-package+)
-                                 each-clause))))
-    (let ((reinterned-element-tag (gensym)))
-      `(let ((,reinterned-element-tag (sym:reintern ,element-tag ,+regex-element-tags-package+)))
+                   collect (cons (ensure-tag-dsl-package each-tag) each-clause))))
+    (alex:with-gensyms (reinterned-element-tag)
+      `(let ((,reinterned-element-tag (ensure-tag-dsl-package ,element-tag)))
          (ecase ,reinterned-element-tag
            ,@(prepare-body body))))))
 
@@ -39,36 +34,36 @@ package."
             ;; note that I could use any symbols (no need for keywords), but keywords are better to
             ;; avoid confusing the syntax coloring
             ;; TODO: alternative to this macro, I could use a function that traverses the regex
-            ;; recursively, and reinterns each symbol in the +regex-element-tags-package+ pkg.
+            ;; recursively, and reinterns each symbol in the DSL pkg.
             ;; This may result in more readable code.
-            (:char-range (make-instance 'elm:char-range-element
-                                        :char-start (second regex)
-                                        :char-end (third regex)))
-            (:seq (make-instance 'elm:sequence-element
-                                 :elements (map 'vector #'prepare-regex-tree (cdr regex))))
-            (:or (make-instance 'elm:or-element
-                                :elements (map 'vector #'prepare-regex-tree (cdr regex))))
-            (:* (make-instance 'elm:zero-or-more-element :element (prepare-regex-tree
+            (dsl:char-range (make-instance 'elm:char-range-element
+                                           :char-start (second regex)
+                                           :char-end (third regex)))
+            (dsl:seq (make-instance 'elm:sequence-element
+                                    :elements (map 'vector #'prepare-regex-tree (cdr regex))))
+            (dsl:or (make-instance 'elm:or-element
+                                   :elements (map 'vector #'prepare-regex-tree (cdr regex))))
+            (dsl:* (make-instance 'elm:zero-or-more-element :element (prepare-regex-tree
+                                                                      (second regex))))
+            (dsl:+ (make-instance 'elm:one-or-more-element :element (prepare-regex-tree
+                                                                     (second regex))))
+            (dsl:? (make-instance 'elm:zero-or-one-element :element (prepare-regex-tree
+                                                                     (second regex))))
+            (dsl:not (make-instance 'elm:negated-element :element (prepare-regex-tree
                                                                    (second regex))))
-            (:+ (make-instance 'elm:one-or-more-element :element (prepare-regex-tree
-                                                                  (second regex))))
-            (:? (make-instance 'elm:zero-or-one-element :element (prepare-regex-tree
-                                                                  (second regex))))
-            (:not (make-instance 'elm:negated-element :element (prepare-regex-tree
-                                                                (second regex))))
             ;; TODO: ENSURE TYPE OF ALL INNER REGEX ELEMENTS TO BE CHAR/CHAR-RANGE!!!
             ;; currently handled in the NFA code
-            (:inv (make-instance 'elm:inv-element
-                                 :elements (map 'vector #'prepare-regex-tree (cdr regex))))
-            (:rep (destructuring-bind (element-sexp min-count &optional max-count) (cdr regex)
-                    (make-instance 'elm:repeated-element
-                                   :element (prepare-regex-tree element-sexp)
-                                   :min-count min-count
-                                   :max-count max-count)))
-            (:tok (destructuring-bind (element-sexp token) (cdr regex)
-                    (make-instance 'elm:token-holder-element
-                                   :element (prepare-regex-tree element-sexp)
-                                   :token token)))))
+            (dsl:inv (make-instance 'elm:inv-element
+                                    :elements (map 'vector #'prepare-regex-tree (cdr regex))))
+            (dsl:rep (destructuring-bind (element-sexp min-count &optional max-count) (cdr regex)
+                       (make-instance 'elm:repeated-element
+                                      :element (prepare-regex-tree element-sexp)
+                                      :min-count min-count
+                                      :max-count max-count)))
+            (dsl:tok (destructuring-bind (element-sexp token) (cdr regex)
+                       (make-instance 'elm:token-holder-element
+                                      :element (prepare-regex-tree element-sexp)
+                                      :token token)))))
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element
