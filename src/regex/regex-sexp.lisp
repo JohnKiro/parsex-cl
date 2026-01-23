@@ -1,24 +1,10 @@
 (in-package :parsex-cl/regex/sexp)
 
 ;;; Handling of regex in the form of sexp (sexp --> regex object tree).
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun ensure-tag-dsl-package (element-tag)
-    "Ensure/re-intern element tag (e.g. SEQ, CHAR-RANGE etc.) in regex DSL package."
-    (alex:ensure-symbol element-tag (find-package :parsex-cl/regex/sexp/dsl))))
 
-(defmacro case-list-regex (element-tag &body body)
-  "Expands into an ECASE clause, with case variable evaluating into the value of ELEMENT-TAG, but
-after being reinterned into the DSL package. The BODY should be in the form of an ECASE body. The idea is
-to be able to do equality tests on symbols that are possibly coming from different packages, by
-reintering the two operands of the EQ function into the DSL package. This allows to specify regex tags in
-any package."
-  (labels ((prepare-body (body)
-             (loop for (each-tag . each-clause) in body
-                   collect (cons (ensure-tag-dsl-package each-tag) each-clause))))
-    (alex:with-gensyms (reinterned-element-tag)
-      `(let ((,reinterned-element-tag (ensure-tag-dsl-package ,element-tag)))
-         (ecase ,reinterned-element-tag
-           ,@(prepare-body body))))))
+(defun ensure-tag-dsl-package (element-tag)
+  "Ensure/re-intern element tag (e.g. SEQ, CHAR-RANGE etc.) in regex DSL package."
+  (alex:ensure-symbol element-tag (find-package :parsex-cl/regex/sexp/dsl)))
 
 ;;;; NOTE: since the reader will accept only a valid sexp, the "no more input" case is not possible.
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
@@ -30,12 +16,7 @@ any package."
   (etypecase regex
     (character (make-instance 'elm:single-char-element :single-char regex))
     (keyword regex) ;supports :any-char, translated into a char-range-element in regex-to-nfa
-    (list (case-list-regex (car regex)
-            ;; note that I could use any symbols (no need for keywords), but keywords are better to
-            ;; avoid confusing the syntax coloring
-            ;; TODO: alternative to this macro, I could use a function that traverses the regex
-            ;; recursively, and reinterns each symbol in the DSL pkg.
-            ;; This may result in more readable code.
+    (list (ecase (ensure-tag-dsl-package (car regex))
             (dsl:char-range (make-instance 'elm:char-range-element
                                            :char-start (second regex)
                                            :char-end (third regex)))
