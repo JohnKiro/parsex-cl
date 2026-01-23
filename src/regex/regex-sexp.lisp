@@ -74,6 +74,6 @@ package."
                                                       (make-instance 'elm:single-char-element
                                                                      :single-char ch)) regex)))))
 
-(defmethod regex:parse-regex-expression (regex-sexp)
+(defmethod regex:parse-regex-expression ((regex-sexp list))
   "Parse regex expression in the form of lisp sexp, and produce a tree of regex elements."
   (prepare-regex-tree regex-sexp))
