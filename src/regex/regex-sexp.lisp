@@ -48,12 +48,15 @@ just a symbol that was inadvertently interned in the package."
                                                   :min-count min-count
                                                   :max-count max-count))
             ((dsl:tok child token)
-             (make-instance 'elm:token-holder-element :element (prepare-regex-tree child)
-                                                      :token token))))
+             (prepare-token-element child token))))
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element
                                                                      :single-char ch)) regex)))))
+
+(defun prepare-token-element (regex token-id)
+  "Handy function to create a token holder element, given token id and corresponding regex. "
+  (make-instance 'elm:token-holder-element :element (prepare-regex-tree regex) :token token-id))
 
 (defmethod regex:parse-regex-expression ((regex-sexp list))
   "Parse regex expression in the form of lisp sexp, and produce a tree of regex elements."
