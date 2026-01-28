@@ -1,10 +1,18 @@
 (in-package :parsex-cl/regex/sexp)
 
 ;;; Handling of regex in the form of sexp (sexp --> regex object tree).
+(defconstant +dsl-package+ :parsex-cl/regex/sexp/dsl)
 
-(defun ensure-tag-dsl-package (element-tag)
-  "Ensure/re-intern element tag (e.g. SEQ, CHAR-RANGE etc.) in regex DSL package."
-  (alex:ensure-symbol element-tag (find-package :parsex-cl/regex/sexp/dsl)))
+(defun find-tag-in-dsl-package (element-tag)
+  "Check whether tag specified with `element-tag` is valid, i.e. found in regex DSL package. The argument
+`element-tag` is expected to be a symbol in any package. If found, it is returned, otherwise, returns
+NIL.
+Note that we also ensure that the found tag is external, i.e. really belongs to the DSL vocabulary, not
+just a symbol that was inadvertently interned in the package."
+  (declare (type symbol element-tag))
+  (multiple-value-bind (found-sym type) (find-symbol (symbol-name element-tag) +dsl-package+)
+    (when (eq type :external)
+      found-sym)))
 
 ;;;; NOTE: since the reader will accept only a valid sexp, the "no more input" case is not possible.
 ;;;; TODO: ensure correct number of elements for each type (e.g. * accepts 1 & only 1 element)
@@ -16,7 +24,7 @@
   (etypecase regex
     (character (make-instance 'elm:single-char-element :single-char regex))
     (keyword regex) ;supports :any-char, translated into a char-range-element in regex-to-nfa
-    (list (alex:destructuring-ecase (cons (ensure-tag-dsl-package (car regex)) (cdr regex))
+    (list (alex:destructuring-ecase (cons (find-tag-in-dsl-package (car regex)) (cdr regex))
             ((dsl:char-range start end)
              (make-instance 'elm:char-range-element :char-start start :char-end end))
             ((dsl:seq &rest elements)
