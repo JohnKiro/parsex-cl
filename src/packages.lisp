@@ -194,8 +194,6 @@
                     (:input #:parsex-cl/regex/input))
   (:export #:match-regex
            #:regex-matching-result
-           #:regex-matching-result-accumulator-interface-fn
-           #:regex-matching-result-input-interface-fn
            #:regex-matching-result-p
            #:regex-matching-result-status
            #:regex-matching-result-tokens

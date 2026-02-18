@@ -52,7 +52,8 @@ just a symbol that was inadvertently interned in the package."
     (string (make-instance 'elm:sequence-element
                            :elements (map 'vector #'(lambda (ch)
                                                       (make-instance 'elm:single-char-element
-                                                                     :single-char ch)) regex)))))
+                                                                     :single-char ch))
+                                          regex)))))
 
 (defun prepare-token-element (regex token-id)
   "Handy function to create a token holder element, given token id and corresponding regex. "

@@ -201,8 +201,9 @@ this one from now on."
     output-state))
 
 (defun produce-nfa (regex)
-  "Produces NFA starting at root regex element. Its importance is in identifying the terminus
-state."
+  "Produces NFA starting at root regex element, and returns the NFA root state. Its importance as an
+entry point to the `regex-to-nfa` generic procedures is in identifying and setting the terminus state.
+For convenience, it also returns the terminus NFA state."
   (let* ((root-state (make-instance 'state:nfa-state))
          (terminus-nfa-state (regex-to-nfa regex root-state)))
     (state:set-terminus terminus-nfa-state)

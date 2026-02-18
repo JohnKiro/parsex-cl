@@ -43,8 +43,7 @@ based on NFA states corresponding to DFA state being created."
   (let ((tokens (loop for nfa-state in nfa-states
                       for nfa-token = (nfa-state:token nfa-state)
                       when nfa-token
-                        ;; we collect all tokens (think of scenarios where this would be useful
-                        ;; use case
+                        ;; we collect all tokens (think of scenarios where this would be useful use case)
                         collect nfa-token)))
     (if tokens
         (make-instance 'token-holder-dfa-state :nfa-states nfa-states

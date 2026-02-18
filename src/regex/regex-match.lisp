@@ -19,6 +19,9 @@
   (tokens nil))
 
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
+  "Matches input text from input source `input-source` against regex specified by its root DFA state
+`root-dfa-state`, and returns a result structure of type regex-matching-result`, including matching
+status and matched token(s)."
   (input:with-regex-input-handler-funcall-macros (input:source-empty-p
                                                   input:read-next-item
                                                   input:advance-reading-position
