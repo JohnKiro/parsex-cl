@@ -45,7 +45,8 @@
 
 (defpackage :parsex-cl/regex/input
   (:use #:cl #:iterate)
-  (:local-nicknames (:class-util #:parsex-cl/class-util))
+  (:local-nicknames (:class-util #:parsex-cl/class-util)
+                    (:func #:parsex-cl/functional-interface))
   (:export #:basic-regex-input
            #:source-empty-p
            #:remaining-length
@@ -55,7 +56,6 @@
            #:register-candidate-matching-point
            #:retrieve-last-accumulated-value
            #:retrieve-last-consumed-value
-           #:with-regex-input-handler-funcall-macros
            #:create-basic-regex-input
            ))
 
