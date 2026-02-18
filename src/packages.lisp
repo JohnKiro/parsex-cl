@@ -14,6 +14,12 @@
   (:export #:inc-char
            #:dec-char))
 
+(defpackage :parsex-cl/functional-interface
+  (:use #:cl)
+  (:local-nicknames (:alex #:alexandria))
+  (:export #:define-functional-interface)
+  )
+
 (defpackage :parsex-cl/class-util
   (:use #:cl)
   (:local-nicknames (:sym #:parsex-cl/symbol-util))
