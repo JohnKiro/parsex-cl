@@ -166,12 +166,11 @@
            #:find-matching-transition
            ))
 
-(defpackage :parsex-cl/regex
+(defpackage :parsex-cl/regex-core
   (:use #:cl)
   (:local-nicknames (:nfa :parsex-cl/regex/nfa)
                     (:dfa :parsex-cl/regex/dfa))
-  (:export #:parse-regex-expression
-           #:prepare-regex-machine
+  (:export #:make-regex-machine-core
            ))
 
 (defpackage :parsex-cl/regex/sexp
@@ -180,7 +179,7 @@
                     (:elm #:parsex-cl/regex/element)
                     (:chars #:parsex-cl/char-util)
                     (:sym #:parsex-cl/symbol-util)
-                    (:regex #:parsex-cl/regex)
+                    (:regex-core #:parsex-cl/regex-core)
                     (:dsl #:parsex-cl/regex/sexp/dsl))
   (:export #:prepare-regex-tree
            ))
