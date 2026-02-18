@@ -12,16 +12,13 @@
 (fiveam:test with-regex-input-handler-funcall-macros-test
   "Basic test for the `with-regex-input-handler-funcall-macros` macro"
   (let ((input-regex (input:create-basic-regex-input "ABCD")))
-    (input:with-regex-input-handler-funcall-macros (input:source-empty-p input:remaining-length
-                                                     input:read-next-item
-                                                     input:advance-reading-position) input-regex
-      (fiveam:is (equal (list (input:source-empty-p)
-                              (input:remaining-length)
-                              (input:read-next-item)
-                              (input:advance-reading-position)
-                              (input:read-next-item)
-                              (input:advance-reading-position)
-                              (input:read-next-item))
-                        '(nil 4 #\A 1 #\B 2 #\C))))))
+    (fiveam:is (equal (list (input:source-empty-p input-regex)
+                            (input:remaining-length input-regex)
+                            (input:read-next-item input-regex)
+                            (input:advance-reading-position input-regex)
+                            (input:read-next-item input-regex)
+                            (input:advance-reading-position input-regex)
+                            (input:read-next-item input-regex))
+                      '(nil 4 #\A 1 #\B 2 #\C)))))
 
 ;; TODO: may add a test for case of passing invalid operation names.
