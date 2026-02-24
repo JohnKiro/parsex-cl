@@ -204,6 +204,12 @@
            #:regex-matching-result-tokens
            ))
 
+(defpackage :parsex-cl/tokenizer-core
+  (:use #:cl)
+  (:local-nicknames (:elm #:parsex-cl/regex/element)
+                    (:regex-core #:parsex-cl/regex-core))
+  (:export ))
+
 (defpackage :parsex-cl/graphviz-util
   (:use #:cl)
   (:local-nicknames (:chars #:parsex-cl/char-util)

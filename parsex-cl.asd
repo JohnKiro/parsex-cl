@@ -39,6 +39,9 @@
                              (:file "regex-sexp")
                              (:file "regex-fsm")
                              ))
+               (:module "tokenizer"
+                :components ((:file "tokenizer-core"))
+                )
                (:module "addons"
                 :components ((:file "graphviz-export"))))
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
