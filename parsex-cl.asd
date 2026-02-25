@@ -30,14 +30,14 @@
                (:module "regex"
                 :components ((:file "regex-input")
                              (:file "regex-element")
-                             (:file "regex-nfa")
+                             (:file "regex-fsm")
                              (:file "regex-nfa-state")
+                             (:file "regex-nfa")
                              (:file "regex-nfa-transition")
                              (:file "regex-dfa")
                              (:file "regex-match")
                              (:file "regex-core")
                              (:file "regex-sexp")
-                             (:file "regex-fsm")
                              ))
                (:module "tokenizer"
                 :components ((:file "tokenizer-core"))
