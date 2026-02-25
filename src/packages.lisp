@@ -202,6 +202,7 @@
            #:regex-matching-result-p
            #:regex-matching-result-status
            #:regex-matching-result-tokens
+           #:regex-matched-p
            ))
 
 (defpackage :parsex-cl/tokenizer-core
@@ -209,6 +210,72 @@
   (:local-nicknames (:elm #:parsex-cl/regex/element)
                     (:regex-core #:parsex-cl/regex-core))
   (:export ))
+
+;; TODO: decide whether to keep, or remove in favor of source-backed-tokenizer
+(defpackage :parsex-cl/tokenizer
+  (:use #:cl)
+  (:local-nicknames (:func #:parsex-cl/functional-interface)
+                    (:match #:parsex-cl/regex/match)
+                    (:input #:parsex-cl/regex/input)
+                    (:dfa #:parsex-cl/regex/dfa))
+  (:export #:find-matching-token
+           #:create-source-backed-tokenizer
+           #:get-token
+           #:match-token))
+
+(defpackage :parsex-cl/source-backed-tokenizer
+  (:use #:cl)
+  (:local-nicknames (:match #:parsex-cl/regex/match)
+                    (:input #:parsex-cl/regex/input)
+                    (:dfa #:parsex-cl/regex/dfa))
+  (:export #:create-source-backed-tokenizer
+           #:get-tokens
+           #:find-matching-token))
+
+(defpackage :parsex-cl/backtracking-tokenizer
+  (:use #:cl)
+  (:local-nicknames (:func #:parsex-cl/functional-interface)
+                    (:tokenizer #:parsex-cl/source-backed-tokenizer)
+                    #+nil(:tokenizer #:parsex-cl/tokenizer))
+  (:export #:create-backtracking-tokenizer
+           #:get-tokens
+           #:notify-token-match-success
+           #:mark-backtracking-position
+           #:unmark-backtracking-position
+           #:rewind-token-position
+           #:dump-internal-state))
+
+(defpackage :parsex-cl/rdp/grammar/constructs
+  (:use #:cl)
+  (:export ))
+
+(defpackage :parsex-cl/rdp/grammar/sexp/dsl
+  (:export #:rule
+           #:token
+           #:seq
+           #:or
+           #:*
+           #:+
+           #:?
+           #:not
+           ))
+
+(defpackage :parsex-cl/rdp/grammar/sexp
+  (:use #:cl)
+  (:local-nicknames (:dsl #:parsex-cl/rdp/grammar/sexp/dsl)
+                    (:constr #:parsex-cl/rdp/grammar/constructs)
+                    (:regex-sexp :parsex-cl/regex/sexp)
+                    (:tok-core :parsex-cl/tokenizer-core))
+  (:export #:parse-grammar))
+
+(defpackage :parsex-cl/rdp/parser
+  (:use #:cl)
+  (:local-nicknames (:constr #:parsex-cl/rdp/grammar/constructs)
+                    (:input #:parsex-cl/regex/input)
+                    (:tokenizer #:parsex-cl/tokenizer)
+                    (:bt-tokenizer #:parsex-cl/backtracking-tokenizer))
+  (:export #:parse-construct
+           #:*parse-execution-count*))
 
 (defpackage :parsex-cl/graphviz-util
   (:use #:cl)

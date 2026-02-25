@@ -40,8 +40,15 @@
                              (:file "regex-sexp")
                              ))
                (:module "tokenizer"
-                :components ((:file "tokenizer-core"))
+                :components ((:file "tokenizer-core")
+                             (:file "source-backed-tokenizer")
+                             (:file "backtracking-tokenizer"))
                 )
+               (:module "recursive-descent-parser"
+                :components ((:file "grammar-constructs")
+                             (:file "grammar-sexp")
+                             (:file "parser")
+                             ))
                (:module "addons"
                 :components ((:file "graphviz-export"))))
   :description "Experimental project for tokenizer, regular expressions, lexer and parser design."
@@ -67,6 +74,7 @@
                (:file "regex-test")
                (:file "regex-input-test")
                (:file "chars-test")
-               (:file "nfa-element-test"))
+               (:file "nfa-element-test")
+               (:file "parser-test"))
   :perform (test-op (o c)
                     (uiop:symbol-call :fiveam '#:run! :parsex-cl.test-suite)))
