@@ -18,12 +18,16 @@
   (status nil :type (member :regex-matched :regex-not-matched nil))
   (tokens nil))
 
+(defun regex-matched-p (regex-matching-result)
+  "Returns true if `regex-matching-result` indicates matching success."
+  (eq (regex-matching-result-status regex-matching-result) :regex-matched))
+
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   "Matches input text from input source `input-source` against regex specified by its root DFA state
 `root-dfa-state`, and returns a result structure of type regex-matching-result`, including matching
 status and matched token(s)."
   (labels ((prepare-result (dfa-state)
-             "Prepare result based on `dfa-state`. Note that NIL means no match."
+             "Prepare result based on `dfa-state`. Note that if dfa-state is NIL, then no match."
              ;;putting this here since we need to call it when scanning is terminated
              ;;TODO: either rename label (to be more meaningful, or move this elsewhere)
              (input:notify-match-termination input-source)
