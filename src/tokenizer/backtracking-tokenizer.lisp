@@ -46,14 +46,14 @@ state as a p-list (for testing/debugging)."
         (backtrack nil))
     (labels ((get-tokens ()
                "Retrieve next token(s) from either source or backtracking buffer."
-               (if (and backtrack (< backtracking-index (length backtracking-buffer)))
+               (if (and (< backtracking-index (length backtracking-buffer)))
                    (prog1
                        ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                        (elt backtracking-buffer backtracking-index)
                      #+nil(incf backtracking-index))
                    ;;todo: why am i not checking for possible tokenization error??
                    (let ((tok (tokenizer:get-tokens underlying-tokenizer)))
-                     (setf backtrack nil)
+                     #+nil(setf backtrack nil)
                      (vector-push-extend tok backtracking-buffer)
                      tok)))
              (notify-token-match-success ()
@@ -62,9 +62,9 @@ state as a p-list (for testing/debugging)."
                (incf backtracking-index))
              (mark-backtracking-position (owner)
                "Called by a construct before parsing, for backtracking in case of parsing failure."
-               (push (cons (if backtrack
+               (push (cons (if t #+nil backtrack
                                (min backtracking-index (length backtracking-buffer))
-                               (length backtracking-buffer))
+                               #+nil(length backtracking-buffer))
                            owner)
                      backtracking-markers))
              (unmark-backtracking-position (owner)
@@ -82,7 +82,7 @@ state as a p-list (for testing/debugging)."
                  (unless (eq owner expected-owner)
                    (error "Unexpected mark owner!"))
                  (setf backtracking-index position)
-                 (setf backtrack t)))
+                 #+nil(setf backtrack t)))
              (dump-internal-state ()
                "Dump tokenizer internal state as a p-list."
                (let ((backtracking-buffer-top (subseq backtracking-buffer
