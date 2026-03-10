@@ -26,7 +26,3 @@ input is exhausted."
                ;; :regex-matched)
                (match:regex-matching-result-tokens result))))
     #'get-tokens))
-
-(defmacro get-tokens (tokenizer)
-  "Nicer user interface for funcalling `tokenizer`."
-  `(funcall ,tokenizer))

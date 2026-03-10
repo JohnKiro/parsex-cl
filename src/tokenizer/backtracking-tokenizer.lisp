@@ -52,7 +52,7 @@ state as a p-list (for testing/debugging)."
                        (elt backtracking-buffer backtracking-index)
                      #+nil(incf backtracking-index))
                    ;;todo: why am i not checking for possible tokenization error??
-                   (let ((tok (tokenizer:get-tokens underlying-tokenizer)))
+                   (let ((tok (funcall underlying-tokenizer)))
                      #+nil(setf backtrack nil)
                      (vector-push-extend tok backtracking-buffer)
                      tok)))

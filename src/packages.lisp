@@ -229,7 +229,6 @@
                     (:input #:parsex-cl/regex/input)
                     (:dfa #:parsex-cl/regex/dfa))
   (:export #:create-source-backed-tokenizer
-           #:get-tokens
            #:find-matching-token))
 
 (defpackage :parsex-cl/backtracking-tokenizer
