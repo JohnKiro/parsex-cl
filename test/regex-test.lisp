@@ -135,7 +135,7 @@ in a single way, such as NIL or \"\")."
         for expected-val = (getf expected k)
         for actual-val = (getf actual k '#:not-found)
         do (fiveam:is (match-parameter expected-val actual-val)
-               "~a: actual value ~a did not match expected value ~a!" k actual-val expected-val)))
+                      "~a: actual value ~a did not match expected value ~a!" k actual-val expected-val)))
 
 
 (deftest-1 single-regex-matching-test-1
@@ -375,7 +375,8 @@ states (found in */+, but not here). Later, may control this handling (config/re
 later implement the non-tolerant case (I see would mark the red states to disallow backtracking, and
 also probably will change/control the handling of the :auto-and-element-connected states)."
   :regex (not (* "AB"))
-  :test-details-list (("AB" t "A" "A")  ;tolerance case (user would expect NO MATCH)
+  :test-details-list (;;first sample ("AB"): tolerance case (user would expect NO MATCH)
+                      ("AB" t "A" "A")
                       ("ABx" t "ABx" "ABx") ; same note
                       ("ABA" t "ABA" "ABA") ; same note
                       ("ABABC" t "ABABC" "ABABC") ; same note, but missing "any-other"? See also next TC
@@ -425,7 +426,8 @@ negations out should not affect the result (to be verified, also for greedy and 
 (deftest-n negation-tests-8
   :desc "Tests negation of sequence, inside a sequence, and including any-char."
   :regex (seq "xy" (not (seq #\m :any-char)) "wv")
-  :test-details-list (("xywv" t "xywv" "xywv") ;note that the NOT match set includes empty string
+  :test-details-list (;;note that the NOT match set includes empty string
+                      ("xywv" t "xywv" "xywv")
                       ("xyAwv" t "xyAwv" "xyAwv")
                       ("xyAwwv" nil nil "x") ;TODO: this and the next: need any-other? (TODO above)
                       ("xyAxwv" nil nil "x")
@@ -455,7 +457,8 @@ negations out should not affect the result (to be verified, also for greedy and 
   :desc "Tests triple negation of closure: Expecting same behavior as single negation (see
 `negation-tests-5"
   :regex (not (not (not (* "AB"))))
-  :test-details-list (("AB" t "A" "A") ;tolerance case (user would expect NO MATCH)
+  :test-details-list (;;tolerance case (user would expect NO MATCH)
+                      ("AB" t "A" "A")
                       ("ABx" t "ABx" "ABx") ; same note
                       ("ABA" t "ABA" "ABA") ; same note
                       ("ABABC" t "ABABC" "ABABC") ; same note
@@ -690,13 +693,13 @@ status overrides the terminus status, leading to no acceptance."
   :desc "More tokenization tests, including hexadecimal and US dollar amount tokens."
   :regex (or (tok (+ (char-range #\a #\z)) alpha)
              (tok (seq "0" (or #\X "x") (+ (or (char-range #\0 #\9)
-                                                 (char-range #\a #\f)
-                                                 (char-range #\A #\F)))) hexa)
+                                               (char-range #\a #\f)
+                                               (char-range #\A #\F)))) hexa)
              (tok (+ (char-range #\0 #\9)) decimal)
              (tok (seq #\$
-                         (+ (char-range #\0 #\9))
-                         (? (seq "." (rep (char-range #\0 #\9) 1 2))))
-                    us-dollars))
+                       (+ (char-range #\0 #\9))
+                       (? (seq "." (rep (char-range #\0 #\9) 1 2))))
+                  us-dollars))
   :test-details-list (("xywv9" t "xywv" "xywv" alpha)
                       ("123456x" t "123456" "123456" decimal)
                       ("0x123a4d5f9x" t "0x123a4d5f9" "0x123a4d5f9" hexa)
