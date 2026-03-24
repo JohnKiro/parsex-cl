@@ -322,7 +322,7 @@ min, if not supplied."
 When this element is accepted, the token will be provided with the acceptance output."))
 
 (defun prepare-token-element (regex-element token-id)
-  "Creates a token holder element, given token id and corresponding regex. "
+  "Creates a token holder element, given regex and corresponding token id."
   (make-instance 'token-holder-element :element regex-element :token token-id))
 
 (defun prepare-tokenizer-root-element (token-elements)
