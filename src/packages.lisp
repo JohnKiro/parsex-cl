@@ -224,19 +224,6 @@
                     (:regex-sexp :parsex-cl/regex/sexp))
   (:export #:token))
 
-#+nil(defpackage :parsex-cl/tokenizer
-;; TODO: decide whether to keep, or remove in favor of source-backed-tokenizer
-(defpackage :parsex-cl/tokenizer
-  (:use #:cl)
-  (:local-nicknames (:func #:parsex-cl/functional-interface)
-                    (:match #:parsex-cl/regex/match)
-                    (:input #:parsex-cl/regex/input)
-                    (:dfa #:parsex-cl/regex/dfa))
-  (:export #:find-matching-token
-           #:create-source-backed-tokenizer
-           #:get-token
-           #:match-token))
-
 (defpackage :parsex-cl/source-backed-tokenizer
   (:use #:cl)
   (:local-nicknames (:match #:parsex-cl/regex/match)
@@ -248,8 +235,7 @@
 (defpackage :parsex-cl/backtracking-tokenizer
   (:use #:cl)
   (:local-nicknames (:func #:parsex-cl/functional-interface)
-                    (:tokenizer #:parsex-cl/source-backed-tokenizer)
-                    #+nil(:tokenizer #:parsex-cl/tokenizer))
+                    (:tokenizer #:parsex-cl/source-backed-tokenizer))
   (:export #:create-backtracking-tokenizer
            #:get-tokens
            #:notify-token-match-success
@@ -285,7 +271,6 @@
   (:use #:cl)
   (:local-nicknames (:constr #:parsex-cl/rdp/grammar/constructs)
                     (:input #:parsex-cl/regex/input)
-                    (:tokenizer #:parsex-cl/tokenizer)
                     (:bt-tokenizer #:parsex-cl/backtracking-tokenizer))
   (:export #:parse-construct
            #:*parse-execution-count*))
