@@ -91,6 +91,8 @@
            #:min-count
            #:max-count
            #:token-holder-element
+           #:prepare-token-element
+           #:prepare-tokenizer-root-element
            #:token
            #:sort-simple-elements
            #:invert-elements

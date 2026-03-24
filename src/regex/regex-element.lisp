@@ -320,3 +320,11 @@ min, if not supplied."
            :reader token))
   (:documentation "Specifies a regex element that associate a token value to the inner element.
 When this element is accepted, the token will be provided with the acceptance output."))
+
+(defun prepare-token-element (regex-element token-id)
+  "Creates a token holder element, given token id and corresponding regex. "
+  (make-instance 'token-holder-element :element regex-element :token token-id))
+
+(defun prepare-tokenizer-root-element (token-elements)
+  "Creates a tokenizer root element, given a vector of token definitions."
+  (make-instance 'or-element :elements token-elements))
