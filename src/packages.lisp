@@ -227,10 +227,8 @@
 (defpackage :parsex-cl/source-backed-tokenizer
   (:use #:cl)
   (:local-nicknames (:match #:parsex-cl/regex/match)
-                    (:input #:parsex-cl/regex/input)
                     (:dfa #:parsex-cl/regex/dfa))
-  (:export #:create-source-backed-tokenizer
-           #:find-matching-token))
+  (:export #:create-source-backed-tokenizer))
 
 (defpackage :parsex-cl/backtracking-tokenizer
   (:use #:cl)
