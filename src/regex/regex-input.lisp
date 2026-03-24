@@ -38,8 +38,26 @@ accumulation).")
    :doc "Retrieve the last consumed portion of the input. Unlike
 `retrieve-last-accumulated-value`, this one returns the consumed characters, whether or not they
 correspond to a successful match. Similarly to the `retrieve-last-accumulated-value`, it should
-return NIL in case no characters were consumed."))
+return NIL in case no characters were consumed.")
+  (retrieve-last-accumulated-indices
+   ()
+   :doc "Retrieve the start and end indices of the last accumulated value. The returned object could
+later be passed to `retrieve-subrange`, in order to retrieve the actual value in the specified subrange
+(slice).")
+  (retrieve-subrange
+   (subrange-indices)
+   :doc "Retrieve the subrange (slice) specified with the `subrange-indices` argument."))
 
+(defstruct (subrange-indices (:constructor %make-subrange-indices (start end)))
+  "Describes a slice (subrange) of the input source, specified by start index and end index (inclusive)."
+  (start 0 :type fixnum)
+  (end 0 :type fixnum))
+
+(defun make-subrange-indices (start end)
+  (declare (type fixnum start end))
+  (when (or (minusp start) (minusp end) (> start end))
+    (error "Invalid subrange indices!"))
+  (%make-subrange-indices start end))
 
 (defun create-basic-regex-input (initial-input-text &key
                                                       (reading-position 0)
@@ -102,7 +120,14 @@ includes an accumulator for the current/last matching operation, and allows cust
                  (subseq source accumulator-start accumulator-end)))
              (retrieve-last-consumed-value ()
                (when (<= consumption-start reading-position total-length)
-                 (subseq source consumption-start reading-position))))
+                 (subseq source consumption-start reading-position)))
+             (retrieve-last-accumulated-indices ()
+               (when (< accumulator-start accumulator-end)
+                 (make-subrange-indices accumulator-start accumulator-end)))
+             (retrieve-subrange (subrange-indices)
+               (subseq source
+                       (subrange-indices-start subrange-indices)
+                       (subrange-indices-end subrange-indices))))
       (make-input-source :source-empty-p-fn #'source-empty-p
                          :remaining-length-fn #'remaining-length
                          :read-next-item-fn #'read-next-item
@@ -110,4 +135,6 @@ includes an accumulator for the current/last matching operation, and allows cust
                          :notify-match-termination-fn #'notify-match-termination
                          :register-candidate-matching-point-fn #'register-candidate-matching-point
                          :retrieve-last-accumulated-value-fn #'retrieve-last-accumulated-value
-                         :retrieve-last-consumed-value-fn #'retrieve-last-consumed-value))))
+                         :retrieve-last-consumed-value-fn #'retrieve-last-consumed-value
+                         :retrieve-last-accumulated-indices-fn #'retrieve-last-accumulated-indices
+                         :retrieve-subrange-fn #'retrieve-subrange))))

@@ -56,6 +56,8 @@
            #:register-candidate-matching-point
            #:retrieve-last-accumulated-value
            #:retrieve-last-consumed-value
+           #:retrieve-last-accumulated-indices
+           #:retrieve-subrange
            #:create-basic-regex-input
            ))
 
