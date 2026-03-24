@@ -41,6 +41,7 @@
                              ))
                (:module "tokenizer"
                 :components ((:file "tokenizer-core")
+                             (:file "tokenizer-sexp")
                              (:file "source-backed-tokenizer")
                              (:file "backtracking-tokenizer"))
                 )
