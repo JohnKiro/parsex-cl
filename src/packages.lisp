@@ -213,7 +213,10 @@
   (:use #:cl)
   (:local-nicknames (:elm #:parsex-cl/regex/element)
                     (:regex-core #:parsex-cl/regex-core))
-  (:export ))
+  (:export #:token
+           #:tokens
+           #:tokenizer
+           #:make-tokenizer-core-builder))
 
 ;; TODO: decide whether to keep, or remove in favor of source-backed-tokenizer
 (defpackage :parsex-cl/tokenizer

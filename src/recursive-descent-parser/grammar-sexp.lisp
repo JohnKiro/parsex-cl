@@ -124,10 +124,11 @@ convenience, a hash table mapping each rule ID to corresponding construct object
       ;; later in the grammar.
       (initialize-grammar-table)
       (multiple-value-bind (tokenizer-core-add-token-fn tokenizer-core-build-fn)
-          (tok-core::make-tokenizer-core-builder #'regex-sexp:prepare-regex-tree)
+          (tok-core:make-tokenizer-core-builder)
         (loop for (g-tag g-id g-contents) in grammar
               do (ecase g-tag
-                   (dsl:token (funcall tokenizer-core-add-token-fn g-id g-contents))
+                   (dsl:token (funcall tokenizer-core-add-token-fn g-id
+                                       (regex-sexp:prepare-regex-tree g-contents)))
                    (dsl:rule  (process-rule-form (retrieve-construct g-id) g-contents))))
         (let ((tokenizer-core (funcall tokenizer-core-build-fn)))
           (values (retrieve-construct start-rule) tokenizer-core grammar-table))))))
