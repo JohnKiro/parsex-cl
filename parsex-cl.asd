@@ -76,6 +76,7 @@
                (:file "regex-input-test")
                (:file "chars-test")
                (:file "nfa-element-test")
+               (:file "tokenizer-test")
                (:file "parser-test"))
   :perform (test-op (o c)
                     (uiop:symbol-call :fiveam '#:run! :parsex-cl.test-suite)))

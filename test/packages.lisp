@@ -34,6 +34,17 @@
                     (:elm #:parsex-cl/regex/element)
                     (:graphviz #:parsex-cl/graphviz-util)))
 
+(defpackage :parsex-cl.test/tokenizer.test
+  (:use #:cl
+        #:fiveam
+        #:parsex-cl.test ;package containing root test suite
+        )
+  (:local-nicknames (:regex #:parsex-cl/regex/sexp)
+                    (:token #:parsex-cl/tokenizer/sexp)
+                    (:input #:parsex-cl/regex/input)
+                    (:token-core :parsex-cl/tokenizer-core)
+                    (:tokenizer #:parsex-cl/source-backed-tokenizer)))
+
 (defpackage :parsex-cl.test/parser.test
   (:use #:cl
         #:fiveam
