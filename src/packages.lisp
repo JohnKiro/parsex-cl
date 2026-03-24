@@ -189,9 +189,9 @@
                     (:elm #:parsex-cl/regex/element)
                     (:chars #:parsex-cl/char-util)
                     (:sym #:parsex-cl/symbol-util)
-                    (:regex-core #:parsex-cl/regex-core)
                     (:dsl #:parsex-cl/regex/sexp/dsl))
   (:export #:prepare-regex-tree
+           #:regex
            ))
 
 (defpackage :parsex-cl/regex/match

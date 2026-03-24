@@ -19,8 +19,10 @@ just a symbol that was inadvertently interned in the package."
 ;;;; TODO: may split function using other helper functions
 ;;;; TODO: flatten (simplify) specific cases such as seq within seq
 (defun prepare-regex-tree (regex)
-  "Takes an input list as regex element, and recursively constructs an equivalent regex element
- object."
+  "Takes an input list as regex element, and recursively constructs an equivalent regex element object.
+Note that a `tok` construct is supported, although typically token elements are created via a tokenizer
+construction process. However, it's still used (and useful) in testing (see tokenization test cases in
+regex test package)."
   (etypecase regex
     (character (make-instance 'elm:single-char-element :single-char regex))
     (keyword regex) ;supports :any-char, translated into a char-range-element in regex-to-nfa
@@ -55,10 +57,11 @@ just a symbol that was inadvertently interned in the package."
                                                                      :single-char ch))
                                           regex)))))
 
-(defun prepare-token-element (regex token-id)
-  "Handy function to create a token holder element, given token id and corresponding regex. "
-  (make-instance 'elm:token-holder-element :element (prepare-regex-tree regex) :token token-id))
+(defun prepare-token-element (regex-sexp token-id)
+  "Creates a token holder element, given regex sexp form and corresponding token id."
+  (elm:prepare-token-element (prepare-regex-tree regex-sexp) token-id))
 
-(defmethod regex:parse-regex-expression ((regex-sexp list))
-  "Parse regex expression in the form of lisp sexp, and produce a tree of regex elements."
-  (prepare-regex-tree regex-sexp))
+(defmacro regex (regex-root-sexp)
+  "User interface macro that compiles the regex root sexp `regex-root-sexp` into corresponding element
+tree. Note that the argument is not evaluated (hence, should pass a literal unquoted sexp.)"
+  `(prepare-regex-tree ',regex-root-sexp))
