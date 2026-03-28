@@ -26,24 +26,28 @@ itself for upcoming matching operation.")
 should record this for posible backtracking.")
   (retrieve-last-accumulated-value
    ()
-   :doc "Retrieve last accumulated value, which is the portion of input that was last
-matched. When nothing is accumulated, this method should return NIL, to indicate to the caller that
-the REGEX did not consume any characters, and hence, it might be a good indication to stop matching
-loops, to avoid going into infinite loops. This of course does not necessarily mean that the input
-is empty. In case the accumulated value is not interesting, then the implementation of this method
-could return something like SOMETHING or NIL (to distinguish between the case of accumulation/ no
-accumulation).")
+   :doc "Retrieve last accumulated value, which is the portion of input that was last matched. When
+nothing is accumulated, this method should return NIL, to indicate to the caller that the REGEX did not
+consume any characters, and hence, it might be a good indication to stop matching loops, to avoid going
+into infinite loops. This of course does not necessarily mean that the input is empty. In case the
+accumulated value is not interesting, then the implementation of this method could return something like
+SOMETHING or NIL (to distinguish between the case of accumulation/ no accumulation).")
   (retrieve-last-consumed-value
    ()
-   :doc "Retrieve the last consumed portion of the input. Unlike
-`retrieve-last-accumulated-value`, this one returns the consumed characters, whether or not they
-correspond to a successful match. Similarly to the `retrieve-last-accumulated-value`, it should
-return NIL in case no characters were consumed.")
+   :doc "Retrieve the last consumed portion of the input. Unlike `retrieve-last-accumulated-value`,
+this one returns the consumed characters, whether or not they correspond to a successful match.
+Similarly to the `retrieve-last-accumulated-value`, it should return NIL in case no characters were
+consumed.")
   (retrieve-last-accumulated-indices
    ()
    :doc "Retrieve the start and end indices of the last accumulated value. The returned object could
 later be passed to `retrieve-subrange`, in order to retrieve the actual value in the specified subrange
-(slice).")
+(slice). See also documentation of `retrieve-last-accumulated-value`.")
+  (retrieve-last-consumed-indices
+   ()
+   :doc "Retrieve the start and end indices of the last consumed value. The returned object could
+later be passed to `retrieve-subrange`, in order to retrieve the actual value in the specified subrange
+(slice). See also documentation of `retrieve-last-consumed-value`.")
   (retrieve-subrange
    (subrange-indices)
    :doc "Retrieve the subrange (slice) specified with the `subrange-indices` argument."))
@@ -79,6 +83,7 @@ includes an accumulator for the current/last matching operation, and allows cust
         (accumulator-start -1)
         (accumulator-end -1)
         (consumption-start -1)
+        (consumption-end -1)
         ;; I depend on the fact that definite termination is also candidate termination, so we
         ;; can assume that this will hold value of last matching position (whether last candidate
         ;; or current position). TODO: may rethink about this later.
@@ -100,34 +105,37 @@ includes an accumulator for the current/last matching operation, and allows cust
                (if (>= candidate-matching-point 0)
                    (progn
                      ;;if no chars consumed
-                     (if (= candidate-matching-point
-                            starting-reference-position)
-                         ;; no char consumed, => inc position conditionally
-                         ;; (based on flag)
+                     (if (= candidate-matching-point starting-reference-position)
+                         ;; no char consumed, => inc position conditionally (based on flag)
                          (when advance-on-no-consumption-on-match
                            (incf starting-reference-position))
-                         (setf starting-reference-position
-                               candidate-matching-point))
+                         (setf starting-reference-position candidate-matching-point))
                      (setf candidate-matching-point -1))
                    ;;negative candidate-matching-point implies regex no-match
                    (when advance-on-no-consumption-on-no-match
                      (incf starting-reference-position)))
-               (setf reading-position starting-reference-position))
+               (setf reading-position starting-reference-position)
+               (setf consumption-end reading-position))
              (register-candidate-matching-point ()
                (setf candidate-matching-point reading-position))
              (retrieve-last-accumulated-value ()
-               (when (< accumulator-start accumulator-end)
+               (when (<= accumulator-start accumulator-end)
                  (subseq source accumulator-start accumulator-end)))
              (retrieve-last-consumed-value ()
-               (when (<= consumption-start reading-position total-length)
-                 (subseq source consumption-start reading-position)))
+               (when (<= consumption-start consumption-end total-length)
+                 (subseq source consumption-start consumption-end)))
              (retrieve-last-accumulated-indices ()
-               (when (< accumulator-start accumulator-end)
+               (when (<= accumulator-start accumulator-end)
                  (make-subrange-indices accumulator-start accumulator-end)))
+             ;; TODO: CHANGE TO BE SIMILAR TO VALUE!!
+             (retrieve-last-consumed-indices ()
+               (when (<= consumption-start consumption-end total-length)
+                 (make-subrange-indices consumption-start consumption-end)))
              (retrieve-subrange (subrange-indices)
-               (subseq source
-                       (subrange-indices-start subrange-indices)
-                       (subrange-indices-end subrange-indices))))
+               (and subrange-indices
+                    (subseq source
+                            (subrange-indices-start subrange-indices)
+                            (subrange-indices-end subrange-indices)))))
       (make-input-source :source-empty-p-fn #'source-empty-p
                          :remaining-length-fn #'remaining-length
                          :read-next-item-fn #'read-next-item
@@ -137,4 +145,5 @@ includes an accumulator for the current/last matching operation, and allows cust
                          :retrieve-last-accumulated-value-fn #'retrieve-last-accumulated-value
                          :retrieve-last-consumed-value-fn #'retrieve-last-consumed-value
                          :retrieve-last-accumulated-indices-fn #'retrieve-last-accumulated-indices
+                         :retrieve-last-consumed-indices-fn #'retrieve-last-consumed-indices
                          :retrieve-subrange-fn #'retrieve-subrange))))

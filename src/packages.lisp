@@ -57,6 +57,7 @@
            #:retrieve-last-accumulated-value
            #:retrieve-last-consumed-value
            #:retrieve-last-accumulated-indices
+           #:retrieve-last-consumed-indices
            #:retrieve-subrange
            #:create-basic-regex-input
            ))
