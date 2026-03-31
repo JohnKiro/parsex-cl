@@ -234,10 +234,10 @@
 (defpackage :parsex-cl/backtracking-tokenizer
   (:use #:cl)
   (:local-nicknames (:func #:parsex-cl/functional-interface)
+                    (:input #:parsex-cl/regex/input)
                     (:tokenizer #:parsex-cl/source-backed-tokenizer))
   (:export #:create-backtracking-tokenizer
-           #:get-tokens
-           #:notify-token-match-success
+           #:match-token
            #:mark-backtracking-position
            #:unmark-backtracking-position
            #:rewind-token-position

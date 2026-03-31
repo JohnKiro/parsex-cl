@@ -40,6 +40,6 @@
       (declare (ignorable _))
       (let* ((input (input:create-basic-regex-input sample-text))
              (underlying-tokenizer (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input))
-             (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer)))
+             (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer input)))
         (fiveam:is (equal (parsex-cl/rdp/parser:parse-construct root-grammar-constr bt-tokenizer nil)
                           :ok))))))
