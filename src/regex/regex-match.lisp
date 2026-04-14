@@ -25,7 +25,9 @@
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   "Matches input text from input source `input-source` against regex specified by its root DFA state
 `root-dfa-state`, and returns a result structure of type regex-matching-result`, including matching
-status and matched token(s)."
+status and matched token(s). Note that we're not including any details about the input-source status
+in the result (e.g. Input empty now? Consumption took place), because these details are not relevant to
+the matching operation, and also could be retrieved from the input-source itself by the caller."
   (labels ((prepare-result (dfa-state)
              "Prepare result based on `dfa-state`. Note that if dfa-state is NIL, then no match."
              ;;putting this here since we need to call it when scanning is terminated
@@ -41,13 +43,13 @@ status and matched token(s)."
                (input:register-candidate-matching-point input-source))
              (if (dfa:dfa-state-definitely-terminal-p origin-dfa-state)
                  ;; I'm not checking whether input is empty or not here (e.g. to determine if the
-                 ;; match is exact or not). Leaving this up to the caller.
+                 ;; match is exact or not). Leaving this up to the caller, because this is application-
+                 ;; specific (not relevant to tokenization, for example).
                  (prepare-result origin-dfa-state)
                  (if (input:source-empty-p input-source)
                      (prepare-result last-candidate-terminal-dfa)
                      (let* ((next-ch (input:read-next-item input-source))
-                            (dest-dfa-state (dfa:find-matching-transition origin-dfa-state
-                                                                          next-ch)))
+                            (dest-dfa-state (dfa:find-matching-transition origin-dfa-state next-ch)))
                        (if dest-dfa-state
                            (progn
                              (input:advance-reading-position input-source)
