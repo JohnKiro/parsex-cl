@@ -63,23 +63,21 @@ dumping internal state as a p-list (for testing/debugging)."
     (labels ((get-tokens ()
                "Retrieve next token(s) from either source or backtracking buffer. The backtracking
 buffer is used in case some tokens are pending in the backtracking buffer, otherwise, the source is used.
-In the second case, the retrieved token(s) is also appended to the backtracking buffer, together with the
-token accumulated slice indices.
+In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
+the token accumulated slice indices.
 TODO: it's not yet clear the situation in case of tokenization error, or empty input!"
                (if (and #+nil backtrack (< backtracking-index (length backtracking-buffer)))
                    (prog1
                        ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                        (elt backtracking-buffer backtracking-index)
                      #+nil(incf backtracking-index))
-                   ;;todo: why am i not checking for possible tokenization error??
-                   (let* ((tok (funcall underlying-tokenizer))
-                          (tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
-                                                      input-source))))
+                   (let* ((tok (funcall underlying-tokenizer)))
                      #+nil(setf backtrack nil)
-                     (unless tok
-                       (error "Tokenization error?? TODO: What to do??"))
-                     (vector-push-extend tok-and-indices backtracking-buffer)
-                     tok-and-indices)))
+                     (when tok ;otherwise: no token found or tokenization error (we don't care which)
+                       (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
+                                                         input-source))))
+                         (vector-push-extend tok-and-indices backtracking-buffer)
+                         tok-and-indices)))))
              (match-token (expected-token)
                "Match `expected-token` against next token(s) from tokenizer. In case of success and
 currently retrieving from backtracking buffer, it advances the backtracking index. Returns matching
@@ -105,20 +103,26 @@ details as three values: matched token ID, status code (keyword), token value sl
                      backtracking-markers))
              (unmark-backtracking-position (owner)
                "Called by a construct after successful parsing, to cancel the marked backtracking."
-               ;; this may be useful in testing (consider removing this later, for perf, noting that
-               ;; the owner is still available to the caller (may check it at the caller side)
-               (destructuring-bind (position . expected-owner) (first backtracking-markers)
-                 (declare (ignorable position))
-                 (unless (eq owner expected-owner)
-                   (error "Unexpected mark owner!")))
-               (pop backtracking-markers))
+               (let ((upcoming-marker (first backtracking-markers)))
+                 (unless upcoming-marker
+                   (error "Backtracking log empty!"))
+                 ;; this may be useful in testing (consider removing this later, for perf, noting that
+                 ;; the owner is still available to the caller (may check it at the caller side)
+                 (destructuring-bind (position . expected-owner) upcoming-marker
+                   (declare (ignorable position))
+                   (unless (eq owner expected-owner)
+                     (error "Unexpected mark owner (expected ~a, received ~a)!" expected-owner owner)))
+               (pop backtracking-markers)))
              (rewind-token-position (owner)
                "Called by a construct to backtrack to a previously marked position (parsing failure)."
-               (destructuring-bind (position . expected-owner) (first backtracking-markers)
-                 (unless (eq owner expected-owner)
-                   (error "Unexpected mark owner!"))
-                 (setf backtracking-index position)
-                 #+nil(setf backtrack t)))
+               (let ((upcoming-marker (first backtracking-markers)))
+                 (unless upcoming-marker
+                   (error "Backtracking log empty!"))
+                 (destructuring-bind (position . expected-owner) upcoming-marker
+                   (unless (eq owner expected-owner)
+                     (error "Unexpected mark owner (expected ~a, received ~a)!" expected-owner owner))
+                   (setf backtracking-index position)
+                   #+nil(setf backtrack t))))
              (dump-internal-state ()
                "Dump tokenizer internal state as a p-list."
                (let ((backtracking-buffer-top (subseq backtracking-buffer
