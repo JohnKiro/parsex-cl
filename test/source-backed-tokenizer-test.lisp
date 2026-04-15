@@ -1,12 +1,12 @@
-(in-package :parsex-cl.test/tokenizer.test)
+(in-package :parsex-cl.test/source-backed-tokenizer.test)
 
 ;; Test suite to contain all tokenizer tests
-(def-suite tokenizer.test-suite
-  :description "Tests both source-backed tokenizer and backtracking tokenizer."
+(def-suite source-backed-tokenizer.test-suite
+  :description "Tests source-backed tokenizer."
   :in :parsex-cl.test-suite)
 
 ;;; All tests below to be part of tokenizer-tests
-(in-suite tokenizer.test-suite)
+(in-suite source-backed-tokenizer.test-suite)
 
 (defun run-source-backed-tokenization-test-loop (tokenizer-core-dfa input-text expected-results)
   "Runs tokenization loop on `input-text` against tokenizer core `tokenizer-core-dfa`, expecting a series
