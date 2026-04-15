@@ -6,15 +6,15 @@
 (defparameter *parse-execution-count* 0 "Temporary protection against infinite recursion")
 
 (defmethod parse-construct :around (construct-obj tokenizer parse-tree)
-  (format t "~&Start parsing construct ~a......~%" construct-obj)
-  (format t "Tokenizer state before: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
+  #+debug(format t "~&Start parsing construct ~a......~%" construct-obj)
+  #+debug(format t "Tokenizer state before: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
   (when (> *parse-execution-count* +max-parse-execution-count+)
     (error "Recursion protection activated: execution count reached ~a!" *parse-execution-count*))
   (incf *parse-execution-count*)
   (prog1
       (call-next-method)
-    (format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
-    (format t "~&End parsing construct ~a.~%" construct-obj)))
+    #+debug(format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
+    #+debug(format t "~&End parsing construct ~a.~%" construct-obj)))
 
 (defmethod parse-construct ((construct-obj constr::sequence-construct) tokenizer parse-tree)
   (loop for child across (constr::child-constructs construct-obj)
