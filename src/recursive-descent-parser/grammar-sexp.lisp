@@ -82,7 +82,7 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                                                                           :construct-id token-id)))
                  ((dsl:rule rule-id (rule-key . _))
                   (declare (ignorable _))
-                  (store rule-id (create-grammar-construct rule-key)))))
+                  (store rule-id (create-grammar-construct rule-key rule-id)))))
              (initialize-grammar-table ()
                "Initialize grammar table with entry per rule/token, mapping id -> construct object."
                #+nil(declare (optimize (debug 3) (speed 0)))
