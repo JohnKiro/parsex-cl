@@ -65,7 +65,8 @@
   (:local-nicknames (:sexp #:parsex-cl/regex/sexp)
                     (:input #:parsex-cl/regex/input)
                     (:tokenizer #:parsex-cl/source-backed-tokenizer)
-                    (:bt-tokenizer #:parsex-cl/backtracking-tokenizer)))
+                    (:bt-tokenizer #:parsex-cl/backtracking-tokenizer)
+                    (:constr #:parsex-cl/rdp/grammar/constructs)))
 
 (defpackage :parsex-cl.test/chars.test
   (:use #:cl
