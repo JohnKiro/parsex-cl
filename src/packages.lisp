@@ -245,7 +245,20 @@
 
 (defpackage :parsex-cl/rdp/grammar/constructs
   (:use #:cl)
-  (:export ))
+  (:export #:grammar-construct
+           #:token-construct
+           #:one-or-more-construct
+           #:zero-or-more-construct
+           #:zero-or-one-construct
+           #:sequence-construct
+           #:or-construct
+           #:child-construct
+           #:child-constructs
+           #:construct-id
+           #:token
+           #:set-child
+           #:add-child
+           ))
 
 (defpackage :parsex-cl/rdp/grammar/sexp/dsl
   (:export #:rule

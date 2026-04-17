@@ -20,11 +20,11 @@ Note that it initializes only the optional construct ID slot, which is initializ
 The construct ID is optional because inner (unnamed) constructs have no ID.
 Other slots will be initialized afterwards, using adequate setter."
   (make-instance (ecase (find-tag-dsl-package construct-tag)
-                   (dsl:or 'constr::or-construct)
-                   (dsl:seq 'constr::sequence-construct)
-                   (dsl:? 'constr::zero-or-one-construct)
-                   (dsl:* 'constr::zero-or-more-construct)
-                   (dsl:+ 'constr::one-or-more-construct))
+                   (dsl:or 'constr:or-construct)
+                   (dsl:seq 'constr:sequence-construct)
+                   (dsl:? 'constr:zero-or-one-construct)
+                   (dsl:* 'constr:zero-or-more-construct)
+                   (dsl:+ 'constr:one-or-more-construct))
                  :construct-id construct-id))
 
 (defun normalize-grammar (grammar)
@@ -78,8 +78,8 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                  ;; TODO: later, may be better to use a wrapper class (i.e. a token class)
                  ((dsl:token token-id _)
                   (declare (ignorable _))
-                  (store token-id (make-instance 'constr::token-construct :token token-id
-                                                                          :construct-id token-id)))
+                  (store token-id (make-instance 'constr:token-construct :token token-id
+                                                                         :construct-id token-id)))
                  ((dsl:rule rule-id (rule-key . _))
                   (declare (ignorable _))
                   (store rule-id (create-grammar-construct rule-key rule-id)))))
@@ -103,22 +103,22 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                          (((dsl:? dsl:* dsl:+) child-form)
                           (etypecase child-form
                             (symbol
-                             (constr::set-child element-obj (retrieve-construct child-form)))
+                             (constr:set-child element-obj (retrieve-construct child-form)))
                             (cons
-                             (constr::set-child element-obj
-                                                (process-rule-form
-                                                 (create-grammar-construct (car child-form))
-                                                 child-form)))))
+                             (constr:set-child element-obj
+                                               (process-rule-form
+                                                (create-grammar-construct (car child-form))
+                                                child-form)))))
                          (((dsl:seq dsl:or) &rest children-forms)
                           (dolist (child-form children-forms)
                             (etypecase child-form
                               (symbol
-                               (constr::add-child element-obj (retrieve-construct child-form)))
+                               (constr:add-child element-obj (retrieve-construct child-form)))
                               (cons
-                               (constr::add-child element-obj
-                                                  (process-rule-form
-                                                   (create-grammar-construct(car child-form))
-                                                   child-form)))))))
+                               (constr:add-child element-obj
+                                                 (process-rule-form
+                                                  (create-grammar-construct(car child-form))
+                                                  child-form)))))))
                   element-obj))))
       ;; note that we initialize the table beforehand since rules may refer to other rules that appear
       ;; later in the grammar.
