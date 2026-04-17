@@ -20,12 +20,18 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
     #+debug(format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
     #+debug(format t "~&End parsing construct ~a.~%" construct-obj)))
 
+(defmethod parse-construct :around ((construct-obj constr::grammar-construct) tokenizer notification-fn)
+  "Auxiliary method to call the `notification-fn` after parsing each construct. It's separated to avoid
+the redundancy of calling it in each construct method."
+  (let ((result (call-next-method)))
+    (funcall notification-fn construct-obj result)
+    result))
+
 (defmethod parse-construct ((construct-obj constr::sequence-construct) tokenizer notification-fn)
   (loop for child across (constr::child-constructs construct-obj)
         for result = (parse-construct child tokenizer notification-fn)
         while (eq result :ok)
-        finally (progn (funcall notification-fn construct-obj result)
-                       (return result))))
+        finally (return result)))
 
 (defmethod parse-construct ((construct-obj constr::or-construct) tokenizer notification-fn)
   (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
@@ -33,22 +39,18 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
         for result = (parse-construct child tokenizer notification-fn)
         if (eq result :ok)
           do (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
-             (funcall notification-fn construct-obj result)
              (return result)
         else
           do (bt-tokenizer:rewind-token-position tokenizer construct-obj)
              ;; TODO: check if need to rewind in the FINALLY clause (meaning no match found, stopping at
              ;; start position, or should we keep at current position? Should be clear when I implement
              ;; actual parsing.
-        finally (progn
-                  (funcall notification-fn construct-obj result)
-                  (return result))))
+        finally (return result)))
 
 (defmethod parse-construct ((construct-obj constr::token-construct) tokenizer notification-fn)
   (let ((expected-token (constr::token construct-obj)))
     (multiple-value-bind (matched-token status slice-indices)
         (bt-tokenizer::match-token tokenizer expected-token)
-      (funcall notification-fn construct-obj status)
       status)))
 
 (defmethod parse-construct ((construct-obj constr::one-or-more-construct) tokenizer notification-fn)
@@ -64,14 +66,11 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
                 do (progn
                      (bt-tokenizer:rewind-token-position tokenizer child)
                      (bt-tokenizer:unmark-backtracking-position tokenizer child)
-                     (funcall notification-fn construct-obj result1)
                      (return result1))
-              finally (progn (funcall notification-fn construct-obj result)
-                             (error "DEBUG: IS THIS REALLY A DEAD CODE??")
-                             (return result)))
-        (progn
-          (funcall notification-fn construct-obj result1)
-          result1))))
+              finally (progn
+                        (error "DEBUG: IS THIS REALLY A DEAD CODE??")
+                        (return result)))
+        result1)))
 
 (defmethod parse-construct ((construct-obj constr::zero-or-more-construct) tokenizer notification-fn)
   (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
@@ -85,7 +84,6 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
           do (progn
                (bt-tokenizer:rewind-token-position tokenizer child)
                (bt-tokenizer:unmark-backtracking-position tokenizer child)
-               (funcall notification-fn construct-obj result)
                (return :ok))))
 
 (defmethod parse-construct ((construct-obj constr::zero-or-one-construct) tokenizer notification-fn)
@@ -97,5 +95,4 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
     ;; I think  we unmark backtracking position, and return success even if parsing failed
     ;; (since construct is optional)
     (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
-    (funcall notification-fn construct-obj result)
     :ok))
