@@ -45,7 +45,9 @@ the redundancy of calling it in each construct method."
              ;; TODO: check if need to rewind in the FINALLY clause (meaning no match found, stopping at
              ;; start position, or should we keep at current position? Should be clear when I implement
              ;; actual parsing.
-        finally (return result)))
+        finally (progn
+                  (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
+                  (return result))))
 
 (defmethod parse-construct ((construct-obj constr:token-construct) tokenizer notification-fn)
   (let ((expected-token (constr:token construct-obj)))
@@ -92,7 +94,7 @@ the redundancy of calling it in each construct method."
   (let ((result (parse-construct (constr:child-construct construct-obj) tokenizer notification-fn)))
     (unless (eq result :ok)
       (bt-tokenizer:rewind-token-position tokenizer construct-obj))
-    ;; I think  we unmark backtracking position, and return success even if parsing failed
-    ;; (since construct is optional)
+    ;; we unmark backtracking position, and return success even if parsing failed (since construct is
+    ;; optional)
     (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
     :ok))

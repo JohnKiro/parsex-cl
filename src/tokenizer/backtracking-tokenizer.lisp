@@ -34,7 +34,7 @@ retrieving from backtracking buffer, it advances the backtracking index.")
    :doc "Called by a construct before parsing, for backtracking in case of parsing failure.")
   (unmark-backtracking-position
    (owner)
-   :doc "Called by a construct after successful parsing, to cancel the marked backtracking.")
+   :doc "Called by a construct after parsing termination, to cancel the marked backtracking.")
   (rewind-token-position
    (owner)
    :doc "Called by a construct to backtrack to a previously marked position (parsing failure).")
@@ -102,7 +102,7 @@ details as three values: matched token ID, status code (keyword), token value sl
                            owner)
                      backtracking-markers))
              (unmark-backtracking-position (owner)
-               "Called by a construct after successful parsing, to cancel the marked backtracking."
+               "Called by a construct after parsing termination, to cancel the marked backtracking."
                (let ((upcoming-marker (first backtracking-markers)))
                  (unless upcoming-marker
                    (error "Backtracking log empty!"))

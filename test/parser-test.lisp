@@ -325,3 +325,45 @@ input text."
                                           (constr:sequence-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))))
+
+(fiveam:test parser-smoke-test-4
+  "Test parsing error (unexpected token in factor, error propagates upwards)."
+  (declare (optimize (debug 3) (speed 0)))
+  (parser-test :grammar '((token id (seq
+                                     #1=(or (char-range #\A #\Z) (char-range #\a #\z))
+                                     (+ (or #1# (char-range #\0 #\9)))))
+                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token *-op #\*)
+                          (token assign #\=)
+                          (token semicolon #\;)
+                          (token eot "") ;;TODO: HANDLE!!!
+                          (rule factor (or id int))
+                          (rule mul-expr (seq factor (? (seq *-op factor))))
+                          (rule statement (seq id assign mul-expr semicolon))
+                          (rule statement-block (+ statement))
+                          (rule root (seq statement-block eot)))
+               :text (concatenate 'string
+                                  "id1=id2*3;"
+                                  "id11=id22*=;")
+               :expected-parsing-result nil))
+
+(fiveam:test parser-smoke-test-5
+  "Test parsing error (unexpected token in factor, but acceptable at a higher level)."
+  (declare (optimize (debug 3) (speed 0)))
+  (parser-test :grammar '((token id (seq
+                                     #1=(or (char-range #\A #\Z) (char-range #\a #\z))
+                                     (+ (or #1# (char-range #\0 #\9)))))
+                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token *-op #\*)
+                          (token assign #\=)
+                          (token semicolon #\;)
+                          (token eot "") ;;TODO: HANDLE!!!
+                          (rule factor (or id int))
+                          (rule mul-expr (seq factor (? (seq *-op factor))))
+                          (rule statement (seq id assign mul-expr semicolon))
+                          (rule statement-block (+ statement))
+                          (rule root (seq statement-block eot)))
+               :text (concatenate 'string
+                                  "id1=id2*3;"
+                                  "id11=id22*;")
+               :expected-parsing-result nil))
