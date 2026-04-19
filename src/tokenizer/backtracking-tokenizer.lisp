@@ -27,8 +27,8 @@ Note: may in the future return additional values (e.g. allowing NIL itself as a 
 (func:define-functional-interface backtracking-tokenizer ()
   (match-token
    (expected-token)
-   :doc "Match `expected-token` against next token(s) from tokenizer. In case of success and currently
-retrieving from backtracking buffer, it advances the backtracking index.")
+   :doc "Match `expected-token` against next token(s) from tokenizer. In case of success, it advances the
+backtracking index.")
   (mark-backtracking-position
    (owner)
    :doc "Called by a construct before parsing, for backtracking in case of parsing failure.")
@@ -79,9 +79,11 @@ TODO: it's not yet clear the situation in case of tokenization error, or empty i
                          (vector-push-extend tok-and-indices backtracking-buffer)
                          tok-and-indices)))))
              (match-token (expected-token)
-               "Match `expected-token` against next token(s) from tokenizer. In case of success and
-currently retrieving from backtracking buffer, it advances the backtracking index. Returns matching
-details as three values: matched token ID, status code (keyword), token value slice indices."
+               "Match `expected-token` against next token(s) from tokenizer. In case of success, it
+advances the backtracking index. Note that if the index goes beyond the backtracking buffer, then next
+token should be retrieved from the backing tokenizer.
+Returns matching details as three values: matched token ID, status code (keyword), token value slice
+indices."
                (declare (optimize (debug 3) (speed 0)))
                #+nil(break)
                (alexandria:if-let ((tokenizer-result (get-tokens)))
