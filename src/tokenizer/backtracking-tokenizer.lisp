@@ -63,13 +63,12 @@ dumping internal state as a p-list (for testing/debugging)."
                "Retrieve next token(s) from either source or backtracking buffer. The backtracking
 buffer is used in case some tokens are pending in the backtracking buffer, otherwise, the source is used.
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
-the token accumulated slice indices.
+the token accumulated slice indices. Note that calling it successively returns the same result, unless
+a call to another state-changing function (e.g. `match-token`) intervenes.
 TODO: it's not yet clear the situation in case of tokenization error, or empty input!"
                (if (< backtracking-index (length backtracking-buffer))
-                   (prog1
-                       ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
-                       (elt backtracking-buffer backtracking-index)
-                     #+nil(incf backtracking-index))
+                   ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
+                   (elt backtracking-buffer backtracking-index)
                    (let* ((tok (funcall underlying-tokenizer)))
                      (when tok ;otherwise: no token found or tokenization error (we don't care which)
                        (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
@@ -83,7 +82,6 @@ token should be retrieved from the backing tokenizer.
 Returns matching details as three values: matched token ID, status code (keyword), token value slice
 indices."
                (declare (optimize (debug 3) (speed 0)))
-               #+nil(break)
                (alexandria:if-let ((tokenizer-result (get-tokens)))
                  (destructuring-bind (actual-tokens . acc-indices) tokenizer-result
                    (let ((match-result (funcall *token-matching-fn* expected-token actual-tokens)))
