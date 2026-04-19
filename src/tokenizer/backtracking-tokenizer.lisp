@@ -58,21 +58,19 @@ dumping internal state as a p-list (for testing/debugging)."
   #+nil(declare (optimize (debug 0) (speed 3)))
   (let ((backtracking-buffer (make-array 100 :adjustable t :fill-pointer 0))
         (backtracking-markers nil)
-        (backtracking-index 0)
-        (backtrack nil))
+        (backtracking-index 0))
     (labels ((get-tokens ()
                "Retrieve next token(s) from either source or backtracking buffer. The backtracking
 buffer is used in case some tokens are pending in the backtracking buffer, otherwise, the source is used.
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
 the token accumulated slice indices.
 TODO: it's not yet clear the situation in case of tokenization error, or empty input!"
-               (if (and #+nil backtrack (< backtracking-index (length backtracking-buffer)))
+               (if (< backtracking-index (length backtracking-buffer))
                    (prog1
                        ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                        (elt backtracking-buffer backtracking-index)
                      #+nil(incf backtracking-index))
                    (let* ((tok (funcall underlying-tokenizer)))
-                     #+nil(setf backtrack nil)
                      (when tok ;otherwise: no token found or tokenization error (we don't care which)
                        (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
                                                          input-source))))
@@ -98,9 +96,7 @@ indices."
                  (values nil :invalid-token-or-empty-input nil)))
              (mark-backtracking-position (owner)
                "Called by a construct before parsing, for backtracking in case of parsing failure."
-               (push (cons (if t #+nil backtrack
-                               (min backtracking-index (length backtracking-buffer))
-                               #+nil(length backtracking-buffer))
+               (push (cons (min backtracking-index (length backtracking-buffer))
                            owner)
                      backtracking-markers))
              (unmark-backtracking-position (owner)
@@ -123,16 +119,14 @@ indices."
                  (destructuring-bind (position . expected-owner) upcoming-marker
                    (unless (eq owner expected-owner)
                      (error "Unexpected mark owner (expected ~a, received ~a)!" expected-owner owner))
-                   (setf backtracking-index position)
-                   #+nil(setf backtrack t))))
+                   (setf backtracking-index position))))
              (dump-internal-state ()
                "Dump tokenizer internal state as a p-list."
                (let ((backtracking-buffer-top (subseq backtracking-buffer
                                                       (max 0 (- (length backtracking-buffer) 5)))))
                  `(:backtracking-buffer ,backtracking-buffer-top 
                    :backtracking-index ,backtracking-index
-                   :backtracking-markers ,backtracking-markers
-                   :backtrack ,backtrack))))
+                   :backtracking-markers ,backtracking-markers))))
       (make-backtracking-tokenizer :match-token-fn #'match-token
                                    :mark-backtracking-position-fn #'mark-backtracking-position
                                    :unmark-backtracking-position-fn #'unmark-backtracking-position
