@@ -74,6 +74,7 @@ is that the final parsing result is :ok."
              (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer input))
              (sample-parser-notif-callback (sample-parser-notif-callback-factory input)))
         (fiveam:is (equal (parsex-cl/rdp/parser:parse-construct root-grammar-constr bt-tokenizer
+                                                                #'parsex-cl/rdp/parser::token-matches-p
                                                                 sample-parser-notif-callback)
                           :ok))
         ;; call with NIL arg, just to get final parsing log

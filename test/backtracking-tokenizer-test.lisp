@@ -20,10 +20,23 @@ state) `tokenizer-core`, and applying test assertions provided in the `body`."
      (multiple-value-bind (,tokenizer-var ,input-var) (prep-tokenizer ,tokenizer-core ,input-text)
        ,@body)))
 
-(defun match-and-check (tokenizer expected-token-id &optional (expected-status :ok))
-  (multiple-value-bind (token-id status) (bt-tokenizer::match-token tokenizer expected-token-id)
-    (is (equal token-id expected-token-id))
-    (is (equal status expected-status))))
+(defun match-and-check (tokenizer expected-token-id
+                         &key (expected-token-text nil expected-token-text-supplied-p))
+  (declare (ignorable expected-token-text))
+  (let ((tokenizer-result (bt-tokenizer:get-tokens tokenizer)))
+    (if tokenizer-result
+        (destructuring-bind (tokens . input-indices) tokenizer-result
+          (declare (ignorable input-indices))
+          (let ((token-found (position expected-token-id tokens)))
+            (is-true token-found "Expected token: ~a, found by tokenization: ~a." expected-token-id
+                     tokens)
+            (when token-found
+              (bt-tokenizer:advance tokenizer)))
+          (when expected-token-text-supplied-p
+            ;; TODO: NEED TO HAVE ACCESS TO "INPUT" TO ACTIVATE THIS!
+            #+nil(is (equal expected-token-text
+                            (and input-indices (input:retrieve-subrange input input-indices))))))
+        (is (null expected-token-id) "Should not expect token in case tokenizer is empty!"))))
 
 (defparameter *sample-tokenizer-core*
   (token-core:tokenizer
@@ -55,7 +68,7 @@ a source-backed tokenizer). Also tests input exhaustion (no more input for token
   (match-and-check tokenizer 'num)
   (match-and-check tokenizer 'right-paren)
   (match-and-check tokenizer 'statement-term)
-  (match-and-check tokenizer nil :invalid-token-or-empty-input))
+  (match-and-check tokenizer nil))
 
 (deftest bt-tokenizer-test-2
   "Backtracking tokenizer test, covering a reasonable execution, including marking, unmarking, and

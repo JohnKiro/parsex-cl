@@ -4,31 +4,28 @@
 ;;;; tokenizer interface supporting backtracking, including default (probably sufficient) implementation
 ;;;;
 
-;; default matching (token equality check)
-(defun find-matching-token (expected-token actual-tokens)
-  "Matches `expected-token` against one of the `actual-tokens` sequence. returns found token or NIL.
-Default equality test is used (EQL). See also `*token-matching-fn*`."
-  (find expected-token actual-tokens))
-
-(defparameter *token-matching-fn* #'find-matching-token
-  "Configurable token matching function, that matches expected token (1st arg) against one of the actual
-tokens receives from the regex machine (2nd arg). Implementations should return the matched token or NIL
-if no match. By default, it points to `find-matching-token`, which is an implementation that relies on
-default equality test (EQL), and assumes the actual tokens as a sequence.
-For more sophisticated needs, the user could set the dynamic variable to a custom implementation. For
-example, in case it needs to inspect the actual token text (say, to map token via lookup table), a custom
-implementation could have access to the input source (e.g. within a closure env).
-Note: may in the future return additional values (e.g. allowing NIL itself as a valid token ID.")
-
 ;;;
 ;;; generic tokenizer interface (struct + funcall generation macros)
 ;;;
 
 (func:define-functional-interface backtracking-tokenizer ()
-  (match-token
-   (expected-token)
-   :doc "Match `expected-token` against next token(s) from tokenizer. In case of success, it advances the
-backtracking index.")
+  (get-tokens
+   ()
+   :doc "Retrieve next token(s) from either source or backtracking buffer. The backtracking buffer is
+used in case some tokens are pending in the backtracking buffer, otherwise, the source is used.
+In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
+the token accumulated slice indices, as a pair: (tokens . slice-indices).
+Returns next token(s) and slice indices as a pair.
+Note that calling it successively returns the same result, unless a call to another state-changing
+function (e.g. `advance`) intervenes.")
+  (advance
+   ()
+   :doc "Advance tokenizer so that next call to `get-tokens` would provide the token at next
+ position. Calling it successively while within the backtracking buffer would advance through the
+ backtracking buffer, until it reaches the end. Calling it beyond the backtracking buffer any number of
+times, will have no effect, as `get-tokens` detects the beyond-backtracking condition, and it would
+retrieve from the underlying tokenizer. Same happens when calling it with an empty backtracking buffer
+(before any calls to `get-tokens`). Returns NIL in all cases.")
   (mark-backtracking-position
    (owner)
    :doc "Called by a construct before parsing, for backtracking in case of parsing failure.")
@@ -48,12 +45,11 @@ backtracking index.")
 
 (defun create-backtracking-tokenizer (underlying-tokenizer input-source)
   "Creates a backtracking tokenizer that conforms with the `backtracking-tokenizer` interface. It
-controls the passed `underlying-tokenizer`, which is a `tokenizer` struct instance. It uses the function
-specified by the dynamic var *token-matching-fn* to check whether expected token matches one of the
-actual token. The `input-source` argument is used to register the accumulated token value corresponding
+controls the passed `underlying-tokenizer`, which is a `tokenizer` struct instance.
+The `input-source` argument is used to register the accumulated token value corresponding
 to each token. The implementation supports backtracking by keeping a buffer of all collected tokens, as
-well as a stack of backtracking markers. The returned tokenizer object supports operations to match next
-token against expected token(s), passed as argument, mark and unmark/rewind backtracking position, and
+well as a stack of backtracking markers. The returned tokenizer object supports operations to retrieve
+next token (without advancing), advance tokenizer, mark and unmark/rewind backtracking position, and
 dumping internal state as a p-list (for testing/debugging)."
   #+nil(declare (optimize (debug 0) (speed 3)))
   (let ((backtracking-buffer (make-array 100 :adjustable t :fill-pointer 0))
@@ -64,34 +60,27 @@ dumping internal state as a p-list (for testing/debugging)."
 buffer is used in case some tokens are pending in the backtracking buffer, otherwise, the source is used.
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
 the token accumulated slice indices. Note that calling it successively returns the same result, unless
-a call to another state-changing function (e.g. `match-token`) intervenes.
+a call to another state-changing function (e.g. `advance`) intervenes.
 TODO: it's not yet clear the situation in case of tokenization error, or empty input!"
                (if (< backtracking-index (length backtracking-buffer))
                    ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                    (elt backtracking-buffer backtracking-index)
                    (let* ((tok (funcall underlying-tokenizer)))
+                     #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
                      (when tok ;otherwise: no token found or tokenization error (we don't care which)
                        (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
                                                          input-source))))
                          (vector-push-extend tok-and-indices backtracking-buffer)
                          tok-and-indices)))))
-             (match-token (expected-token)
-               "Match `expected-token` against next token(s) from tokenizer. In case of success, it
-advances the backtracking index. Note that if the index goes beyond the backtracking buffer, then next
-token should be retrieved from the backing tokenizer.
-Returns matching details as three values: matched token ID, status code (keyword), token value slice
-indices."
-               (declare (optimize (debug 3) (speed 0)))
-               (alexandria:if-let ((tokenizer-result (get-tokens)))
-                 (destructuring-bind (actual-tokens . acc-indices) tokenizer-result
-                   (let ((match-result (funcall *token-matching-fn* expected-token actual-tokens)))
-                     (if match-result
-                         (progn
-                           (incf backtracking-index)
-                           ;;TODO: SHOULD ACTUALLY RETURN RESULT, NOT JUST :OK (IN PROGRESS)!
-                           (values match-result :ok acc-indices))
-                         (values nil :no-match nil))))
-                 (values nil :invalid-token-or-empty-input nil)))
+             (advance ()
+               "Advance tokenizer so that next call to `get-tokens` would provide the token at next
+ position. Calling it successively while within the backtracking buffer would advance through the
+ backtracking buffer, until it reaches the end. Calling it beyond the backtracking buffer any number of
+times, will have no effect, as `get-tokens` detects the beyond-backtracking condition, and it would
+retrieve from the underlying tokenizer. Same happens when calling it with an empty backtracking buffer
+(before any calls to `get-tokens`). Returns NIL in all cases."
+               (incf backtracking-index)
+               nil)
              (mark-backtracking-position (owner)
                "Called by a construct before parsing, for backtracking in case of parsing failure."
                (push (cons (min backtracking-index (length backtracking-buffer))
@@ -125,7 +114,8 @@ indices."
                  `(:backtracking-buffer ,backtracking-buffer-top 
                    :backtracking-index ,backtracking-index
                    :backtracking-markers ,backtracking-markers))))
-      (make-backtracking-tokenizer :match-token-fn #'match-token
+      (make-backtracking-tokenizer :get-tokens-fn #'get-tokens
+                                   :advance-fn #'advance
                                    :mark-backtracking-position-fn #'mark-backtracking-position
                                    :unmark-backtracking-position-fn #'unmark-backtracking-position
                                    :rewind-token-position-fn #'rewind-token-position
