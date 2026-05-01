@@ -29,9 +29,7 @@ state) `tokenizer-core`, and applying test assertions provided in the `body`."
           (declare (ignorable input-indices))
           (let ((token-found (position expected-token-id tokens)))
             (is-true token-found "Expected token: ~a, found by tokenization: ~a." expected-token-id
-                     tokens)
-            (when token-found
-              (bt-tokenizer:advance tokenizer)))
+                     tokens))
           (when expected-token-text-supplied-p
             ;; TODO: NEED TO HAVE ACCESS TO "INPUT" TO ACTIVATE THIS!
             #+nil(is (equal expected-token-text

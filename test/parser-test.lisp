@@ -19,12 +19,13 @@ Note: when the closure is called with the first arg as NIL, it doesn't append an
 rather, returns the accumulated log entries. This is how the the log is retrieved for testing and
 debugging."
   (let ((parsing-log))
-    (lambda (construct-obj parsing-status)
+    (lambda (construct-obj parsing-status maybe-tokenization-result)
       (if construct-obj ; append log entry or dump log?
           (let ((log `(,construct-obj
                        ,parsing-status
                        ,@(when (eq (class-name (class-of construct-obj)) 'constr:token-construct)
-                           (input:retrieve-last-accumulated-value input-source)))))
+                           (when maybe-tokenization-result
+                             (input:retrieve-subrange input-source (cdr maybe-tokenization-result)))))))
             (push log parsing-log)
             nil)
           (nreverse parsing-log)))))
@@ -58,7 +59,7 @@ in the form (construct-obj status token-text)."
 also refer to the included test cases for examples."
   (mapcar #'check-log-entry parsing-log expected-parsing-log))
 
-(defun parser-test (&key grammar text expected-parsing-result)
+(defun parser-test (&key grammar text (expected-final-parsing-status :ok) expected-parsing-result)
   "Prepares and executes parsing test, for a specific grammar `grammar` (in sexp form, for now), input
 text `text`, and given optional expected parsing result `expected-parsing-result`, which serves to test
 not only the final parsing status, but the progress of parsing (sequence of constructs, expected status
@@ -76,9 +77,9 @@ is that the final parsing result is :ok."
         (fiveam:is (equal (parsex-cl/rdp/parser:parse-construct root-grammar-constr bt-tokenizer
                                                                 #'parsex-cl/rdp/parser::token-matches-p
                                                                 sample-parser-notif-callback)
-                          :ok))
+                          expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
-        (let ((parsing-log (funcall sample-parser-notif-callback nil nil)))
+        (let ((parsing-log (funcall sample-parser-notif-callback nil nil nil)))
           ;; dumps log, for visual inspection, and then could be fed back subsequently into the
           ;; expected-parsing-result parameter. The idea is that after first visual inspection, it serves
           ;; in subsequent (automated) regression tests.
@@ -328,7 +329,7 @@ input text."
                                           (constr:sequence-construct root :ok))))
 
 (fiveam:test parser-smoke-test-4
-  "Test parsing error (unexpected token in factor, error propagates upwards)."
+  "Test parsing error (unexpected token in factor, assign found instead of factor)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
@@ -346,10 +347,39 @@ input text."
                :text (concatenate 'string
                                   "id1=id2*3;"
                                   "id11=id22*=;")
-               :expected-parsing-result nil))
+               :expected-final-parsing-status :no-match
+               :expected-parsing-result '((constr:token-construct id :ok "id1")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct id :ok "id2")
+                                          (constr:or-construct factor :ok)
+                                          (constr:token-construct *-op :ok "*")
+                                          (constr:token-construct id :no-match "3")
+                                          (constr:token-construct int :ok "3")
+                                          (constr:or-construct factor :ok)
+                                          (constr:sequence-construct nil :ok)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
+                                          (constr:token-construct semicolon :ok ";")
+                                          (constr:sequence-construct statement :ok)
+                                          (constr:token-construct id :ok "id11")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct id :ok "id22")
+                                          (constr:or-construct factor :ok)
+                                          (constr:token-construct *-op :ok "*")
+                                          (constr:token-construct id :no-match "=")
+                                          (constr:token-construct int :no-match "=")
+                                          (constr:or-construct factor :no-match)
+                                          (constr:sequence-construct nil :no-match)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
+                                          (constr:token-construct semicolon :no-match "*")
+                                          (constr:sequence-construct statement :no-match)
+                                          (constr:one-or-more-construct statement-block :ok)
+                                          (constr:token-construct eot :no-match "id11")
+                                          (constr:sequence-construct root :no-match))))
 
 (fiveam:test parser-smoke-test-5
-  "Test parsing error (unexpected token in factor, but acceptable at a higher level)."
+  "Test parsing error (unexpected token in factor, as if factor is missing)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
@@ -367,4 +397,40 @@ input text."
                :text (concatenate 'string
                                   "id1=id2*3;"
                                   "id11=id22*;")
-               :expected-parsing-result nil))
+               :expected-final-parsing-status :no-match
+               :expected-parsing-result '((constr:token-construct id :ok "id1")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct id :ok "id2")
+                                          (constr:or-construct factor :ok)
+                                          (constr:token-construct *-op :ok "*")
+                                          (constr:token-construct id :no-match "3")
+                                          (constr:token-construct int :ok "3")
+                                          (constr:or-construct factor :ok)
+                                          (constr:sequence-construct nil :ok)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
+                                          (constr:token-construct semicolon :ok ";")
+                                          (constr:sequence-construct statement :ok)
+                                          (constr:token-construct id :ok "id11")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct id :ok "id22")
+                                          (constr:or-construct factor :ok)
+                                          (constr:token-construct *-op :ok "*")
+                                          ;; expecting factor (id/int), got semicolon
+                                          (constr:token-construct id :no-match ";")
+                                          (constr:token-construct int :no-match ";")
+                                          (constr:or-construct factor :no-match)
+                                          ;; *-op factor fails
+                                          (constr:sequence-construct nil :no-match)
+                                          ;; (? (seq *-op factor)) succeeds (since optional)
+                                          ;; rewinding ("*" not consumed)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
+                                          ;; expecting statement termination
+                                          (constr:token-construct semicolon :no-match "*")
+                                          (constr:sequence-construct statement :no-match)
+                                          ;; at least one statement succeeded, we're now back to point
+                                          ;; just after that statement ("id11")
+                                          (constr:one-or-more-construct statement-block :ok)
+                                          (constr:token-construct eot :no-match "id11")
+                                          (constr:sequence-construct root :no-match))))

@@ -18,7 +18,7 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
   (when (> *parse-execution-count* +max-parse-execution-count+)
     (error "Recursion protection activated: execution count reached ~a!" *parse-execution-count*))
   (incf *parse-execution-count*)
-  (prog1
+  (multiple-value-prog1
       (call-next-method)
     #+debug(format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
     #+debug(format t "~&End parsing construct ~a.~%" construct-obj)))
@@ -27,8 +27,11 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
                                     notification-fn)
   "Auxiliary method to call the `notification-fn` after parsing each construct. It's separated to avoid
 the redundancy of calling it in each construct method."
-  (let ((result (call-next-method)))
-    (funcall notification-fn construct-obj result)
+  #+debug(format t "Starting :around for construct ~a..~%" construct-obj)
+  (multiple-value-bind (result maybe-tokenization-result) (call-next-method)
+    #+debug(format t "Construct: ~a, tokenization result (in case token): ~a.~%" construct-obj
+                   maybe-tokenization-result)
+    (funcall notification-fn construct-obj result maybe-tokenization-result)
     result))
 
 (defmethod parse-construct ((construct-obj constr:sequence-construct) tokenizer token-matching-fn
@@ -67,16 +70,16 @@ lookup table), a custom implementation could have access to the tokenizer (e.g. 
 (defmethod parse-construct ((construct-obj constr:token-construct) tokenizer token-matching-fn
                             notification-fn)
   "Matches expected token against next token(s), which it retrieves by calling `get-tokens` on the
-tokenizer (`tokenizer`). In case of success, it advances the backtracking index.
-Returns tokenization status (:ok / :no-match / :invalid-token-or-empty-input)."
+tokenizer (`tokenizer`). Returns tokenization status (:ok / :no-match / :invalid-token-or-empty-input),
+and in case of success (:ok), a secondary value is also returned, containing the tokenization result,
+which is a pair: (actual-tokens . acc-indices)."
   (let ((expected-token (constr:token construct-obj)))
     (alexandria:if-let ((tokenizer-result (bt-tokenizer:get-tokens tokenizer)))
-      (destructuring-bind (actual-tokens . acc-indices) tokenizer-result
-        (if (funcall token-matching-fn expected-token actual-tokens)
-            (progn
-              (bt-tokenizer:advance tokenizer)
-              :ok)
-            :no-match))
+      (values (destructuring-bind (actual-tokens . acc-indices) tokenizer-result
+                (if (funcall token-matching-fn expected-token actual-tokens)
+                    :ok
+                    :no-match))
+              tokenizer-result)
       :invalid-token-or-empty-input)))
 
 (defmethod parse-construct ((construct-obj constr:one-or-more-construct) tokenizer token-matching-fn

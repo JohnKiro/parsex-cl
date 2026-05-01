@@ -18,14 +18,6 @@ the token accumulated slice indices, as a pair: (tokens . slice-indices).
 Returns next token(s) and slice indices as a pair.
 Note that calling it successively returns the same result, unless a call to another state-changing
 function (e.g. `advance`) intervenes.")
-  (advance
-   ()
-   :doc "Advance tokenizer so that next call to `get-tokens` would provide the token at next
- position. Calling it successively while within the backtracking buffer would advance through the
- backtracking buffer, until it reaches the end. Calling it beyond the backtracking buffer any number of
-times, will have no effect, as `get-tokens` detects the beyond-backtracking condition, and it would
-retrieve from the underlying tokenizer. Same happens when calling it with an empty backtracking buffer
-(before any calls to `get-tokens`). Returns NIL in all cases.")
   (mark-backtracking-position
    (owner)
    :doc "Called by a construct before parsing, for backtracking in case of parsing failure.")
@@ -62,16 +54,18 @@ In the second case, the retrieved token(s) are also appended to the backtracking
 the token accumulated slice indices. Note that calling it successively returns the same result, unless
 a call to another state-changing function (e.g. `advance`) intervenes.
 TODO: it's not yet clear the situation in case of tokenization error, or empty input!"
-               (if (< backtracking-index (length backtracking-buffer))
-                   ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
-                   (elt backtracking-buffer backtracking-index)
-                   (let* ((tok (funcall underlying-tokenizer)))
-                     #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
-                     (when tok ;otherwise: no token found or tokenization error (we don't care which)
-                       (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
-                                                         input-source))))
-                         (vector-push-extend tok-and-indices backtracking-buffer)
-                         tok-and-indices)))))
+               (prog1
+                   (if (< backtracking-index (length backtracking-buffer))
+                       ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
+                       (elt backtracking-buffer backtracking-index)
+                       (let* ((tok (funcall underlying-tokenizer)))
+                         #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
+                         (when tok ;otherwise: no token found or tokenization error (we don't care which)
+                           (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
+                                                             input-source))))
+                             (vector-push-extend tok-and-indices backtracking-buffer)
+                             tok-and-indices))))
+                 (advance)))
              (advance ()
                "Advance tokenizer so that next call to `get-tokens` would provide the token at next
  position. Calling it successively while within the backtracking buffer would advance through the
@@ -115,7 +109,6 @@ retrieve from the underlying tokenizer. Same happens when calling it with an emp
                    :backtracking-index ,backtracking-index
                    :backtracking-markers ,backtracking-markers))))
       (make-backtracking-tokenizer :get-tokens-fn #'get-tokens
-                                   :advance-fn #'advance
                                    :mark-backtracking-position-fn #'mark-backtracking-position
                                    :unmark-backtracking-position-fn #'unmark-backtracking-position
                                    :rewind-token-position-fn #'rewind-token-position

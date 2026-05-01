@@ -238,7 +238,6 @@
                     (:tokenizer #:parsex-cl/source-backed-tokenizer))
   (:export #:create-backtracking-tokenizer
            #:get-tokens
-           #:advance
            #:mark-backtracking-position
            #:unmark-backtracking-position
            #:rewind-token-position
