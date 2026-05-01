@@ -37,7 +37,7 @@ function (e.g. `advance`) intervenes.")
 
 (defun create-backtracking-tokenizer (underlying-tokenizer input-source)
   "Creates a backtracking tokenizer that conforms with the `backtracking-tokenizer` interface. It
-controls the passed `underlying-tokenizer`, which is a `tokenizer` struct instance.
+controls the passed `underlying-tokenizer`, which is a closure that returns next token from input.
 The `input-source` argument is used to register the accumulated token value corresponding
 to each token. The implementation supports backtracking by keeping a buffer of all collected tokens, as
 well as a stack of backtracking markers. The returned tokenizer object supports operations to retrieve
