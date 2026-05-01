@@ -77,9 +77,7 @@ retrieve from the underlying tokenizer. Same happens when calling it with an emp
                nil)
              (mark-backtracking-position (owner)
                "Called by a construct before parsing, for backtracking in case of parsing failure."
-               (push (cons (min backtracking-index (length backtracking-buffer))
-                           owner)
-                     backtracking-markers))
+               (push (cons backtracking-index owner) backtracking-markers))
              (unmark-backtracking-position (owner)
                "Called by a construct after parsing termination, to cancel the marked backtracking."
                (let ((upcoming-marker (first backtracking-markers)))
@@ -113,3 +111,4 @@ retrieve from the underlying tokenizer. Same happens when calling it with an emp
                                    :unmark-backtracking-position-fn #'unmark-backtracking-position
                                    :rewind-token-position-fn #'rewind-token-position
                                    :dump-internal-state-fn #'dump-internal-state))))
+
