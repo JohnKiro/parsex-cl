@@ -89,7 +89,7 @@ is that the final parsing result is :ok."
           (when expected-parsing-result
             (check-log parsing-log expected-parsing-result)))))))
 
-(fiveam:test parser-smoke-test
+(fiveam:test parser-test
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
 grammar."
   (declare (optimize (debug 3) (speed 0)))
@@ -142,7 +142,7 @@ grammar."
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))))
 
-(fiveam:test parser-smoke-test-2
+(fiveam:test parser-test-2
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
 grammar. This one is identical to previous one, except that it uses one-or-more instead of seq +
 zero-or-more (to test that construct as well)."
@@ -195,7 +195,7 @@ zero-or-more (to test that construct as well)."
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))))
 
-(fiveam:test parser-smoke-test-3
+(fiveam:test parser-test-3
   "Basic test that demonstrates parser usage in client code, this time with more complicated grammar and
 input text."
   (declare (optimize (debug 3) (speed 0)))
@@ -328,7 +328,7 @@ input text."
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))))
 
-(fiveam:test parser-smoke-test-4
+(fiveam:test parser-test-4
   "Test parsing error (unexpected token in factor, assign found instead of factor)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
@@ -378,7 +378,7 @@ input text."
                                           (constr:token-construct eot :no-match "id11")
                                           (constr:sequence-construct root :no-match))))
 
-(fiveam:test parser-smoke-test-5
+(fiveam:test parser-test-5
   "Test parsing error (unexpected token in factor, as if factor is missing)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
