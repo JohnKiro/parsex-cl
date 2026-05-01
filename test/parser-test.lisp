@@ -434,3 +434,64 @@ input text."
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :no-match "id11")
                                           (constr:sequence-construct root :no-match))))
+
+(fiveam:test parser-test-6
+  "Test parsing error: investigating skipping error and finding a continuation point: currently, parsing
+stops exactly at same point as previous TC (#5), so we get exactly same expected result. This is because
+the error propagates upwards till root, and gets reported. There is no current mechanism for
+continuation."
+  (declare (optimize (debug 3) (speed 0)))
+  (parser-test :grammar '((token id (seq
+                                     #1=(or (char-range #\A #\Z) (char-range #\a #\z))
+                                     (+ (or #1# (char-range #\0 #\9)))))
+                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token *-op #\*)
+                          (token assign #\=)
+                          (token semicolon #\;)
+                          (token eot "") ;;TODO: HANDLE!!!
+                          (rule factor (or id int))
+                          (rule mul-expr (seq factor (? (seq *-op factor))))
+                          (rule statement (seq id assign mul-expr semicolon))
+                          (rule statement-block (+ statement))
+                          (rule root (seq statement-block eot)))
+               :text (concatenate 'string
+                                  "id1=id2*3;"
+                                  "id11=id22*;" ; erroneous line, causes parser to abort
+                                  "id111=id222*333;")
+               :expected-final-parsing-status :no-match
+               :expected-parsing-result '((constr:token-construct id :ok "id1")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct id :ok "id2")
+                                          (constr:or-construct factor :ok)
+                                          (constr:token-construct *-op :ok "*")
+                                          (constr:token-construct id :no-match "3")
+                                          (constr:token-construct int :ok "3")
+                                          (constr:or-construct factor :ok)
+                                          (constr:sequence-construct nil :ok)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
+                                          (constr:token-construct semicolon :ok ";")
+                                          (constr:sequence-construct statement :ok)
+                                          (constr:token-construct id :ok "id11")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct id :ok "id22")
+                                          (constr:or-construct factor :ok)
+                                          (constr:token-construct *-op :ok "*")
+                                          ;; expecting factor (id/int), got semicolon
+                                          (constr:token-construct id :no-match ";")
+                                          (constr:token-construct int :no-match ";")
+                                          (constr:or-construct factor :no-match)
+                                          ;; *-op factor fails
+                                          (constr:sequence-construct nil :no-match)
+                                          ;; (? (seq *-op factor)) succeeds (since optional)
+                                          ;; rewinding ("*" not consumed)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
+                                          ;; expecting statement termination
+                                          (constr:token-construct semicolon :no-match "*")
+                                          (constr:sequence-construct statement :no-match)
+                                          ;; at least one statement succeeded, we're now back to point
+                                          ;; just after that statement ("id11")
+                                          (constr:one-or-more-construct statement-block :ok)
+                                          (constr:token-construct eot :no-match "id11")
+                                          (constr:sequence-construct root :no-match))))
