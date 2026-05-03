@@ -78,8 +78,10 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                  ;; TODO: later, may be better to use a wrapper class (i.e. a token class)
                  ((dsl:token token-id _)
                   (declare (ignorable _))
-                  (store token-id (make-instance 'constr:token-construct :token token-id
-                                                                         :construct-id token-id)))
+                  (let ((tok-constr (make-instance 'constr:token-construct :token token-id
+                                                                           :construct-id token-id)))
+                    (constr::initialize-first-set tok-constr)
+                    (store token-id tok-constr)))
                  ((dsl:rule rule-id (rule-key . _))
                   (declare (ignorable _))
                   (store rule-id (create-grammar-construct rule-key rule-id)))))
@@ -119,6 +121,7 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                                                  (process-rule-form
                                                   (create-grammar-construct(car child-form))
                                                   child-form)))))))
+                  (constr::initialize-first-set element-obj)
                   element-obj))))
       ;; note that we initialize the table beforehand since rules may refer to other rules that appear
       ;; later in the grammar.

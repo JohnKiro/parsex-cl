@@ -77,18 +77,25 @@ for now, as I'm going in the direction of PEG and Packrat."))
 
 (defmethod compute-first-set ((g or-construct))
   (let ((first-set nil))
-    (loop for child in (child-constructs g)
+    (loop for child across (child-constructs g)
           do (setf first-set (union (compute-first-set child) first-set)))
     first-set))
 
 (defmethod compute-first-set ((g sequence-construct))
   (let ((first-set nil))
-    (loop for child in (child-constructs g)
+    (loop for child across (child-constructs g)
           do (progn (setf first-set (union (compute-first-set child) first-set))
                     (unless (member :epsilon first-set)
                       (setf first-set (remove :epsilon first-set))
                       (return))))
     first-set))
+
+;; all constructs having a single child share the same way of 1st set computation
+(defmethod compute-first-set ((g single-construct-wrapper))
+  (compute-first-set (child-construct g)))
+
+(defmethod compute-first-set ((g token-construct))
+  (list (token g)))
 
 (defmethod compute-first-set ((g (eql :epsilon)))
   (list :epsilon))
@@ -96,4 +103,13 @@ for now, as I'm going in the direction of PEG and Packrat."))
 (defmethod compute-first-set ((g symbol))
   ;; terminal (token)
   (list g))
-  
+
+(defun initialize-first-set (construct)
+  "Set the first-set in the construct object. This should be called after the construct is initialized,
+i.e. after all its children are added, which is done incrementally."
+  (setf #1=(slot-value construct '%first-set) (compute-first-set construct))
+  #+debug(format t "~%First set for ~a computed as ~a ~%" construct #1#))
+
+(defun find-token-in-first-set (construct token)
+  "Search for token `token` in `construct`'s first set. For now, default test (EQL) is used."
+  (and (position token (slot-value construct '%first-set)) t))
