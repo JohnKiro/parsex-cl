@@ -96,7 +96,7 @@ grammar."
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                      (+ (or #1# (char-range #\0 #\9)))))
-                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token int (+ (char-range #\0 #\9)))
                           (token *-op #\*)
                           (token assign #\=)
                           (token semicolon #\;)
@@ -150,7 +150,7 @@ zero-or-more (to test that construct as well)."
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                      (+ (or #1# (char-range #\0 #\9)))))
-                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token int (+ (char-range #\0 #\9)))
                           (token *-op #\*)
                           (token assign #\=)
                           (token semicolon #\;)
@@ -202,7 +202,7 @@ input text."
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                      (+ (or #1# (char-range #\0 #\9)))))
-                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token int (+ (char-range #\0 #\9)))
                           (token l-paren #\()
                           (token r-paren #\))
                           (token *-op #\*)
@@ -334,7 +334,7 @@ input text."
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                      (+ (or #1# (char-range #\0 #\9)))))
-                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token int (+ (char-range #\0 #\9)))
                           (token *-op #\*)
                           (token assign #\=)
                           (token semicolon #\;)
@@ -384,7 +384,7 @@ input text."
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                      (+ (or #1# (char-range #\0 #\9)))))
-                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token int (+ (char-range #\0 #\9)))
                           (token *-op #\*)
                           (token assign #\=)
                           (token semicolon #\;)
@@ -444,7 +444,7 @@ continuation."
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                      (+ (or #1# (char-range #\0 #\9)))))
-                          (token int (+ (or #1# (char-range #\0 #\9))))
+                          (token int (+ (char-range #\0 #\9)))
                           (token *-op #\*)
                           (token assign #\=)
                           (token semicolon #\;)
