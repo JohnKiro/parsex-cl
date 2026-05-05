@@ -91,13 +91,15 @@ the redundancy of calling it in each construct method."
   (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
   (let (status last-tokenization-result)
     (loop for child across (constr:child-constructs construct-obj)
+          do (rem-sync-tokens (slot-value child 'constr::%first-set))
           ;; if OK (one OR branch succeeded), then just remove it from sync tokens, else rewind and check
           ;; other branches
-          do (unless (eq status :ok)
-               (bt-tokenizer:rewind-token-position tokenizer construct-obj)
-               (multiple-value-setq (status last-tokenization-result)
-                 (parse-construct child tokenizer token-matching-fn notification-fn)))
-             (rem-sync-tokens (slot-value child 'constr::%first-set)))
+          unless (eq status :ok) do
+            (progn
+              (multiple-value-setq (status last-tokenization-result)
+                (parse-construct child tokenizer token-matching-fn notification-fn))
+              (unless (eq status :ok)
+                (bt-tokenizer:rewind-token-position tokenizer construct-obj))))
     ;; TODO: check if need to rewind in the FINALLY clause (meaning no match found, stopping at
     ;; start position, or should we keep at current position? Should be clear when I implement
     ;; actual parsing.
