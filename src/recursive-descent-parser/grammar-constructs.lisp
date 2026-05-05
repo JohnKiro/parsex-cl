@@ -113,3 +113,9 @@ i.e. after all its children are added, which is done incrementally."
 (defun find-token-in-first-set (construct token)
   "Search for token `token` in `construct`'s first set. For now, default test (EQL) is used."
   (and (position token (slot-value construct '%first-set)) t))
+
+(defun find-tokens-in-first-set (construct tokens)
+  "Search for any token in sequence `tokens` in `construct`'s first set. For now, default test (EQL) is
+used."
+  (loop for tok in tokens
+          thereis (position tok (slot-value construct '%first-set))))

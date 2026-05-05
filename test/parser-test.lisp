@@ -23,9 +23,8 @@ debugging."
       (if construct-obj ; append log entry or dump log?
           (let ((log `(,construct-obj
                        ,parsing-status
-                       ,@(when (eq (class-name (class-of construct-obj)) 'constr:token-construct)
-                           (when maybe-tokenization-result
-                             (input:retrieve-subrange input-source (cdr maybe-tokenization-result)))))))
+                       ,@(when maybe-tokenization-result
+                           (input:retrieve-subrange input-source (cdr maybe-tokenization-result))))))
             (push log parsing-log)
             nil)
           (nreverse parsing-log)))))
@@ -47,12 +46,13 @@ in the form (construct-obj status token-text)."
 (defun check-log-entry (log-entry expected-parsing-output-entry)
   (destructuring-bind (construct-obj status . maybe-token-text) log-entry
     (destructuring-bind (expected-construct-classname expected-constr-id expected-status
-                         &optional expected-token-text)
+                         &optional (expected-token-text nil expected-token-text-supplied))
         expected-parsing-output-entry
       (fiveam:is (eq (class-name (class-of construct-obj)) expected-construct-classname))
       (fiveam:is (eq (constr:construct-id construct-obj) expected-constr-id))
       (fiveam:is (eq status expected-status))
-      (fiveam:is (equal maybe-token-text expected-token-text)))))
+      (when expected-token-text-supplied
+        (fiveam:is (equal maybe-token-text expected-token-text))))))
 
 (defun check-log (parsing-log expected-parsing-log)
   "Checks parsing log against expected parsing log. For the expected format, see `check-log-entry`, and
