@@ -16,6 +16,10 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
   "List of sync tokens for recovery. Created globally for now, just for experimentation, to be moved
 locally later.")
 
+(defparameter *check-sync-tokens* nil "Flag used by parser for token constructs, to check in sync list for
+tokens that are not matched. True means check and skip if not found, false (NIL) means return whatever
+status, without skipping. TODO: To be moved locally later.")
+
 (defun add-sync-tokens (list-of-tokens)
   (format t "Adding tokens ~a to sync list..~%" list-of-tokens)
   (dolist (tok list-of-tokens)
@@ -35,18 +39,6 @@ locally later.")
                (> val 0))
           return t))
 
-(defparameter *parsing-error-registry* nil
-  "This is where I'll record parsing errors, for visual inspection while analyzing and debugging.")
-
-(defun add-parsing-error-entry (expected-token actual-tokens indices)
-  (push `(:expected-token ,expected-token :actual-tokens ,actual-tokens :indices ,indices)
-        *parsing-error-registry*))
-
-(defun reset-parsing-error-registry ()
-  (setf *parsing-error-registry* nil))
-
-(defun dump-parsing-error-registry ()
-  (print (reverse *parsing-error-registry*)))
 (defmethod parse-construct :around (construct-obj tokenizer token-matching-fn notification-fn)
   #+debug(format t "~&Start parsing construct ~a......~%" construct-obj)
   #+debug(format t "Tokenizer state before: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
@@ -63,10 +55,14 @@ locally later.")
   "Auxiliary method to call the `notification-fn` after parsing each construct. It's separated to avoid
 the redundancy of calling it in each construct method."
   #+debug(format t "Starting :around for construct ~a..~%" construct-obj)
-  (multiple-value-bind (result last-tokenization-result) (call-next-method)
+  (multiple-value-bind (result last-tokenization-result skipped-tokenizations-log) (call-next-method)
     #+debug(format t "Construct: ~a, last tokenization result: ~a.~%" construct-obj
                    last-tokenization-result)
-    (funcall notification-fn construct-obj result last-tokenization-result)
+    (funcall notification-fn construct-obj result last-tokenization-result skipped-tokenizations-log)
+    ;; TODO: it might be useful to return whatever the notif function returns (which could be multiple
+    ;; values. This gives control to the client code, but one condition on the notif function, in order
+    ;; to preserve the parsing flow, is to include the `result` as the primary value (any other params
+    ;; could be added as secondary values)
     (values result last-tokenization-result)))
 
 (defmethod parse-construct ((construct-obj constr:sequence-construct) tokenizer token-matching-fn
@@ -116,37 +112,50 @@ For example, in case of need to inspect the actual token text (say, to map token
 lookup table), a custom implementation could have access to the tokenizer (e.g. within a closure env)."
   (numberp (position expected-token actual-tokens)))
 
-
 (defmethod parse-construct ((construct-obj constr:token-construct) tokenizer token-matching-fn
                             notification-fn)
   "Matches expected token against next token(s), which it retrieves by calling `get-tokens` on the
 tokenizer (`tokenizer`). Returns tokenization status (:ok / :no-match / :invalid-token-or-empty-input),
 and a secondary value may also be returned containing the tokenization result (if available), which is a
-pair: (actual-tokens . acc-indices).
-EXPERIMENTALLY: I'm also checking in case of no match for sync tokens, and keep skipping tokens till
-finding a match or sync (later, I think I'll just report status to caller, and it's up to it to
-decide how to handle)."
-  (let ((expected-token (constr:token construct-obj)))
+pair: (actual-tokens . acc-indices), and finally, a list of skipped tokenization details is returned as
+a third value.
+NOTE: checking the sync tokens is controlled by a global flag `*check-sync-tokens*`, for now.
+TODO: consider just reporting the status to caller, and leaving it up to it to decide how to handle."
+  (let ((expected-token (constr:token construct-obj))
+        (skipped-tokenization-result-log nil))
     (loop
       (alexandria:if-let ((tokenizer-result (bt-tokenizer:get-tokens tokenizer)))
         (destructuring-bind (actual-tokens . acc-indices) tokenizer-result
           (if (funcall token-matching-fn expected-token actual-tokens)
-              (progn
-                (format t "Success match: expected token ~a, actual token(s) ~a.~%" expected-token
-                        actual-tokens)
-                (return (values :ok tokenizer-result)))
-              (progn
-                (add-parsing-error-entry expected-token actual-tokens acc-indices)
-                (if (or t (find-in-sync-tokens actual-tokens))
-                    ;; WORST THING HERE: the OR branches are treated in the same way (e.g.` (or id int)`)
-                    ;; need to avoid this, in order not to have interference between handling of the OR
-                    ;; construct, and the error reporting/recovery. I think this is by just reporting
-                    ;; the status, without skipping here or recording any error.
-                    (progn (format t "No match, token(s) ~a found in sync list.~%" actual-tokens)
-                           (return (values (or :no-match :nok-but-found-sync) tokenizer-result)))
-                    (format t "No match, and token(s) ~a NOT in sync list.. skipping input token(s)!~%"
-                            actual-tokens))))) ; TODO: SKIP, BUT ALSO REPORT ERROR
-        (return :invalid-token-or-empty-input)))))
+              (return (values :ok tokenizer-result (nreverse skipped-tokenization-result-log)))
+              (if (or (not *check-sync-tokens*) (find-in-sync-tokens actual-tokens))
+                  ;; FIXME: the OR branches are treated in the same way (e.g.` (or id int)`)
+                  ;; need to avoid this, in order not to have interference between handling of the OR
+                  ;; construct, and the error reporting/recovery.
+                  ;; In other words, we depend on the fact that the OR element included its 1st set to
+                  ;; the sync list already, that's why by skipping here, we don't risk to miss relevant
+                  ;; OR branches, but I don't like this, since we depend on the OR behavior here!
+                  ;; I think alternatively, I'll just report the status, without skipping here, and leave
+                  ;; it to the upper construct to handle the error.
+                  (progn
+                    #+debug
+                    (format t (if *check-sync-tokens*
+                                  "No match, token(s) ~a found in sync list.~%"
+                                  "No match, token(s) ~a.~%")
+                            actual-tokens)
+                    (return (values :no-match
+                                    tokenizer-result
+                                    (nreverse skipped-tokenization-result-log))))
+                  (progn
+                    ;; TODO: Skip token? Report error in log? Report error to upper?
+                    #+debug
+                    (format t "No match, token(s) ~a NOT in sync list.. skipped.~%"
+                            actual-tokens)
+                    (push tokenizer-result skipped-tokenization-result-log)
+                    #+nil(return (values :no-match-and-no-sync-ahead tokenizer-result))))))
+        (return (values :invalid-token-or-empty-input
+                        nil
+                        (nreverse skipped-tokenization-result-log)))))))
 
 (defun parse-zero-or-more-child (child tokenizer token-matching-fn notification-fn)
   "Reusable parser for zero-or-more, that will be used in both zero-or-more-construct and
