@@ -70,14 +70,32 @@ the redundancy of calling it in each construct method."
   (loop for child across (constr:child-constructs construct-obj)
         ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
         do (add-sync-tokens (slot-value child 'constr::%first-set)))
-  (let ((status :ok)
-        last-tokenization-result)
+  (let ((curr-child-status nil)
+        (abort-seq nil)
+        (progress nil)
+        (last-tokenization-result nil))
     (loop for child across (constr:child-constructs construct-obj)
-          do (when (eq status :ok)
-               (multiple-value-setq (status last-tokenization-result)
-                 (parse-construct child tokenizer token-matching-fn notification-fn)))
-             (rem-sync-tokens (slot-value child 'constr::%first-set)))
-    (values status last-tokenization-result)))
+          ;; yes, 1st child added needlessly, but this way the above loop is simple
+          do (rem-sync-tokens (slot-value child 'constr::%first-set))
+             ;; in case a child fails, we don't just return from the loop, since we need the loop to
+             ;; continue to remove all children from sync list, so we set an abortion flag
+          do (unless abort-seq
+               (multiple-value-setq (curr-child-status last-tokenization-result)
+                 (parse-construct child tokenizer token-matching-fn notification-fn))
+               (if (eq curr-child-status :ok)
+                   (setf progress t) ;at least part of the sequence has succeeded
+                   (progn
+                     (setf abort-seq t)
+                     ;; if the 1st child of a sequence is a sequence, and it fails partially,
+                     ;; we propagate the partial failure status to the upper sequence
+                     (when (eq curr-child-status :partial-failure)
+                       (setf progress t))))))
+    (values (if (and progress abort-seq)
+                ;; strong indication of a "real" parsing error
+                :partial-failure
+                ;; either complete success (:ok) or complete failure
+                curr-child-status)
+            last-tokenization-result)))
 
 (defmethod parse-construct ((construct-obj constr:or-construct) tokenizer token-matching-fn
                             notification-fn)
@@ -182,7 +200,6 @@ one-or-more-construct."
               (parse-zero-or-more-child child tokenizer token-matching-fn notification-fn)
               (values status1 last-tokenization-result))
         (rem-sync-tokens (slot-value child 'constr::%first-set))))))
-
 
 (defmethod parse-construct ((construct-obj constr:zero-or-more-construct) tokenizer token-matching-fn
                             notification-fn)

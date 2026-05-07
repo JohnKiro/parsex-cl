@@ -375,7 +375,7 @@ overlook the failure, which would eventually resurge."
                :text (concatenate 'string
                                   "id1=id2*3;"
                                   "id11=id22*=;")
-               :expected-final-parsing-status :no-match
+               :expected-final-parsing-status :partial-failure
                :expected-parsing-result '((constr:token-construct id :ok "id1")
                                           (constr:token-construct assign :ok "=")
                                           (constr:token-construct id :ok "id2")
@@ -397,14 +397,14 @@ overlook the failure, which would eventually resurge."
                                           (constr:token-construct id :no-match "=")
                                           (constr:token-construct int :no-match "=")
                                           (constr:or-construct factor :no-match)
-                                          (constr:sequence-construct nil :no-match)
+                                          (constr:sequence-construct nil :partial-failure)
                                           (constr:zero-or-one-construct nil :ok)
                                           (constr:sequence-construct mul-expr :ok)
                                           (constr:token-construct semicolon :no-match "*")
-                                          (constr:sequence-construct statement :no-match)
+                                          (constr:sequence-construct statement :partial-failure)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :no-match "id11")
-                                          (constr:sequence-construct root :no-match))))
+                                          (constr:sequence-construct root :partial-failure))))
 
 (fiveam:test parser-test-4_2
   "Test parsing error (unexpected token in factor, assign found instead of factor): parser managed to
@@ -450,7 +450,7 @@ in sync list."
                                           (constr:token-construct id :no-match ";")
                                           (constr:token-construct int :no-match ";")
                                           (constr:or-construct factor :no-match)
-                                          (constr:sequence-construct nil :no-match)
+                                          (constr:sequence-construct nil :partial-failure)
                                           (constr:zero-or-one-construct nil :ok)
                                           (constr:sequence-construct mul-expr :ok)
                                           ;; '*' and '=' skipped
@@ -484,7 +484,7 @@ failure, which would eventually resurge."
                :text (concatenate 'string
                                   "id1=id2*3;"
                                   "id11=id22*;")
-               :expected-final-parsing-status :no-match
+               :expected-final-parsing-status :partial-failure
                :expected-parsing-result '((constr:token-construct id :ok "id1")
                                           (constr:token-construct assign :ok "=")
                                           (constr:token-construct id :ok "id2")
@@ -508,19 +508,19 @@ failure, which would eventually resurge."
                                           (constr:token-construct int :no-match ";")
                                           (constr:or-construct factor :no-match)
                                           ;; *-op factor fails
-                                          (constr:sequence-construct nil :no-match)
+                                          (constr:sequence-construct nil :partial-failure)
                                           ;; (? (seq *-op factor)) succeeds (since optional)
                                           ;; rewinding ("*" not consumed)
                                           (constr:zero-or-one-construct nil :ok)
                                           (constr:sequence-construct mul-expr :ok)
                                           ;; expecting statement termination
                                           (constr:token-construct semicolon :no-match "*")
-                                          (constr:sequence-construct statement :no-match)
+                                          (constr:sequence-construct statement :partial-failure)
                                           ;; at least one statement succeeded, we're now back to point
                                           ;; just after that statement ("id11")
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :no-match "id11")
-                                          (constr:sequence-construct root :no-match))))
+                                          (constr:sequence-construct root :partial-failure))))
 
 (fiveam:test parser-test-5_2
   "Test parsing error (unexpected token in factor, as if factor is missing): parser managed to detect and
@@ -566,8 +566,8 @@ list."
                                           (constr:token-construct id :no-match ";")
                                           (constr:token-construct int :no-match ";")
                                           (constr:or-construct factor :no-match)
-                                          ;; *-op factor fails
-                                          (constr:sequence-construct nil :no-match)
+                                          ;; *-op factor partially fails
+                                          (constr:sequence-construct nil :partial-failure)
                                           ;; (? (seq *-op factor)) succeeds (since optional)
                                           ;; rewinding ("*" not consumed)
                                           (constr:zero-or-one-construct nil :ok)
@@ -577,7 +577,7 @@ list."
                                           ;; TODO: may introduce :ok-but-had-to-skip
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok ";")
-                                          ;; we recovered from the failure and moved forward,
+                                          ;; we recovered from the partial failure and moved forward,
                                           ;; next: trying to parse a new statement
                                           (constr:token-construct id :no-match "")
                                           (constr:sequence-construct statement :no-match "")
@@ -632,7 +632,7 @@ successfully matches, then parsing proceeds successfully till end."
                                           (constr:token-construct int :no-match ";")
                                           (constr:or-construct factor :no-match)
                                           ;; *-op factor fails
-                                          (constr:sequence-construct nil :no-match)
+                                          (constr:sequence-construct nil :partial-failure)
                                           ;; (? (seq *-op factor)) succeeds (since optional)
                                           ;; rewinding ("*" not consumed)
                                           (constr:zero-or-one-construct nil :ok)
