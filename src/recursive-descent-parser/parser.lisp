@@ -55,15 +55,15 @@ status, without skipping. TODO: To be moved locally later.")
   "Auxiliary method to call the `notification-fn` after parsing each construct. It's separated to avoid
 the redundancy of calling it in each construct method."
   #+debug(format t "Starting :around for construct ~a..~%" construct-obj)
-  (multiple-value-bind (result last-tokenization-result skipped-tokenizations-log) (call-next-method)
+  (multiple-value-bind (status last-tokenization-result skipped-tokenizations-log) (call-next-method)
     #+debug(format t "Construct: ~a, last tokenization result: ~a.~%" construct-obj
                    last-tokenization-result)
-    (funcall notification-fn construct-obj result last-tokenization-result skipped-tokenizations-log)
+    (funcall notification-fn construct-obj status last-tokenization-result skipped-tokenizations-log)
     ;; TODO: it might be useful to return whatever the notif function returns (which could be multiple
     ;; values. This gives control to the client code, but one condition on the notif function, in order
-    ;; to preserve the parsing flow, is to include the `result` as the primary value (any other params
+    ;; to preserve the parsing flow, is to include the `status` as the primary value (any other params
     ;; could be added as secondary values)
-    (values result last-tokenization-result)))
+    (values status last-tokenization-result)))
 
 (defmethod parse-construct ((construct-obj constr:sequence-construct) tokenizer token-matching-fn
                             notification-fn)
@@ -196,9 +196,9 @@ one-or-more-construct."
                             notification-fn)
   ;; what about putting this in :before? (TODO: CHECK!)
   (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
-  (multiple-value-bind (status last-tokenization-result) (parse-construct
-                                                          (constr:child-construct construct-obj)
-                                                          tokenizer token-matching-fn notification-fn)
+  (multiple-value-bind (status last-tokenization-result)
+      (parse-construct (constr:child-construct construct-obj)
+                       tokenizer token-matching-fn notification-fn)
     (unless (eq status :ok)
       (bt-tokenizer:rewind-token-position tokenizer construct-obj))
     ;; we unmark backtracking position, and return success even if parsing failed (since construct is
