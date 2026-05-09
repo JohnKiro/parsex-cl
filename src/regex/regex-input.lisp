@@ -107,6 +107,7 @@ includes an accumulator for the current/last matching operation, and allows cust
                      ;;if no chars consumed
                      (if (= candidate-matching-point starting-reference-position)
                          ;; no char consumed, => inc position conditionally (based on flag)
+                         ;; TODO: revise flags in case input is empty
                          (when advance-on-no-consumption-on-match
                            (incf starting-reference-position))
                          (setf starting-reference-position candidate-matching-point))
@@ -119,13 +120,13 @@ includes an accumulator for the current/last matching operation, and allows cust
              (register-candidate-matching-point ()
                (setf candidate-matching-point reading-position))
              (retrieve-last-accumulated-value ()
-               (when (<= accumulator-start accumulator-end)
+               (when (<= accumulator-start accumulator-end total-length)
                  (subseq source accumulator-start accumulator-end)))
              (retrieve-last-consumed-value ()
                (when (<= consumption-start consumption-end total-length)
                  (subseq source consumption-start consumption-end)))
              (retrieve-last-accumulated-indices ()
-               (when (<= accumulator-start accumulator-end)
+               (when (<= accumulator-start accumulator-end total-length)
                  (make-subrange-indices accumulator-start accumulator-end)))
              ;; TODO: CHANGE TO BE SIMILAR TO VALUE!!
              (retrieve-last-consumed-indices ()
