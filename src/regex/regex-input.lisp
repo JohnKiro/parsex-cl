@@ -4,7 +4,10 @@
   "Interface of operations that apply to regex input source."
   (source-empty-p
    ()
-   :doc "Predicate that returns t in case no more items could be read from the source.")
+   :doc "Predicate that returns t in case no more items could be read from the source. It also returns
+a secondary value (:exhausted), indicating whether the input is exhausted, in which case, the client
+should stop attempting to read more characters from it. It should however remain possible to retrieve
+the last accumulated or consumed values.")
   (remaining-length
    ()
    :doc "Returns count of remaining items in source. To have a valid contract, it should return
@@ -92,10 +95,18 @@ predicate to check before reading at an invalid index."
         ;; I depend on the fact that definite termination is also candidate termination, so we
         ;; can assume that this will hold value of last matching position (whether last candidate
         ;; or current position). TODO: may rethink about this later.
-        (candidate-matching-point -2))
+        (candidate-matching-point -2)
+        (exhausted nil))
     (labels ((source-empty-p ()
-               (>= reading-position total-length))
+               (if exhausted
+                   (values t :exhausted)
+                   (let ((remaining (- total-length reading-position)))
+                     (cond
+                       ((zerop remaining) (setf exhausted t))
+                       ((minusp remaining) (setf exhausted t) (values t :exhausted))
+                       (t nil)))))
              (remaining-length ()
+               "TODO: not used, and possibly not good to floor the value at 0!."
                (let ((remaining (- total-length reading-position)))
                  (max remaining 0)))
              (read-next-item ()

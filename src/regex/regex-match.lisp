@@ -25,9 +25,7 @@
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   "Matches input text from input source `input-source` against regex specified by its root DFA state
 `root-dfa-state`, and returns a result structure of type regex-matching-result`, including matching
-status and matched token(s). Note that we're not including any details about the input-source status
-in the result (e.g. Input empty now? Consumption took place), because these details are not relevant to
-the matching operation, and also could be retrieved from the input-source itself by the caller."
+status and matched token(s). In case the input is already exhausted, it returns NIL."
   (labels ((prepare-result (dfa-state)
              "Prepare result based on `dfa-state`. Note that if dfa-state is NIL, then no match."
              ;;putting this here since we need to call it when scanning is terminated
@@ -55,4 +53,10 @@ the matching operation, and also could be retrieved from the input-source itself
                              (input:advance-reading-position input-source)
                              (transit dest-dfa-state))
                            (prepare-result last-candidate-terminal-dfa)))))))
-    (transit root-dfa-state)))
+    ;; differentiate between input empty and input already exhausted, to give indication to caller, in
+    ;; order to avoid infinite loop
+    (multiple-value-bind (empty-p exhausted-p) (input:source-empty-p input-source)
+      (declare (ignorable empty-p))
+      (if exhausted-p
+          nil
+          (transit root-dfa-state)))))

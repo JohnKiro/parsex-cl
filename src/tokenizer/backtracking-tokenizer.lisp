@@ -60,7 +60,7 @@ TODO: it's not yet clear the situation in case of tokenization error, or empty i
                        (elt backtracking-buffer backtracking-index)
                        (let* ((tok (funcall underlying-tokenizer)))
                          #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
-                         (when tok ;otherwise: no token found or tokenization error (we don't care which)
+                         (when tok ;otherwise: input exhausted or tokenization error (we don't care)
                            (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
                                                              input-source))))
                              (vector-push-extend tok-and-indices backtracking-buffer)
