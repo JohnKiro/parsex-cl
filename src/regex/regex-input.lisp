@@ -81,13 +81,13 @@ includes an accumulator for the current/last matching operation, and allows cust
         (starting-reference-position reading-position)
         (total-length (length initial-input-text))
         (accumulator-start -1)
-        (accumulator-end -1)
+        (accumulator-end -2) ; make initially end < start, to avoid error on calling retrieval function
         (consumption-start -1)
-        (consumption-end -1)
+        (consumption-end -2) ; make initially end < start, to avoid error on calling retrieval function
         ;; I depend on the fact that definite termination is also candidate termination, so we
         ;; can assume that this will hold value of last matching position (whether last candidate
         ;; or current position). TODO: may rethink about this later.
-        (candidate-matching-point -1))
+        (candidate-matching-point -2))
     (labels ((source-empty-p ()
                (>= reading-position total-length))
              (remaining-length ()
@@ -111,7 +111,7 @@ includes an accumulator for the current/last matching operation, and allows cust
                          (when advance-on-no-consumption-on-match
                            (incf starting-reference-position))
                          (setf starting-reference-position candidate-matching-point))
-                     (setf candidate-matching-point -1))
+                     (setf candidate-matching-point -2))
                    ;;negative candidate-matching-point implies regex no-match
                    (when advance-on-no-consumption-on-no-match
                      (incf starting-reference-position)))
