@@ -50,7 +50,8 @@ later be passed to `retrieve-subrange`, in order to retrieve the actual value in
 (slice). See also documentation of `retrieve-last-consumed-value`.")
   (retrieve-subrange
    (subrange-indices)
-   :doc "Retrieve the subrange (slice) specified with the `subrange-indices` argument."))
+   :doc "Retrieve the subrange (slice) specified with the `subrange-indices` argument. If the argument
+is NIL, it returns NIL."))
 
 (defstruct (subrange-indices (:constructor %make-subrange-indices (start end)))
   "Describes a slice (subrange) of the input source, specified by start index and end index (inclusive)."
@@ -70,7 +71,11 @@ later be passed to `retrieve-subrange`, in order to retrieve the actual value in
                                                       (advance-on-no-consumption-on-no-match t))
   "Basic implementation for regex input, based on a string + reading position (index). It also
 includes an accumulator for the current/last matching operation, and allows customizing consumption
-(whether to consume on match, whether to consume /on no match)."
+(whether to consume on match, whether to consume /on no match).
+Note that I'm trying to keep checks at minimum, depending on correct order of flow, from the client's
+side. For example, it's possible to advance the reading position beyond the source end, in which case,
+attempting to read a char would throw an error. Rather, the client should use the `source-empty-p`
+predicate to check before reading at an invalid index."
   (declare (type string initial-input-text)
            (type fixnum reading-position))
   (when (minusp reading-position)
