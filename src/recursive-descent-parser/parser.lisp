@@ -12,11 +12,15 @@ it takes two arguments: the `construct-obj` object, and the parsing status."))
 (defparameter +max-parse-execution-count+ 1000 "Temporary protection against infinite recursion")
 (defparameter *parse-execution-count* 0 "Temporary protection against infinite recursion")
 
+(defparameter *seq-abort-on-first-failure* t "Flag indicating whether the seq construct parser should
+abort on first failure, or proceed with attempt to parse all remaining children. To be moved to local
+config.")
+
 (defparameter *sync-tokens* (make-hash-table)
   "List of sync tokens for recovery. Created globally for now, just for experimentation, to be moved
 locally later.")
 
-(defparameter *check-sync-tokens* nil "Flag used by parser for token constructs, to check in sync list for
+(defparameter *check-sync-tokens* t "Flag used by parser for token constructs, to check in sync list for
 tokens that are not matched. True means check and skip if not found, false (NIL) means return whatever
 status, without skipping. TODO: To be moved locally later.")
 
@@ -71,30 +75,30 @@ the redundancy of calling it in each construct method."
         ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
         do (add-sync-tokens (slot-value child 'constr::%first-set)))
   (let ((curr-child-status nil)
-        (abort-seq nil)
+        (a-child-failed nil)
         (progress nil)
         (last-tokenization-result nil))
     (loop for child across (constr:child-constructs construct-obj)
           ;; yes, 1st child added needlessly, but this way the above loop is simple
+          ;; note that we still need to remove sync tokens, even if we abort from the sequence
           do (rem-sync-tokens (slot-value child 'constr::%first-set))
-             ;; in case a child fails, we don't just return from the loop, since we need the loop to
-             ;; continue to remove all children from sync list, so we set an abortion flag
-          do (unless abort-seq
+             (unless (and a-child-failed *seq-abort-on-first-failure*)
                (multiple-value-setq (curr-child-status last-tokenization-result)
                  (parse-construct child tokenizer token-matching-fn notification-fn))
                (if (eq curr-child-status :ok)
                    (setf progress t) ;at least part of the sequence has succeeded
                    (progn
-                     (setf abort-seq t)
-                     ;; if the 1st child of a sequence is a sequence, and it fails partially,
-                     ;; we propagate the partial failure status to the upper sequence
+                     (setf a-child-failed t)
+                     ;; partial failure implies there is also some progress
                      (when (eq curr-child-status :partial-failure)
                        (setf progress t))))))
-    (values (if (and progress abort-seq)
-                ;; strong indication of a "real" parsing error
-                :partial-failure
-                ;; either complete success (:ok) or complete failure
-                curr-child-status)
+    (values (cond
+              ;; strong indication of a "real" parsing error
+              ((and progress a-child-failed) :partial-failure)
+              ;; all children succeeded
+              (progress :ok)
+              ;; complete failure
+              (t :complete-failure))
             last-tokenization-result)))
 
 (defmethod parse-construct ((construct-obj constr:or-construct) tokenizer token-matching-fn
