@@ -16,7 +16,8 @@ parameters optional."
   (let* ((input (input:create-basic-regex-input input-text))
          (tokenizer-fn (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input)))
     (loop for tokenizer-result = (funcall tokenizer-fn)
-          for token-id = (and tokenizer-result (aref tokenizer-result 0))
+          for tokens = (and tokenizer-result (match:regex-matching-result-tokens tokenizer-result))
+          for token-id = (and tokens (aref tokens 0)) ;in our testing, we're concerned with one token
           for token-text = (input:retrieve-last-accumulated-value input)
           for status = :tbd
           for consumed-text = (input:retrieve-last-consumed-value input)

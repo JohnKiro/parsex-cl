@@ -53,18 +53,25 @@ buffer is used in case some tokens are pending in the backtracking buffer, other
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
 the token accumulated slice indices. Note that calling it successively returns the same result, unless
 a call to another state-changing function (e.g. `advance`) intervenes.
-TODO: it's not yet clear the situation in case of tokenization error, or empty input!"
-               (prog1
+Note: in case of tokenization error, it returns NIL, and in case input is exhausted, a secondary value
+is returned to indicate such state (:input-exhausted), with the main returned value = NIL."
+               (declare (optimize (debug 3) (speed 0)))
+               (multiple-value-prog1
                    (if (< backtracking-index (length backtracking-buffer))
                        ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                        (elt backtracking-buffer backtracking-index)
-                       (let* ((tok (funcall underlying-tokenizer)))
-                         #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
-                         (when tok ;otherwise: input exhausted or tokenization error (we don't care)
-                           (let ((tok-and-indices (cons tok (input:retrieve-last-accumulated-indices
-                                                             input-source))))
-                             (vector-push-extend tok-and-indices backtracking-buffer)
-                             tok-and-indices))))
+                       (multiple-value-bind (tokenizer-result input-exhausted)
+                           (funcall underlying-tokenizer)
+                         (if tokenizer-result
+                             (let* ((tok (match:regex-matching-result-tokens tokenizer-result)))
+                               #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
+                               (when tok ;otherwise: tokenization error (returning NIL)
+                                 (let ((tok-and-indices (cons tok
+                                                              (input:retrieve-last-accumulated-indices
+                                                               input-source))))
+                                   (vector-push-extend tok-and-indices backtracking-buffer)
+                                   tok-and-indices)))
+                             (values nil input-exhausted))))
                  (advance)))
              (advance ()
                "Advance tokenizer so that next call to `get-tokens` would provide the token at next

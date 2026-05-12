@@ -43,7 +43,8 @@
                     (:token #:parsex-cl/tokenizer/sexp)
                     (:input #:parsex-cl/regex/input)
                     (:token-core :parsex-cl/tokenizer-core)
-                    (:tokenizer #:parsex-cl/source-backed-tokenizer)))
+                    (:tokenizer #:parsex-cl/source-backed-tokenizer)
+                    (:match #:parsex-cl/regex/match)))
 
 (defpackage :parsex-cl.test/backtracking-tokenizer.test
   (:use #:cl

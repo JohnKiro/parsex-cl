@@ -235,7 +235,8 @@
   (:use #:cl)
   (:local-nicknames (:func #:parsex-cl/functional-interface)
                     (:input #:parsex-cl/regex/input)
-                    (:tokenizer #:parsex-cl/source-backed-tokenizer))
+                    (:tokenizer #:parsex-cl/source-backed-tokenizer)
+                    (:match #:parsex-cl/regex/match))
   (:export #:create-backtracking-tokenizer
            #:get-tokens
            #:mark-backtracking-position
