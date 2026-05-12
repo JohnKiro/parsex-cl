@@ -25,7 +25,7 @@ tokens that are not matched. True means check and skip if not found, false (NIL)
 status, without skipping. TODO: To be moved locally later.")
 
 (defun add-sync-tokens (list-of-tokens)
-  (format t "Adding tokens ~a to sync list..~%" list-of-tokens)
+  (format t "~%Adding tokens ~a to sync list..~%" list-of-tokens)
   (dolist (tok list-of-tokens)
     (if #1=(gethash tok *sync-tokens*)
         (incf #1#)
@@ -137,8 +137,8 @@ lookup table), a custom implementation could have access to the tokenizer (e.g. 
 (defmethod parse-construct ((construct-obj constr:token-construct) tokenizer token-matching-fn
                             notification-fn)
   "Matches expected token against next token(s), which it retrieves by calling `get-tokens` on the
-tokenizer (`tokenizer`). Returns tokenization status (:ok / :no-match / :invalid-token-or-empty-input),
-and a secondary value may also be returned containing the tokenization result (if available), which is a
+tokenizer (`tokenizer`). Returns status (:ok / :no-match / status returned by tokenizer),
+and a secondary value may also be returned containing the tokens and input indices (if available), as a
 pair: (actual-tokens . acc-indices), and finally, a list of skipped tokenization details is returned as
 a third value.
 NOTE: checking the sync tokens is controlled by a global flag `*check-sync-tokens*`, for now.
@@ -146,38 +146,43 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
   (let ((expected-token (constr:token construct-obj))
         (skipped-tokenization-result-log nil))
     (loop
-      (alexandria:if-let ((tokenizer-result (bt-tokenizer:get-tokens tokenizer)))
-        (destructuring-bind (actual-tokens . acc-indices) tokenizer-result
-          (if (funcall token-matching-fn expected-token actual-tokens)
-              (return (values :ok tokenizer-result (nreverse skipped-tokenization-result-log)))
-              (if (or (not *check-sync-tokens*) (find-in-sync-tokens actual-tokens))
-                  ;; FIXME: the OR branches are treated in the same way (e.g.` (or id int)`)
-                  ;; need to avoid this, in order not to have interference between handling of the OR
-                  ;; construct, and the error reporting/recovery.
-                  ;; In other words, we depend on the fact that the OR element included its 1st set to
-                  ;; the sync list already, that's why by skipping here, we don't risk to miss relevant
-                  ;; OR branches, but I don't like this, since we depend on the OR behavior here!
-                  ;; I think alternatively, I'll just report the status, without skipping here, and leave
-                  ;; it to the upper construct to handle the error.
+      (multiple-value-bind (tok-and-indices tokenizer-status) (bt-tokenizer:get-tokens tokenizer)
+        (if tok-and-indices
+            (destructuring-bind (actual-tokens . acc-indices) tok-and-indices
+              (if (funcall token-matching-fn expected-token actual-tokens)
                   (progn
                     #+debug
-                    (format t (if *check-sync-tokens*
-                                  "No match, token(s) ~a found in sync list.~%"
-                                  "No match, token(s) ~a.~%")
-                            actual-tokens)
-                    (return (values :no-match
-                                    tokenizer-result
-                                    (nreverse skipped-tokenization-result-log))))
-                  (progn
-                    ;; TODO: Skip token? Report error in log? Report error to upper?
-                    #+debug
-                    (format t "No match, token(s) ~a NOT in sync list.. skipped.~%"
-                            actual-tokens)
-                    (push tokenizer-result skipped-tokenization-result-log)
-                    #+nil(return (values :no-match-and-no-sync-ahead tokenizer-result))))))
-        (return (values :invalid-token-or-empty-input
-                        nil
-                        (nreverse skipped-tokenization-result-log)))))))
+                    (format t "~%Expected token ~a matched with ~a~%" expected-token actual-tokens)
+                    (return (values :ok tok-and-indices (nreverse skipped-tokenization-result-log))))
+                  (if (or (not *check-sync-tokens*) (find-in-sync-tokens actual-tokens))
+                      ;; FIXME: the OR branches are treated in the same way (e.g.` (or id int)`)
+                      ;; need to avoid this, in order not to have interference between handling of the OR
+                      ;; construct, and the error reporting/recovery.
+                      ;; In other words, we depend on the fact that the OR element included its 1st set
+                      ;; to the sync list already, that's why by skipping here, we don't risk to miss
+                      ;; relevant OR branches, but I don't like this, since we depend on the OR behavior
+                      ;; here!
+                      ;; I think alternatively, I'll just report the status, without skipping here, and
+                      ;; leave it to the upper construct to handle the error.
+                      (progn
+                        #+debug
+                        (format t (if *check-sync-tokens*
+                                      "No match, token(s) ~a found in sync list.~%"
+                                      "No match, token(s) ~a.~%")
+                                actual-tokens)
+                        (return (values :no-match ;TODO: consider something such as :invalid-token
+                                        tok-and-indices
+                                        (nreverse skipped-tokenization-result-log))))
+                      (progn
+                        ;; TODO: Skip token? Report error in log? Report error to upper?
+                        #+debug
+                        (format t "No match, token(s) ~a NOT in sync list.. skipped.~%"
+                                actual-tokens)
+                        (push tok-and-indices skipped-tokenization-result-log)
+                        #+nil(return (values :no-match-and-no-sync-ahead tok-and-indices))))))
+            (return (values tokenizer-status
+                            nil
+                            (nreverse skipped-tokenization-result-log))))))))
 
 (defun parse-zero-or-more-child (child tokenizer token-matching-fn notification-fn)
   "Reusable parser for zero-or-more, that will be used in both zero-or-more-construct and

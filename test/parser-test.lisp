@@ -230,12 +230,12 @@ grammar."
                    (constr:sequence-construct nil :complete-failure)
                    (constr:zero-or-one-construct nil :ok)
                    (constr:sequence-construct mul-expr :partial-failure)
-                   (constr:token-construct semicolon :invalid-token-or-empty-input)
+                   (constr:token-construct semicolon :input-exhausted)
                    ;; the zero-or-one above caused the report to be partial failure, not complete failure
                    (constr:sequence-construct statement :partial-failure)
                    ;; z-o-m handles the seq failure gracefully even though it's partial failure.
                    ;; normally should behave like this only on complete failure. I think I need two
-                   ;; thinkgs: treat :invalid-token-or-empty-input specially (abort regardless of flag),
+                   ;; thinkgs: treat :input-exhausted specially (abort regardless of flag),
                    ;; and also may need to detect case of partial failure when the succeeded children
                    ;; did not consume any thing (such as the zero-or-one in this grammar)
                    (constr:zero-or-more-construct nil :ok)
