@@ -17,7 +17,8 @@ In the second case, the retrieved token(s) are also appended to the backtracking
 the token accumulated slice indices, as a pair: (tokens . slice-indices).
 Returns next token(s) and slice indices as a pair.
 Note that calling it successively returns the same result, unless a call to another state-changing
-function (e.g. `advance`) intervenes.")
+function (e.g. `advance`) intervenes. In case it receives an error from the underlying tokenizer,
+it returns NIL as a primary value, and a status as a secondary value, indicating the error.")
   (mark-backtracking-position
    (owner)
    :doc "Called by a construct before parsing, for backtracking in case of parsing failure.")
@@ -53,25 +54,33 @@ buffer is used in case some tokens are pending in the backtracking buffer, other
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
 the token accumulated slice indices. Note that calling it successively returns the same result, unless
 a call to another state-changing function (e.g. `advance`) intervenes.
-Note: in case of tokenization error, it returns NIL, and in case input is exhausted, a secondary value
-is returned to indicate such state (:input-exhausted), with the main returned value = NIL."
+When there is failure, it returns NIL, and a secondary value to describe the specific error (see cases
+2 and 3 below).
+Here are the identified special cases coming from the underlying tokenizer:
+1) case regex matches, but no tokens reported: it acts normally: keeps the NIL tokens in the backtracking
+buffer, together with the indices. This case will typically be prevented, as the grammar handling will
+ensure no NIL tokens. TODO: may reconsider this case, and report it as error instead.
+2) case regex does not match: returns NIL, and regex matching error status as secondary value.
+3) case input exhausted: returns NIL, and input exhausted status as secondary value."
                (declare (optimize (debug 3) (speed 0)))
                (multiple-value-prog1
                    (if (< backtracking-index (length backtracking-buffer))
                        ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                        (elt backtracking-buffer backtracking-index)
-                       (multiple-value-bind (tokenizer-result input-exhausted)
+                       (multiple-value-bind (tokenizer-result tokenizer-status)
                            (funcall underlying-tokenizer)
                          (if tokenizer-result
-                             (let* ((tok (match:regex-matching-result-tokens tokenizer-result)))
-                               #+debug(format t "~%Underlying tokenizer returned ~a.~%" tok)
-                               (when tok ;otherwise: tokenization error (returning NIL)
-                                 (let ((tok-and-indices (cons tok
-                                                              (input:retrieve-last-accumulated-indices
-                                                               input-source))))
-                                   (vector-push-extend tok-and-indices backtracking-buffer)
-                                   tok-and-indices)))
-                             (values nil input-exhausted))))
+                             (let ((regex-status (match:regex-matching-result-status tokenizer-result)))
+                               (if (eq regex-status :regex-matched)
+                                   (let* ((tok (match:regex-matching-result-tokens tokenizer-result))
+                                          (tok-and-indices (cons tok
+                                                                 (input:retrieve-last-accumulated-indices
+                                                                  input-source))))
+                                     (vector-push-extend tok-and-indices backtracking-buffer)
+                                     tok-and-indices)
+                                   (values nil regex-status)))
+                             ;; NIL tokenizer-result actually implies input-exhausted
+                             (values nil tokenizer-status))))
                  (advance)))
              (advance ()
                "Advance tokenizer so that next call to `get-tokens` would provide the token at next
@@ -96,7 +105,7 @@ retrieve from the underlying tokenizer. Same happens when calling it with an emp
                    (declare (ignorable position))
                    (unless (eq owner expected-owner)
                      (error "Unexpected mark owner (expected ~a, received ~a)!" expected-owner owner)))
-               (pop backtracking-markers)))
+                 (pop backtracking-markers)))
              (rewind-token-position (owner)
                "Called by a construct to backtrack to a previously marked position (parsing failure)."
                (let ((upcoming-marker (first backtracking-markers)))
