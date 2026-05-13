@@ -186,7 +186,8 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
 
 (defun parse-zero-or-more-child (child tokenizer token-matching-fn notification-fn)
   "Reusable parser for zero-or-more, that will be used in both zero-or-more-construct and
-one-or-more-construct."
+one-or-more-construct. It parses the child as long as it get success status, and it reports success in
+all cases (zero occurrence is accepted)."
   (loop
     (bt-tokenizer:mark-backtracking-position tokenizer child)
     (multiple-value-bind (status last-tokenization-result)
@@ -207,7 +208,7 @@ one-or-more-construct."
       (multiple-value-prog1
           (if (eq status1 :ok)
               (parse-zero-or-more-child child tokenizer token-matching-fn notification-fn)
-              (values status1 last-tokenization-result))
+              (values :complete-failure last-tokenization-result))
         (rem-sync-tokens (slot-value child 'constr::%first-set))))))
 
 (defmethod parse-construct ((construct-obj constr:zero-or-more-construct) tokenizer token-matching-fn
