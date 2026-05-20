@@ -79,7 +79,7 @@ also refer to the included test cases for examples."
   (mapcar #'check-log-entry parsing-log expected-parsing-log))
 
 (defun parser-test (&key grammar text (expected-final-parsing-status :ok) expected-parsing-result
-                      (check-sync-tokens nil))
+                      (check-sync-tokens nil) (grammar-start-rule 'root))
   "Prepares and executes parsing test, for a specific grammar `grammar` (in sexp form, for now), input
 text `text`, and given optional expected parsing result `expected-parsing-result`, which serves to test
 not only the final parsing status, but the progress of parsing (sequence of constructs, expected status
@@ -88,7 +88,7 @@ is that the final parsing result is :ok."
   (let ((*print-case* :downcase)
         (parsex-cl/rdp/parser:*parse-execution-count* 0))
     (multiple-value-bind (root-grammar-constr tokenizer-core-dfa _)
-        (parsex-cl/rdp/grammar/sexp:parse-grammar grammar 'root)
+        (parsex-cl/rdp/grammar/sexp:parse-grammar grammar grammar-start-rule)
       (declare (ignorable _))
       (let* ((input (input:create-basic-regex-input text))
              (underlying-tokenizer (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input))
