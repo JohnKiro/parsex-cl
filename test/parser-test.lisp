@@ -737,3 +737,109 @@ successfully matches, then parsing proceeds successfully till end."
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok ""))
                :check-sync-tokens t))
+
+;; Note that we don't need the resilience for sequence in this test (*seq-abort-on-first-failure*),
+;; because the erroneous tokens are not found in the sync list, and hence skipped by the token construct
+;; itself, so the upper SEQ is not made aware of them.
+;; TODO: so far, the errors are 'hidden' within the separate error log (not checked in the test yet)
+(fiveam:test parser-test-7
+  "Simple test focusing on skipping tokens not in sync list (second '+' and '=' are skipped)."
+  (parser-test :grammar '((token int (+ (char-range #\0 #\9)))
+                          (token add-op #\+)
+                          (token assign #\=)
+                          (token semicolon #\;)
+                          (rule equality (seq int add-op int assign int semicolon)))
+               :grammar-start-rule 'equality
+               :text "11+10=+=21;"
+               :check-sync-tokens t
+               :expected-parsing-result '((constr:token-construct int :ok "11")
+                                          (constr:token-construct add-op :ok "+")
+                                          (constr:token-construct int :ok "10")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct int :ok "21")
+                                          (constr:token-construct semicolon :ok ";")
+                                          (constr:sequence-construct equality :ok ";"))))
+
+(fiveam:test parser-test-8
+  "Testing erroneous tokens that are found in the sync list (second '='). Unlike the previous, in this,
+we need resilience for the sequence construct (since erroneous tokens are found in the sync list). We
+also test one-or-more with resilience flag activated, in order to test finding a continuation point."
+  (let ((parsex-cl/rdp/parser::*seq-abort-on-first-failure* nil)
+        (parsex-cl/rdp/parser::*resilience* t))
+    (parser-test :grammar '((token int (+ (char-range #\0 #\9)))
+                            (token add-op #\+)
+                            (token assign #\=)
+                            (token semicolon #\;)
+                            (rule equality (seq int add-op int assign int semicolon))
+                            (rule root (+ equality)))
+                 :grammar-start-rule 'root
+                 :text (concatenate 'string
+                                    "100+=20=120;"
+                                    "22+33=55;#$%^")
+                 :check-sync-tokens '((constr:token-construct int :ok "100")
+                                      (constr:token-construct add-op :ok "+")
+                                      (constr:token-construct int :no-match "=")
+                                      (constr:token-construct assign :ok "=")
+                                      (constr:token-construct int :ok "20")
+                                      (constr:token-construct semicolon :no-match "120")
+                                      (constr:sequence-construct equality :partial-failure "120")
+                                      (constr:token-construct int :ok "120")
+                                      (constr:token-construct add-op :no-match ";")
+                                      (constr:token-construct int :no-match ";")
+                                      (constr:token-construct assign :no-match ";")
+                                      (constr:token-construct int :no-match ";")
+                                      (constr:token-construct semicolon :ok ";")
+                                      (constr:sequence-construct equality :partial-failure ";")
+                                      (constr:token-construct int :ok "22")
+                                      (constr:token-construct add-op :ok "+")
+                                      (constr:token-construct int :ok "33")
+                                      (constr:token-construct assign :ok "=")
+                                      (constr:token-construct int :ok "55")
+                                      (constr:token-construct semicolon :ok ";")
+                                      (constr:sequence-construct equality :ok ";")
+                                      ;; TODO: better to skip these ones in the token construct itself
+                                      (constr:token-construct int :regex-not-matched)
+                                      (constr:token-construct add-op :regex-not-matched)
+                                      (constr:token-construct int :regex-not-matched)
+                                      (constr:token-construct assign :regex-not-matched)
+                                      (constr:token-construct int :regex-not-matched)
+                                      (constr:token-construct semicolon :input-exhausted)
+                                      (constr:sequence-construct equality :complete-failure)
+                                      (constr:one-or-more-construct root :ok)))))
+
+(fiveam:test parser-test-9
+  "Simple test focusing on checking progress during a repeating construct (avoiding infinite loop)."
+  (let ((parsex-cl/rdp/parser::*seq-abort-on-first-failure* nil)
+        (parsex-cl/rdp/parser::*resilience* t))
+
+    (parser-test :grammar '((token int (+ (char-range #\0 #\9)))
+                            (token end "$")
+                            (rule silly-nums (+ (seq (* int) (? (+ int)) (or (* int) (+ int)))))
+                            (rule root (seq silly-nums end)))
+                 :text "$"
+                 :check-sync-tokens t
+                 :expected-parsing-result '((constr:token-construct int :no-match "$")
+                                            (constr:zero-or-more-construct nil :ok "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:one-or-more-construct nil :ok "$")
+                                            (constr:zero-or-one-construct nil :ok "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:zero-or-more-construct nil :ok "$")
+                                            (constr:or-construct nil :ok "$")
+                                            (constr:sequence-construct nil :ok "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:zero-or-more-construct nil :ok "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:one-or-more-construct nil :ok "$")
+                                            (constr:zero-or-one-construct nil :ok "$")
+                                            (constr:token-construct int :no-match "$")
+                                            (constr:zero-or-more-construct nil :ok "$")
+                                            (constr:or-construct nil :ok "$")
+                                            (constr:sequence-construct nil :ok "$")
+                                            (constr:one-or-more-construct silly-nums :ok "$")
+                                            (constr:token-construct end :ok "$")
+                                            (constr:sequence-construct root :ok "$")))))
+
+
