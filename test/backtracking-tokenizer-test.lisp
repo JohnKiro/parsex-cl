@@ -79,15 +79,15 @@ unmark / rewind functions, and may change them later (so this TC should be updat
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'mul-op)
   ;; first backtracking pos
-  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner1) '((4 . owner1))))
+  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner1) 4))
   (match-and-check tokenizer 'left-paren)
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'add-op)
   ;; second backtracking pos
-  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner2) '((7 . owner2) (4 . owner1))))
+  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner2) 7))
   (match-and-check tokenizer 'num)
   ;; unmark (cancel) second backtracking pos
-  (is (equal (bt-tokenizer:unmark-backtracking-position tokenizer 'owner2) '(7 . owner2)))
+  (is (equal (bt-tokenizer:unmark-backtracking-position tokenizer 'owner2) 7))
   (match-and-check tokenizer 'right-paren)
   ;; rewind to BT position on top of stack
   (is (equal (bt-tokenizer:rewind-token-position tokenizer 'owner1) 4))
@@ -107,12 +107,12 @@ unmark / rewind functions, and may change them later (so this TC should be updat
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'mul-op)
   ;; first backtracking pos
-  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner1) '((4 . owner1))))
+  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner1) 4))
   (match-and-check tokenizer 'left-paren)
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'add-op)
   ;; second backtracking pos
-  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner2) '((7 . owner2) (4 . owner1))))
+  (is (equal (bt-tokenizer:mark-backtracking-position tokenizer 'owner2) 7))
   (match-and-check tokenizer 'num)
   ;; attempt to rewind with incorrect owner (should be TOS' owner, which is owner2)
   (signals error (bt-tokenizer:rewind-token-position tokenizer 'owner1))
