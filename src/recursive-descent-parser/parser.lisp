@@ -9,7 +9,7 @@ match).
 The `notification-fn` is funcalled to do any required processing (e.g. constructing parse tree), and
 it takes two arguments: the `construct-obj` object, and the parsing status."))
 
-(defparameter +max-parse-execution-count+ 1000 "Temporary protection against infinite recursion")
+(defparameter +max-parse-execution-count+ 40 "Temporary protection against infinite recursion")
 (defparameter *parse-execution-count* 0 "Temporary protection against infinite recursion")
 
 (defparameter *seq-abort-on-first-failure* t "Flag indicating whether the seq construct parser should
@@ -55,6 +55,7 @@ status, without skipping. TODO: To be moved locally later.")
   (incf *parse-execution-count*)
   (multiple-value-prog1
       (call-next-method)
+    (decf *parse-execution-count*)
     #+debug(format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
     #+debug(format t "~&End parsing construct ~a.~%" construct-obj)))
 

@@ -85,8 +85,7 @@ text `text`, and given optional expected parsing result `expected-parsing-result
 not only the final parsing status, but the progress of parsing (sequence of constructs, expected status
 for exch, and tokenized text for each token). When not provided (or provided as NIL), the only test done
 is that the final parsing result is :ok."
-  (let ((*print-case* :downcase)
-        (parsex-cl/rdp/parser:*parse-execution-count* 0))
+  (let ((*print-case* :downcase))
     (multiple-value-bind (root-grammar-constr tokenizer-core-dfa _)
         (parsex-cl/rdp/grammar/sexp:parse-grammar grammar grammar-start-rule)
       (declare (ignorable _))
