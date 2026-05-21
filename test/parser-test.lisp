@@ -79,7 +79,8 @@ also refer to the included test cases for examples."
   (mapcar #'check-log-entry parsing-log expected-parsing-log))
 
 (defun parser-test (&key grammar text (expected-final-parsing-status :ok) expected-parsing-result
-                      (check-sync-tokens nil) (grammar-start-rule 'root))
+                      (check-sync-tokens nil) (grammar-start-rule 'root) (resilience nil)
+                      (seq-abort-on-first-failure t))
   "Prepares and executes parsing test, for a specific grammar `grammar` (in sexp form, for now), input
 text `text`, and given optional expected parsing result `expected-parsing-result`, which serves to test
 not only the final parsing status, but the progress of parsing (sequence of constructs, expected status
@@ -94,9 +95,11 @@ is that the final parsing result is :ok."
              (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer input))
              (sample-parser-notif-callback (sample-parser-notif-callback-factory input))
              (parsex-cl/rdp/parser::*check-sync-tokens* check-sync-tokens))
-        (fiveam:is (equal (parsex-cl/rdp/parser:parse-construct root-grammar-constr bt-tokenizer
-                                                                #'parsex-cl/rdp/parser::token-matches-p
-                                                                sample-parser-notif-callback)
+        (fiveam:is (equal (parsex-cl/rdp/parser::parse-root root-grammar-constr bt-tokenizer
+                                                            #'parsex-cl/rdp/parser::token-matches-p
+                                                            sample-parser-notif-callback
+                                                            :resilience resilience
+                                                            :seq-abort-on-first-failure seq-abort-on-first-failure)
                           expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
         (multiple-value-bind (parsing-log error-log) (funcall sample-parser-notif-callback nil nil nil)
@@ -171,7 +174,7 @@ grammar."
 (fiveam:test parser-test_1
   "Basic test, similar to previous, but with 'sequence abortion on failure' disabled."
   (declare (optimize (debug 3) (speed 0)))
-  (let ((parsex-cl/rdp/parser::*seq-abort-on-first-failure* nil))
+  (let ()
     (parser-test :grammar '((token id (seq
                                        #1=(or (char-range #\A #\Z) (char-range #\a #\z))
                                        (+ (or #1# (char-range #\0 #\9)))))
@@ -185,6 +188,7 @@ grammar."
                             (rule statement (seq id assign mul-expr semicolon))
                             (rule statement-block (seq statement (* statement)))
                             (rule root (seq statement-block eot)))
+                 :seq-abort-on-first-failure nil
                  :text (concatenate 'string
                                     "id1=id2*3;"
                                     "id11=id22*33;")
@@ -763,14 +767,15 @@ successfully matches, then parsing proceeds successfully till end."
   "Testing erroneous tokens that are found in the sync list (second '='). Unlike the previous, in this,
 we need resilience for the sequence construct (since erroneous tokens are found in the sync list). We
 also test one-or-more with resilience flag activated, in order to test finding a continuation point."
-  (let ((parsex-cl/rdp/parser::*seq-abort-on-first-failure* nil)
-        (parsex-cl/rdp/parser::*resilience* t))
+  (let ()
     (parser-test :grammar '((token int (+ (char-range #\0 #\9)))
                             (token add-op #\+)
                             (token assign #\=)
                             (token semicolon #\;)
                             (rule equality (seq int add-op int assign int semicolon))
                             (rule root (+ equality)))
+                 :seq-abort-on-first-failure nil
+                 :resilience t
                  :grammar-start-rule 'root
                  :text (concatenate 'string
                                     "100+=20=120;"
@@ -808,13 +813,13 @@ also test one-or-more with resilience flag activated, in order to test finding a
 
 (fiveam:test parser-test-9
   "Simple test focusing on checking progress during a repeating construct (avoiding infinite loop)."
-  (let ((parsex-cl/rdp/parser::*seq-abort-on-first-failure* nil)
-        (parsex-cl/rdp/parser::*resilience* t))
-
+  (let ()
     (parser-test :grammar '((token int (+ (char-range #\0 #\9)))
                             (token end "$")
                             (rule silly-nums (+ (seq (* int) (? (+ int)) (or (* int) (+ int)))))
                             (rule root (seq silly-nums end)))
+                 :seq-abort-on-first-failure nil
+                 :resilience t
                  :text "$"
                  :check-sync-tokens t
                  :expected-parsing-result '((constr:token-construct int :no-match "$")
