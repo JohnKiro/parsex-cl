@@ -10,24 +10,36 @@ locally later.")
 tokens that are not matched. True means check and skip if not found, false (NIL) means return whatever
 status, without skipping. TODO: To be moved locally later.")
 
-(defun add-sync-tokens (list-of-tokens)
-  (format t "~%Adding tokens ~a to sync list..~%" list-of-tokens)
-  (dolist (tok list-of-tokens)
-    (if #1=(gethash tok *sync-tokens*)
-        (incf #1#)
-        (setf #1# 1))))
+(func:define-functional-interface sync-tokens-manager ()
+  "Interface of token sync list manager, supporting the operations to add, remove, and find tokens."
+  (add-sync-tokens (tokens) :doc "Add list of tokens (`tokens`) to the sync list.")
+  (rem-sync-tokens (tokens) :doc "Remove list of tokens (`tokens`) from the sync list.")
+  (find-in-sync-tokens (tokens) :doc "Search for any token specified in the array `tokens`
+in the sync list."))
 
-(defun rem-sync-tokens (list-of-tokens)
-  (format t "Removing tokens ~a from sync list..~%" list-of-tokens)
-  (dolist (tok list-of-tokens)
-    (if #1=(gethash tok *sync-tokens*)
-        (decf #1#))))
-
-(defun find-in-sync-tokens (actual-tokens)
-  (loop for actual-token across actual-tokens
-        when (let ((val (gethash actual-token *sync-tokens*)))
-               (> val 0))
-          return t))
+(defun sync-tokens-manager-factory ()
+  "Create a sync token manager instance, for use during a parsing job. It initializes the sync list as
+an empty hash table, and returns a struct holding pointers to the operations (add/remove/find)."
+  (let ((sync-tokens (make-hash-table)))
+    (labels ((add-sync-tokens (tokens)
+               (dolist (tok tokens)
+                 (if #1=(gethash tok sync-tokens)
+                     (incf #1#)
+                     (setf #1# 1))))
+             (rem-sync-tokens (tokens)
+               (dolist (tok tokens)
+                 (if (gethash tok sync-tokens)
+                     (decf #1#))))
+             (find-in-sync-tokens (tokens)
+               "Notice that unlike the above functions, the tokens to search for are typically retrieved
+from tokenizer, in the form of array rather than a list. I'm planning to convert the above into array
+anyway (typically coming from construct's first set)."
+               (loop for tok across tokens
+                     when (> (gethash tok sync-tokens) 0)
+                       return t)))
+      (make-sync-tokens-manager :add-sync-tokens-fn #'add-sync-tokens
+                                :rem-sync-tokens-fn #'rem-sync-tokens
+                                :find-in-sync-tokens-fn #'find-in-sync-tokens))))
 
 ;; FIXME: we depend on the fact that the OR element included its 1st set. Example: in (or int id), when
 ;; matching the INT token fails, and assuming the `*check-sync-tokens*` flag is active, then we'll find
@@ -42,7 +54,8 @@ status, without skipping. TODO: To be moved locally later.")
 ;; rewind and try next branch).
 
 (defun parse-root (root-construct-obj tokenizer token-matching-fn notification-fn
-                   &key resilience (seq-abort-on-first-failure t) &aux (recursion-depth 0))
+                   &key resilience (seq-abort-on-first-failure t)
+                   &aux (recursion-depth 0) (sync-token-mgr (sync-tokens-manager-factory)))
   "Entry point for the parser, starting with the root construct `root-construct-obj`, recursively parsing
 it, and using a backtracking tokenizer implementation `tokenizer` to retrieve tokens from input source.
 The `token-matching-fn` is a predicate that matches expected token (1st arg) against actual tokens
@@ -110,7 +123,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                                tok-and-indices
                                                (nreverse skipped-tokenization-result-log))))
                              (if *check-sync-tokens*
-                                 (if (find-in-sync-tokens actual-tokens)
+                                 (if (find-in-sync-tokens sync-token-mgr actual-tokens)
                                      (progn
                                        ;; alternatively, need to move this logic to tok
                                        #+debug
@@ -146,7 +159,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
            (parse-sequence-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
                    ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
-                   do (add-sync-tokens (slot-value child 'constr::%first-set)))
+                   do (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))
              (let ((curr-child-status nil)
                    (a-child-failed nil)
                    (progress nil)
@@ -154,7 +167,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                (loop for child across (constr:child-constructs construct-obj)
                      ;; yes, 1st child added needlessly, but this way the above loop is simple
                      ;; note that we still need to remove sync tokens, even if we abort from the sequence
-                     do (rem-sync-tokens (slot-value child 'constr::%first-set))
+                     do (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
                         ;; TODO: may have a check here for :input-exhausted condition, to break the loop
                         ;; if so, but not sure, because this would be done unnecessarily many times,
                         ;; until we reach end of input
@@ -178,11 +191,11 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
            (parse-or-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
                    ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
-                   do (add-sync-tokens (slot-value child 'constr::%first-set)))
+                   do (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
              (let (status last-tokenization-result)
                (loop for child across (constr:child-constructs construct-obj)
-                     do (rem-sync-tokens (slot-value child 'constr::%first-set))
+                     do (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
                      unless (eq status :ok) do
                        (progn
                          (multiple-value-setq (status last-tokenization-result)
@@ -228,20 +241,20 @@ Note that any inner errors will be reported by the inner constructs themselves."
                              (return (values :ok last-tokenization-result))))))
            (parse-one-or-more-construct (construct-obj)
              (let* ((child (constr:child-construct construct-obj)))
-               (add-sync-tokens (slot-value child 'constr::%first-set))
+               (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
                (multiple-value-bind (status1 last-tokenization-result)
                    (parse-construct child)
                  (multiple-value-prog1
                      (if (or (eq status1 :ok) resilience) ;TODO: INCLUDE CHECK FOR 'ZERO CONSUMPTION'!!
                          (parse-zero-or-more-child child)
                          (values :complete-failure last-tokenization-result))
-                   (rem-sync-tokens (slot-value child 'constr::%first-set))))))
+                   (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))))))
            (parse-zero-or-more-construct (construct-obj)
              (let ((child (constr:child-construct construct-obj)))
-               (add-sync-tokens (slot-value child 'constr::%first-set))
+               (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
                (multiple-value-prog1
                    (parse-zero-or-more-child child)
-                 (rem-sync-tokens (slot-value child 'constr::%first-set)))))
+                 (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))))
            (parse-zero-or-one-construct (construct-obj)
              ;; what about putting this in :before? (TODO: CHECK!)
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
