@@ -6,10 +6,6 @@
   "List of sync tokens for recovery. Created globally for now, just for experimentation, to be moved
 locally later.")
 
-(defparameter *check-sync-tokens* t "Flag used by parser for token constructs, to check in sync list for
-tokens that are not matched. True means check and skip if not found, false (NIL) means return whatever
-status, without skipping. TODO: To be moved locally later.")
-
 (func:define-functional-interface sync-tokens-manager ()
   "Interface of token sync list manager, supporting the operations to add, remove, and find tokens."
   (add-sync-tokens (tokens) :doc "Add list of tokens (`tokens`) to the sync list.")
@@ -54,7 +50,7 @@ anyway (typically coming from construct's first set)."
 ;; rewind and try next branch).
 
 (defun parse-root (root-construct-obj tokenizer token-matching-fn notification-fn
-                   &key resilience (seq-abort-on-first-failure t)
+                   &key resilience (seq-abort-on-first-failure t) (check-sync-tokens t)
                    &aux (recursion-depth 0) (sync-token-mgr (sync-tokens-manager-factory)))
   "Entry point for the parser, starting with the root construct `root-construct-obj`, recursively parsing
 it, and using a backtracking tokenizer implementation `tokenizer` to retrieve tokens from input source.
@@ -71,7 +67,12 @@ child failure, or even successfully matching a zero-length string. In such cases
 would abort anyway, regardless of the resilience flag.
 `seq-abort-on-first-failure` is a flag indicating whether the seq construct parser should abort on first
 failure (same purpose as resilience, but with inverted meaning), or proceed with attempt to parse all
-remaining children. TODO: TO BE MERGED INTO RESILIENCE, AND ALLOWING OVERRIDING PER CONSTRUCT IN GRAMMAR."
+remaining children. TODO: TO BE MERGED INTO RESILIENCE, AND ALLOWING OVERRIDING PER CONSTRUCT IN GRAMMAR.
+`check-sync-tokens` flag is used by parser for token constructs, to check in sync list for tokens that
+are not matched. If set and token is found in sync list, then the token will be put back into the
+tokenizer for the upper construct that is interested in it, else (if not found), then it will be
+skipped (since won't be interesting to any upper construct), else (if flag is not set), then error will
+returned without skipping."
   (labels ((parse-construct (construct-obj)
              #+debug(format t "~&Start parsing construct ~a......~%" construct-obj)
              #+debug(format t "Tokenizer state before: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
@@ -102,7 +103,6 @@ the tokenizer (`tokenizer`). Returns status (:ok / :no-match / status returned b
 and a secondary value may also be returned containing the tokens and input indices (if available), as a
 pair: (actual-tokens . acc-indices), and finally, a list of skipped tokenization details is returned as
 a third value.
-NOTE: checking the sync tokens is controlled by a global flag `*check-sync-tokens*`, for now.
 TODO: consider just reporting the status to caller, and leaving it up to it to decide how to handle."
              (let ((expected-token (constr:token construct-obj))
                    (skipped-tokenization-result-log nil))
@@ -122,7 +122,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                (return (values :ok
                                                tok-and-indices
                                                (nreverse skipped-tokenization-result-log))))
-                             (if *check-sync-tokens*
+                             (if check-sync-tokens
                                  (if (find-in-sync-tokens sync-token-mgr actual-tokens)
                                      (progn
                                        ;; alternatively, need to move this logic to tok

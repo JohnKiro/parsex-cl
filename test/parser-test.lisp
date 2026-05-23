@@ -93,13 +93,13 @@ is that the final parsing result is :ok."
       (let* ((input (input:create-basic-regex-input text))
              (underlying-tokenizer (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input))
              (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer input))
-             (sample-parser-notif-callback (sample-parser-notif-callback-factory input))
-             (parsex-cl/rdp/parser::*check-sync-tokens* check-sync-tokens))
+             (sample-parser-notif-callback (sample-parser-notif-callback-factory input)))
         (fiveam:is (equal (parsex-cl/rdp/parser::parse-root root-grammar-constr bt-tokenizer
                                                             #'parsex-cl/rdp/parser::token-matches-p
                                                             sample-parser-notif-callback
                                                             :resilience resilience
-                                                            :seq-abort-on-first-failure seq-abort-on-first-failure)
+                                                            :seq-abort-on-first-failure seq-abort-on-first-failure
+                                                            :check-sync-tokens check-sync-tokens)
                           expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
         (multiple-value-bind (parsing-log error-log) (funcall sample-parser-notif-callback nil nil nil)
