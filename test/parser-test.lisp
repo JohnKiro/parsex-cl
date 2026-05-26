@@ -29,14 +29,19 @@ Note: when the closure is called with the first arg as NIL, it doesn't append an
 rather, returns two values, including the accumulated log entries. This is how the logs are retrieved
 for testing and debugging."
   (let (parsing-log error-log)
-    (lambda (construct-obj parsing-status maybe-tokenization-result
-             &optional maybe-skipped-tokenizations-results)
+    (lambda (construct-obj parsing-status maybe-token-construct-parsing-result)
       (if construct-obj ; append log entry or dump log?
-          (progn
+          (let ((maybe-skipped-tokenizations-results
+                  (when maybe-token-construct-parsing-result
+                    (slot-value maybe-token-construct-parsing-result
+                                'parsex-cl/rdp/parser::%skipped-tokens))))
             (let ((log `(,construct-obj
                          ,parsing-status
-                         ,@(when maybe-tokenization-result
-                             (input:retrieve-subrange input-source (cdr maybe-tokenization-result))))))
+                         ,@(when maybe-token-construct-parsing-result
+                             (input:retrieve-subrange
+                              input-source
+                              (slot-value maybe-token-construct-parsing-result
+                                          'parsex-cl/rdp/parser::%tokenizer-matched-tokens-indices))))))
               (push log parsing-log)
               nil)
             (when (or (eq parsing-status :partial-failure)
@@ -44,7 +49,7 @@ for testing and debugging."
               (add-parsing-error-entry error-log
                                        construct-obj
                                        parsing-status
-                                       maybe-tokenization-result
+                                       maybe-token-construct-parsing-result
                                        maybe-skipped-tokenizations-results)))
           (values (nreverse parsing-log) (nreverse error-log))))))
 
@@ -535,12 +540,12 @@ in sync list."
                                           (constr:sequence-construct mul-expr :ok)
                                           ;; '*' and '=' skipped
                                           (constr:token-construct semicolon :ok ";")
-                                          (constr:sequence-construct statement :ok ";")
+                                          (constr:sequence-construct statement :ok)
                                           (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure "")
+                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
-                                          (constr:sequence-construct root :ok ""))
+                                          (constr:sequence-construct root :ok))
                :check-sync-tokens t))
 
 (fiveam:test parser-test-5
@@ -656,14 +661,14 @@ list."
                                           ;; since not in sync list at this point)
                                           ;; TODO: may introduce :ok-but-had-to-skip
                                           (constr:token-construct semicolon :ok ";")
-                                          (constr:sequence-construct statement :ok ";")
+                                          (constr:sequence-construct statement :ok)
                                           ;; we recovered from the partial failure and moved forward,
                                           ;; next: trying to parse a new statement
                                           (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure "")
+                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
-                                          (constr:sequence-construct root :ok ""))
+                                          (constr:sequence-construct root :ok))
                :check-sync-tokens t))
 
 (fiveam:test parser-test-6
@@ -724,21 +729,21 @@ successfully matches, then parsing proceeds successfully till end."
                                           (constr:token-construct id :ok "id111")
                                           (constr:token-construct assign :ok "=")
                                           (constr:token-construct id :ok "id222")
-                                          (constr:or-construct factor :ok "id222")
+                                          (constr:or-construct factor :ok)
                                           (constr:token-construct *-op :ok "*")
                                           (constr:token-construct id :no-match "333")
                                           (constr:token-construct int :ok "333")
-                                          (constr:or-construct factor :ok "333")
-                                          (constr:sequence-construct nil :ok "333")
-                                          (constr:zero-or-one-construct nil :ok "333")
-                                          (constr:sequence-construct mul-expr :ok "333")
+                                          (constr:or-construct factor :ok)
+                                          (constr:sequence-construct nil :ok)
+                                          (constr:zero-or-one-construct nil :ok)
+                                          (constr:sequence-construct mul-expr :ok)
                                           (constr:token-construct semicolon :ok ";")
-                                          (constr:sequence-construct statement :ok ";")
+                                          (constr:sequence-construct statement :ok)
                                           (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure "")
-                                          (constr:one-or-more-construct statement-block :ok "")
+                                          (constr:sequence-construct statement :complete-failure)
+                                          (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
-                                          (constr:sequence-construct root :ok ""))
+                                          (constr:sequence-construct root :ok))
                :check-sync-tokens t))
 
 ;; Note that we don't need the resilience for sequence in this test (*seq-abort-on-first-failure*),
@@ -761,7 +766,7 @@ successfully matches, then parsing proceeds successfully till end."
                                           (constr:token-construct assign :ok "=")
                                           (constr:token-construct int :ok "21")
                                           (constr:token-construct semicolon :ok ";")
-                                          (constr:sequence-construct equality :ok ";"))))
+                                          (constr:sequence-construct equality :ok))))
 
 (fiveam:test parser-test-8
   "Testing erroneous tokens that are found in the sync list (second '='). Unlike the previous, in this,
@@ -786,21 +791,21 @@ also test one-or-more with resilience flag activated, in order to test finding a
                                       (constr:token-construct assign :ok "=")
                                       (constr:token-construct int :ok "20")
                                       (constr:token-construct semicolon :no-match "120")
-                                      (constr:sequence-construct equality :partial-failure "120")
+                                      (constr:sequence-construct equality :partial-failure)
                                       (constr:token-construct int :ok "120")
                                       (constr:token-construct add-op :no-match ";")
                                       (constr:token-construct int :no-match ";")
                                       (constr:token-construct assign :no-match ";")
                                       (constr:token-construct int :no-match ";")
                                       (constr:token-construct semicolon :ok ";")
-                                      (constr:sequence-construct equality :partial-failure ";")
+                                      (constr:sequence-construct equality :partial-failure)
                                       (constr:token-construct int :ok "22")
                                       (constr:token-construct add-op :ok "+")
                                       (constr:token-construct int :ok "33")
                                       (constr:token-construct assign :ok "=")
                                       (constr:token-construct int :ok "55")
                                       (constr:token-construct semicolon :ok ";")
-                                      (constr:sequence-construct equality :ok ";")
+                                      (constr:sequence-construct equality :ok)
                                       ;; TODO: better to skip these ones in the token construct itself
                                       (constr:token-construct int :regex-not-matched)
                                       (constr:token-construct add-op :regex-not-matched)
@@ -823,27 +828,27 @@ also test one-or-more with resilience flag activated, in order to test finding a
                  :text "$"
                  :check-sync-tokens t
                  :expected-parsing-result '((constr:token-construct int :no-match "$")
-                                            (constr:zero-or-more-construct nil :ok "$")
+                                            (constr:zero-or-more-construct nil :ok)
                                             (constr:token-construct int :no-match "$")
                                             (constr:token-construct int :no-match "$")
-                                            (constr:one-or-more-construct nil :ok "$")
-                                            (constr:zero-or-one-construct nil :ok "$")
+                                            (constr:one-or-more-construct nil :ok)
+                                            (constr:zero-or-one-construct nil :ok)
                                             (constr:token-construct int :no-match "$")
-                                            (constr:zero-or-more-construct nil :ok "$")
-                                            (constr:or-construct nil :ok "$")
-                                            (constr:sequence-construct nil :ok "$")
+                                            (constr:zero-or-more-construct nil :ok)
+                                            (constr:or-construct nil :ok)
+                                            (constr:sequence-construct nil :ok)
                                             (constr:token-construct int :no-match "$")
-                                            (constr:zero-or-more-construct nil :ok "$")
+                                            (constr:zero-or-more-construct nil :ok)
                                             (constr:token-construct int :no-match "$")
                                             (constr:token-construct int :no-match "$")
-                                            (constr:one-or-more-construct nil :ok "$")
-                                            (constr:zero-or-one-construct nil :ok "$")
+                                            (constr:one-or-more-construct nil :ok)
+                                            (constr:zero-or-one-construct nil :ok)
                                             (constr:token-construct int :no-match "$")
-                                            (constr:zero-or-more-construct nil :ok "$")
-                                            (constr:or-construct nil :ok "$")
-                                            (constr:sequence-construct nil :ok "$")
-                                            (constr:one-or-more-construct silly-nums :ok "$")
+                                            (constr:zero-or-more-construct nil :ok)
+                                            (constr:or-construct nil :ok)
+                                            (constr:sequence-construct nil :ok)
+                                            (constr:one-or-more-construct silly-nums :ok)
                                             (constr:token-construct end :ok "$")
-                                            (constr:sequence-construct root :ok "$")))))
+                                            (constr:sequence-construct root :ok)))))
 
 

@@ -1,6 +1,6 @@
 (in-package :parsex-cl/rdp/parser)
 
-(defparameter +max-parse-execution-count+ 40 "Temporary protection against infinite recursion")
+(defparameter +max-parse-recursion-depth+ 40 "Temporary protection against infinite recursion")
 
 (defparameter *sync-tokens* (make-hash-table)
   "List of sync tokens for recovery. Created globally for now, just for experimentation, to be moved
@@ -10,8 +10,8 @@ locally later.")
   "Interface of token sync list manager, supporting the operations to add, remove, and find tokens."
   (add-sync-tokens (tokens) :doc "Add list of tokens (`tokens`) to the sync list.")
   (rem-sync-tokens (tokens) :doc "Remove list of tokens (`tokens`) from the sync list.")
-  (find-in-sync-tokens (tokens) :doc "Search for any token specified in the array `tokens`
-in the sync list."))
+  (find-in-sync-tokens (tokens) :doc "Search for any token specified in the array `tokens` in the sync
+list."))
 
 (defun sync-tokens-manager-factory ()
   "Create a sync token manager instance, for use during a parsing job. It initializes the sync list as
@@ -51,15 +51,19 @@ anyway (typically coming from construct's first set)."
 
 (defun parse-root (root-construct-obj tokenizer token-matching-fn notification-fn
                    &key resilience (seq-abort-on-first-failure t) (check-sync-tokens t)
-                   &aux (recursion-depth 0) (sync-token-mgr (sync-tokens-manager-factory)))
+                   &aux
+                     (recursion-depth 0)
+                     (sync-token-mgr (sync-tokens-manager-factory))
+                     (input-exhausted nil))
   "Entry point for the parser, starting with the root construct `root-construct-obj`, recursively parsing
 it, and using a backtracking tokenizer implementation `tokenizer` to retrieve tokens from input source.
 The `token-matching-fn` is a predicate that matches expected token (1st arg) against actual tokens
 received from the regex machine (2nd arg). Implementations should return a truth value or NIL (in case no
 match).
 The `notification-fn` is funcalled to do any required processing (e.g. constructing parse tree), and
-it takes two arguments: the `construct-obj` object, and the parsing status. (TODO: need two functions:
-pre and post.
+it takes three arguments: the `construct-obj` object, the parsing status, and parsing result details,
+which is currently only used for token constructs (all other constructs need just a status, at least for
+now). TODO: actually need two callback functions: pre and post.
 `resilience` is a flag indicating whether the one-or-more/zero-or-more construct parsers should abort
 loop on first child's failure, or proceed with attempt to parse child over again. For these constructs
 also, tokenizer progress is checked, to avoid infinite loop in case of zero consumption (e.g.
@@ -76,10 +80,10 @@ returned without skipping."
   (labels ((parse-construct (construct-obj)
              #+debug(format t "~&Start parsing construct ~a......~%" construct-obj)
              #+debug(format t "Tokenizer state before: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
-             (when (> recursion-depth +max-parse-execution-count+)
+             (when (> recursion-depth +max-parse-recursion-depth+)
                (error "Recursion protection activated: execution count reached ~a!" recursion-depth))
              (incf recursion-depth)
-             (multiple-value-bind (status last-tokenization-result skipped-tokenizations-log)
+             (multiple-value-bind (status result-details)
                  (etypecase construct-obj
                    (constr:token-construct (parse-token-construct construct-obj))
                    (constr:sequence-construct (parse-sequence-construct construct-obj))
@@ -87,8 +91,7 @@ returned without skipping."
                    (constr:one-or-more-construct (parse-one-or-more-construct construct-obj))
                    (constr:zero-or-more-construct (parse-zero-or-more-construct construct-obj))
                    (constr:zero-or-one-construct (parse-zero-or-one-construct construct-obj)))
-               (funcall notification-fn construct-obj status last-tokenization-result
-                        skipped-tokenizations-log)
+               (funcall notification-fn construct-obj status result-details)
                ;; TODO: it might be useful to return whatever the notif function returns (which could be multiple
                ;; values. This gives control to the client code, but one condition on the notif function, in order
                ;; to preserve the parsing flow, is to include the `status` as the primary value (any other params
@@ -96,32 +99,26 @@ returned without skipping."
                (decf recursion-depth)
                #+debug(format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
                #+debug(format t "~&End parsing construct ~a.~%" construct-obj)
-               (values status last-tokenization-result)))
+               (values status result-details)))
            (parse-token-construct (construct-obj)
              "Matches expected token against next token(s), which it retrieves by calling `get-tokens` on
 the tokenizer (`tokenizer`). Returns status (:ok / :no-match / status returned by tokenizer),
-and a secondary value may also be returned containing the tokens and input indices (if available), as a
-pair: (actual-tokens . acc-indices), and finally, a list of skipped tokenization details is returned as
-a third value.
+and a secondary value contains tokenization details as an `token-construct-parsing-result` object.
 TODO: consider just reporting the status to caller, and leaving it up to it to decide how to handle."
              (let ((expected-token (constr:token construct-obj))
-                   (skipped-tokenization-result-log nil))
+                   (skipped-tokens nil))
                (loop
-                 (multiple-value-bind (tok-and-indices tokenizer-status)
+                 (multiple-value-bind (tok-and-indices tokenization-status)
                      (bt-tokenizer:get-tokens tokenizer)
-                   (format t "~%Tokenizer returned ~a and ~a.~%" tok-and-indices tokenizer-status)
-                   #+nil(format t "Dumping tokenizer backtracking buffer: ~a~%"
-                                (bt-tokenizer::dump-internal-state tokenizer))
                    (if tok-and-indices
                        (destructuring-bind (actual-tokens . acc-indices) tok-and-indices
                          (if (funcall token-matching-fn expected-token actual-tokens)
-                             (progn
-                               #+debug
-                               (format t "~%Expected token ~a matched with ~a~%"
-                                       expected-token actual-tokens)
-                               (return (values :ok
-                                               tok-and-indices
-                                               (nreverse skipped-tokenization-result-log))))
+                             (return (values :ok (make-instance
+                                                  'token-construct-parsing-result
+                                                  :tokenization-status tokenization-status
+                                                  :tokenizer-matched-token actual-tokens
+                                                  :tokenizer-matched-tokens-indices acc-indices
+                                                  :skipped-tokens (nreverse skipped-tokens))))
                              (if check-sync-tokens
                                  (if (find-in-sync-tokens sync-token-mgr actual-tokens)
                                      (progn
@@ -132,38 +129,51 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                        (bt-tokenizer::put-back-tokens tokenizer)
                                        (return
                                          (values :no-match ;TODO: consider something such as :token-not-consumed
-                                                 tok-and-indices
-                                                 (nreverse skipped-tokenization-result-log))))
+                                                 (make-instance
+                                                  'token-construct-parsing-result
+                                                  :tokenization-status tokenization-status
+                                                  :tokenizer-matched-token actual-tokens
+                                                  :tokenizer-matched-tokens-indices acc-indices
+                                                  :skipped-tokens (nreverse skipped-tokens)))))
                                      (progn
                                        #+debug
                                        (format t (concatenate 'string
                                                               "No match, token(s) ~a NOT in sync list, "
                                                               "skipped and checking next token.~%")
                                                actual-tokens)
-                                       (push tok-and-indices skipped-tokenization-result-log)))
+                                       (push tok-and-indices skipped-tokens)))
                                  (progn
                                    ;; not checking sync list, rather, returning token error to parent.
                                    #+debug
                                    (format t "No match, token(s) ~a.~%" actual-tokens)
-                                   (return (values :no-match ;TODO: consider something such as :invalid-token
-                                                   tok-and-indices
-                                                   (nreverse skipped-tokenization-result-log)))))))
-                       (return (progn
-                                 (format t "~%No token returned, tokenizer status: ~a.~%" tokenizer-status)
-                                 ;; TOOD: consider adding a flag to loop till get a token, in case the
-                                 ;; status is regex not matched (note that here we catch also input
-                                 ;; exhausted case)
-                                 (values tokenizer-status
-                                         nil
-                                         (nreverse skipped-tokenization-result-log)))))))))
+                                   (return
+                                     (values :no-match ;TODO: consider something such as :invalid-token
+                                             (make-instance
+                                              'token-construct-parsing-result
+                                              :tokenization-status tokenization-status
+                                              :tokenizer-matched-token actual-tokens
+                                              :tokenizer-matched-tokens-indices acc-indices
+                                              :skipped-tokens (nreverse skipped-tokens))))))))
+                       (progn
+                         (when (and (not input-exhausted) (eq tokenization-status :input-exhausted))
+                           (setf input-exhausted t))
+                         (format t "~%No token returned, tokenizer status: ~a.~%"
+                                 tokenization-status)
+                         ;; TOOD: consider adding a flag to loop till get a token, in case the
+                         ;; status is regex not matched (note that here we catch also input
+                         ;; exhausted case)
+                         (return
+                           (values tokenization-status
+                                   (make-instance 'token-construct-parsing-result
+                                                  :tokenization-status tokenization-status
+                                                  :skipped-tokens (nreverse skipped-tokens))))))))))
            (parse-sequence-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
                    ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
                    do (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))
              (let ((curr-child-status nil)
                    (a-child-failed nil)
-                   (progress nil)
-                   (last-tokenization-result nil))
+                   (progress nil))
                (loop for child across (constr:child-constructs construct-obj)
                      ;; yes, 1st child added needlessly, but this way the above loop is simple
                      ;; note that we still need to remove sync tokens, even if we abort from the sequence
@@ -172,8 +182,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                         ;; if so, but not sure, because this would be done unnecessarily many times,
                         ;; until we reach end of input
                         (unless (and a-child-failed seq-abort-on-first-failure)
-                          (multiple-value-setq (curr-child-status last-tokenization-result)
-                            (parse-construct child))
+                          (setf curr-child-status (parse-construct child))
                           (if (eq curr-child-status :ok)
                               (setf progress t) ;at least part of the sequence has succeeded
                               (progn
@@ -181,25 +190,22 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                 ;; partial failure implies there is also some progress
                                 (when (eq curr-child-status :partial-failure)
                                   (setf progress t))))))
-               (values
-                (if progress
-                    (if a-child-failed
-                        :partial-failure
-                        :ok)
-                    :complete-failure)
-                last-tokenization-result)))
+               (if progress
+                   (if a-child-failed
+                       :partial-failure
+                       :ok)
+                   :complete-failure)))
            (parse-or-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
                    ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
                    do (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
-             (let (status last-tokenization-result)
+             (let (status)
                (loop for child across (constr:child-constructs construct-obj)
                      do (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
                      unless (eq status :ok) do
                        (progn
-                         (multiple-value-setq (status last-tokenization-result)
-                           (parse-construct child))
+                         (setf status (parse-construct child))
                          (unless (eq status :ok)
                            (bt-tokenizer:rewind-token-position tokenizer construct-obj))))
                ;; TODO: check if need to rewind in the FINALLY clause (meaning no match found, stopping
@@ -211,14 +217,13 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                ;; TODO (19 May): I think status should either be OK or NOK, so if last branch's status is
                ;; :partial-failure, for example, should change it, because it's not meaningful as a
                ;; parsing states of the OR
-               (values status last-tokenization-result)))
+               status))
            (parse-zero-or-more-child (child)
              "Parser for zero-or-more, that will be used in both zero-or-more-construct and
 one-or-more-construct. It parses the child as long as it gets success status or if the resilience flag is
 set, until it gets 'zero consumption', and it reports success in all cases (zero occurrence is accepted).
 Note that any inner errors will be reported by the inner constructs themselves."
              (loop with status = nil
-                   with last-tokenization-result = nil
                    for prev-position = nil then curr-position
                    for curr-position = (bt-tokenizer::get-current-backtracking-position tokenizer)
                    do  ;; alternatively, mark-backtracking-position itself returns current position, and
@@ -229,25 +234,23 @@ Note that any inner errors will be reported by the inner constructs themselves."
                                   (eq (bt-tokenizer::compare-positions tokenizer prev-position
                                                                        curr-position)
                                       :no-progress))
-                         (return (values :ok last-tokenization-result)))
+                         (return :ok))
                        (bt-tokenizer:mark-backtracking-position tokenizer child)
-                       (multiple-value-setq (status last-tokenization-result)
-                         (parse-construct child))
+                       (setf status (parse-construct child))
                        (if (or (eq status :ok) resilience)
                            (bt-tokenizer:unmark-backtracking-position tokenizer child)
                            (progn
                              (bt-tokenizer:rewind-token-position tokenizer child)
                              (bt-tokenizer:unmark-backtracking-position tokenizer child)
-                             (return (values :ok last-tokenization-result))))))
+                             (return :ok)))))
            (parse-one-or-more-construct (construct-obj)
              (let* ((child (constr:child-construct construct-obj)))
                (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
-               (multiple-value-bind (status1 last-tokenization-result)
-                   (parse-construct child)
+               (let ((status1 (parse-construct child)))
                  (multiple-value-prog1
-                     (if (or (eq status1 :ok) resilience) ;TODO: INCLUDE CHECK FOR 'ZERO CONSUMPTION'!!
+                     (if (or (eq status1 :ok) resilience)
                          (parse-zero-or-more-child child)
-                         (values :complete-failure last-tokenization-result))
+                         :complete-failure)
                    (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))))))
            (parse-zero-or-more-construct (construct-obj)
              (let ((child (constr:child-construct construct-obj)))
@@ -258,14 +261,13 @@ Note that any inner errors will be reported by the inner constructs themselves."
            (parse-zero-or-one-construct (construct-obj)
              ;; what about putting this in :before? (TODO: CHECK!)
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
-             (multiple-value-bind (status last-tokenization-result)
-                 (parse-construct (constr:child-construct construct-obj))
+             (let ((status (parse-construct (constr:child-construct construct-obj))))
                (unless (eq status :ok)
                  (bt-tokenizer:rewind-token-position tokenizer construct-obj))
                ;; we unmark backtracking position, and return success even if parsing failed (since
                ;; construct is optional)
                (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
-               (values :ok last-tokenization-result))))
+               :ok)))
     (parse-construct root-construct-obj)))
 
 ;; default matching (token equality check)
@@ -275,3 +277,24 @@ equality test is used (EQL). A custom implementation could be provided instead, 
 For example, in case of need to inspect the actual token text (say, to map token via
 lookup table), a custom implementation could have access to the tokenizer (e.g. within a closure env)."
   (numberp (position expected-token actual-tokens)))
+
+(defclass token-construct-parsing-result ()
+  ((%tokenization-status
+    :initarg :tokenization-status
+    :reader tokenization-status
+    :documentation "Status returned by tokenizer. Nil (no status) means ok.")
+   (%tokenizer-matched-tokens
+    :initarg :tokenizer-matched-token
+    :initform nil
+    :reader tokenizer-matched-token
+    :documentation "Actual token(s) that the tokenizer succeeded to match.")
+   (%tokenizer-matched-tokens-indices
+    :initarg :tokenizer-matched-tokens-indices
+    :initform nil
+    :reader tokenizer-matched-tokens-indices
+    :documentation "Indice of the matched token(s) as a dotted pair: (start . end).")
+   (%skipped-tokens
+    :initarg :skipped-tokens
+    :initform nil
+    :reader skipped-tokens
+    :documentation "List of invalid tokens that were neither matched nor found in the sync list." )))
