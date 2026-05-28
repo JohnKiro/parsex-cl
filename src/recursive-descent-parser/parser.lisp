@@ -126,7 +126,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                        #+debug
                                        (format t "No match, token(s) ~a found in sync list, returning..~%"
                                                actual-tokens)
-                                       (bt-tokenizer::put-back-tokens tokenizer)
+                                       (bt-tokenizer:put-back-tokens tokenizer)
                                        (return
                                          (values :no-match ;TODO: consider something such as :token-not-consumed
                                                  (make-instance
@@ -169,15 +169,14 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                                   :skipped-tokens (nreverse skipped-tokens))))))))))
            (parse-sequence-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
-                   ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
-                   do (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))
+                   do (add-sync-tokens sync-token-mgr (constr:first-set child)))
              (let ((curr-child-status nil)
                    (a-child-failed nil)
                    (progress nil))
                (loop for child across (constr:child-constructs construct-obj)
                      ;; yes, 1st child added needlessly, but this way the above loop is simple
                      ;; note that we still need to remove sync tokens, even if we abort from the sequence
-                     do (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
+                     do (rem-sync-tokens sync-token-mgr (constr:first-set child))
                         ;; TODO: may have a check here for :input-exhausted condition, to break the loop
                         ;; if so, but not sure, because this would be done unnecessarily many times,
                         ;; until we reach end of input
@@ -197,12 +196,11 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                    :complete-failure)))
            (parse-or-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
-                   ;; TODO: REFACTOR (SHOULDN'T ACCESS SLOT!!)
-                   do (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))
+                   do (add-sync-tokens sync-token-mgr (constr:first-set child)))
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
              (let (status)
                (loop for child across (constr:child-constructs construct-obj)
-                     do (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
+                     do (rem-sync-tokens sync-token-mgr (constr:first-set child))
                      unless (eq status :ok) do
                        (progn
                          (setf status (parse-construct child))
@@ -225,14 +223,14 @@ set, until it gets 'zero consumption', and it reports success in all cases (zero
 Note that any inner errors will be reported by the inner constructs themselves."
              (loop with status = nil
                    for prev-position = nil then curr-position
-                   for curr-position = (bt-tokenizer::get-current-backtracking-position tokenizer)
+                   for curr-position = (bt-tokenizer:get-current-backtracking-position tokenizer)
                    do  ;; alternatively, mark-backtracking-position itself returns current position, and
                        ;; we check progress: if no progress, then unmark and return. This saves the need
                        ;; for the get-current-backtracking-position operation, but it could be useful op
                        ;; anyway, if we need to get progress without marking.
                        (when (and prev-position
-                                  (eq (bt-tokenizer::compare-positions tokenizer prev-position
-                                                                       curr-position)
+                                  (eq (bt-tokenizer:compare-positions tokenizer prev-position
+                                                                      curr-position)
                                       :no-progress))
                          (return :ok))
                        (bt-tokenizer:mark-backtracking-position tokenizer child)
@@ -245,19 +243,19 @@ Note that any inner errors will be reported by the inner constructs themselves."
                              (return :ok)))))
            (parse-one-or-more-construct (construct-obj)
              (let* ((child (constr:child-construct construct-obj)))
-               (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
+               (add-sync-tokens sync-token-mgr (constr:first-set child))
                (let ((status1 (parse-construct child)))
                  (multiple-value-prog1
                      (if (or (eq status1 :ok) resilience)
                          (parse-zero-or-more-child child)
                          :complete-failure)
-                   (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))))))
+                   (rem-sync-tokens sync-token-mgr (constr:first-set child))))))
            (parse-zero-or-more-construct (construct-obj)
              (let ((child (constr:child-construct construct-obj)))
-               (add-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set))
+               (add-sync-tokens sync-token-mgr (constr:first-set child))
                (multiple-value-prog1
                    (parse-zero-or-more-child child)
-                 (rem-sync-tokens sync-token-mgr (slot-value child 'constr::%first-set)))))
+                 (rem-sync-tokens sync-token-mgr (constr:first-set child)))))
            (parse-zero-or-one-construct (construct-obj)
              ;; what about putting this in :before? (TODO: CHECK!)
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)

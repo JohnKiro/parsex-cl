@@ -33,15 +33,13 @@ for testing and debugging."
       (if construct-obj ; append log entry or dump log?
           (let ((maybe-skipped-tokenizations-results
                   (when maybe-token-construct-parsing-result
-                    (slot-value maybe-token-construct-parsing-result
-                                'parsex-cl/rdp/parser::%skipped-tokens))))
+                    (parser:skipped-tokens maybe-token-construct-parsing-result))))
             (let ((log `(,construct-obj
                          ,parsing-status
                          ,@(when maybe-token-construct-parsing-result
-                             (input:retrieve-subrange
-                              input-source
-                              (slot-value maybe-token-construct-parsing-result
-                                          'parsex-cl/rdp/parser::%tokenizer-matched-tokens-indices))))))
+                             (input:retrieve-subrange input-source
+                                                      (parser:tokenizer-matched-tokens-indices
+                                                       maybe-token-construct-parsing-result))))))
               (push log parsing-log)
               nil)
             (when (or (eq parsing-status :partial-failure)
@@ -99,12 +97,12 @@ is that the final parsing result is :ok."
              (underlying-tokenizer (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input))
              (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer input))
              (sample-parser-notif-callback (sample-parser-notif-callback-factory input)))
-        (fiveam:is (equal (parsex-cl/rdp/parser::parse-root root-grammar-constr bt-tokenizer
-                                                            #'parsex-cl/rdp/parser::token-matches-p
-                                                            sample-parser-notif-callback
-                                                            :resilience resilience
-                                                            :seq-abort-on-first-failure seq-abort-on-first-failure
-                                                            :check-sync-tokens check-sync-tokens)
+        (fiveam:is (equal (parser:parse-root root-grammar-constr bt-tokenizer
+                                             #'parser:token-matches-p
+                                             sample-parser-notif-callback
+                                             :resilience resilience
+                                             :seq-abort-on-first-failure seq-abort-on-first-failure
+                                             :check-sync-tokens check-sync-tokens)
                           expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
         (multiple-value-bind (parsing-log error-log) (funcall sample-parser-notif-callback nil nil nil)

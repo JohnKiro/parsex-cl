@@ -239,6 +239,9 @@
                     (:match #:parsex-cl/regex/match))
   (:export #:create-backtracking-tokenizer
            #:get-tokens
+           #:put-back-tokens
+           #:get-current-backtracking-position
+           #:compare-positions
            #:mark-backtracking-position
            #:unmark-backtracking-position
            #:rewind-token-position
@@ -259,6 +262,7 @@
            #:token
            #:set-child
            #:add-child
+           #:first-set
            ))
 
 (defpackage :parsex-cl/rdp/grammar/sexp/dsl
@@ -287,7 +291,13 @@
                     (:input #:parsex-cl/regex/input)
                     (:bt-tokenizer #:parsex-cl/backtracking-tokenizer))
   (:export #:parse-construct
-           #:*parse-execution-count*))
+           #:parse-root
+           #:token-matches-p
+           #:token-construct-parsing-result
+           #:tokenization-status
+           #:tokenizer-matched-token
+           #:tokenizer-matched-tokens-indices
+           #:skipped-tokens))
 
 (defpackage :parsex-cl/graphviz-util
   (:use #:cl)
