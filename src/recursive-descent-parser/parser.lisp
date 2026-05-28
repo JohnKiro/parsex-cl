@@ -2,10 +2,6 @@
 
 (defparameter +max-parse-recursion-depth+ 40 "Temporary protection against infinite recursion")
 
-(defparameter *sync-tokens* (make-hash-table)
-  "List of sync tokens for recovery. Created globally for now, just for experimentation, to be moved
-locally later.")
-
 (func:define-functional-interface sync-tokens-manager ()
   "Interface of token sync list manager, supporting the operations to add, remove, and find tokens."
   (add-sync-tokens (tokens) :doc "Add list of tokens (`tokens`) to the sync list.")
