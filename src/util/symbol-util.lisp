@@ -23,4 +23,13 @@ other hand, it will work for symbols that are read within calls to READ within t
   (defun sym-to-kw (sym)
     "Return a keyword symbol based on the symbol argument `sym`.
 Note: it actually works with any type convertible to string via the `string` function."
-    (intern (string sym) :keyword)))
+    (intern (string sym) :keyword))
+
+  (defun list-of-symbols-p (x)
+    "Predicate to test whether `x` is a list of symbols."
+    (or (null x)
+        (and (consp x)
+             (every #'symbolp x))))
+
+  (deftype list-of-symbols ()
+    '(satisfies list-of-symbols-p)))

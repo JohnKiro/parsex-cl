@@ -7,7 +7,8 @@
   (:use #:cl)
   (:export #:reintern
            #:sym-to-kw
-           #:with-preserve-symbol-case))
+           #:with-preserve-symbol-case
+           #:list-of-symbols))
 
 (defpackage :parsex-cl/char-util
   (:use #:cl)

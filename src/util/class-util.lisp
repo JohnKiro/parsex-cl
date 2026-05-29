@@ -1,14 +1,5 @@
 (in-package :parsex-cl/class-util)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun list-of-symbols-p (x)
-    (or (null x)
-        (and (consp x)
-             (every #'symbolp x))))
-
-  (deftype list-of-symbols ()
-    '(satisfies list-of-symbols-p)))
-
 (defmacro define-class-of-functions (class-name direct-superclasses &key doc slots)
   "Utility macro to simplify creation of a class where all slots are functions. Each slot in the
 `slots` argument is expected in the form (slot :doc doc-string).
@@ -17,10 +8,12 @@ documentation string for each slot (i.e. for each function).
 Also note that I'm using the :doc keyword since it is treated specially by Slime, to highlight the
 string in special color, indicating documentation."
   (declare (type symbol class-name)
-           (type list-of-symbols direct-superclasses)
+           (type sym:list-of-symbols direct-superclasses)
            (type (or null string) doc)
            (type list slots))
   `(defclass ,class-name ,direct-superclasses
+     ;; TODO: note that &key is not actually understood in loop destructuring, but it works accidentally
+     ;; because &key is interpreted as a variable that gets bound to the symbol :doc.
      ,(loop for (slot-name &key doc) in slots
             collect `(,slot-name :initarg ,(sym:sym-to-kw slot-name)
                                  :reader ,slot-name
@@ -38,7 +31,7 @@ as #'function-name).
 Note that this is a limited implementation, where all functions take no arguments. If this is not
 the case, then use the `make-instance` method instead (which is the more general case).
 Also note that it supports passing function objects besides code to be wrapped in a LAMBDA."
-  (declare (type list-of-symbols slots))
+  (declare (type sym:list-of-symbols slots))
   (flet ((prepare-arg-key-and-val (arg-name)
            "Prepare key and value arg expansion code for `make-instance`, given the arg name."
            (list (sym:sym-to-kw arg-name)
@@ -63,7 +56,7 @@ created. This would typically be the case when some of the functions take argume
 `make-instance` would be used instead of a constructor macro (as explained in the documentaion of
 `define-class-of-functions-constructor`)."
   (declare (type symbol class-name constructor-name)
-           (type list-of-symbols direct-superclasses)
+           (type sym:list-of-symbols direct-superclasses)
            (type (or null string) doc)
            (type list slots))
   (let ((slot-names (mapcar #'first slots)))
