@@ -25,8 +25,10 @@
                (:module "util"
                 :components ((:file "symbol-util")
                              (:file "char-util")
+                             (:file "class-util")
                              (:file "functional-interface")
-                             (:file "class-util")))
+                             (:module "legacy"
+                              :components ((:file "functional-interface-v1")))))
                (:module "regex"
                 :components ((:file "regex-input")
                              (:file "regex-element")

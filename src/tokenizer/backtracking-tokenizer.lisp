@@ -8,7 +8,7 @@
 ;;; generic tokenizer interface (struct + funcall generation macros)
 ;;;
 
-(func:define-functional-interface backtracking-tokenizer ()
+(func-v1:define-functional-interface backtracking-tokenizer ()
   (get-tokens
    ()
    :doc "Retrieve next token(s) from either source or backtracking buffer. The backtracking buffer is

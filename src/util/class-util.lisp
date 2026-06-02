@@ -65,6 +65,9 @@ created. This would typically be the case when some of the functions take argume
        ,@(when constructor-name
            `((define-class-of-functions-constructor ,class-name ,constructor-name ,slot-names))))))
 
+;; TODO: consider moving to separate slot utils, because it actually works for structs too.
+;; note that it doesn't use slot-value but rather slot reader, so it doesn't even use
+;; implementation-specific struct slot access.
 (defmacro let-slots ((&rest vars-and-slot-readers) obj &body body)
   "Macro receiving a list of elements in the form (slot-var . slot-reader), and expanding into code
 that LET-binds each slot value (by calling `slot-reader`) to corresponding `slot-var`, around

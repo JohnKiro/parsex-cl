@@ -15,12 +15,6 @@
   (:export #:inc-char
            #:dec-char))
 
-(defpackage :parsex-cl/functional-interface
-  (:use #:cl)
-  (:local-nicknames (:alex #:alexandria))
-  (:export #:define-functional-interface)
-  )
-
 (defpackage :parsex-cl/class-util
   (:use #:cl)
   (:local-nicknames (:sym #:parsex-cl/symbol-util))
@@ -29,6 +23,21 @@
            #:define-class-of-functions-with-constructor
            #:let-slots
            #:with-function-slots-funcall-macros))
+
+(defpackage :parsex-cl/functional-interface
+  (:use #:cl)
+  (:local-nicknames (:alex #:alexandria)
+                    (:sym :parsex-cl/symbol-util)
+                    (:class-util #:parsex-cl/class-util))
+  (:export #:define-functional-interface)
+  )
+
+(defpackage :parsex-cl/functional-interface/v1
+  (:use #:cl)
+  (:local-nicknames (:func #:parsex-cl/functional-interface)
+   )
+  (:export #:define-functional-interface)
+  )
 
 (defpackage :parsex-cl/regex/sexp/dsl
   (:export #:regex
@@ -47,7 +56,7 @@
 (defpackage :parsex-cl/regex/input
   (:use #:cl #:iterate)
   (:local-nicknames (:class-util #:parsex-cl/class-util)
-                    (:func #:parsex-cl/functional-interface))
+                    (:func-v1 #:parsex-cl/functional-interface/v1))
   (:export #:basic-regex-input
            #:source-empty-p
            #:remaining-length
@@ -234,7 +243,7 @@
 
 (defpackage :parsex-cl/backtracking-tokenizer
   (:use #:cl)
-  (:local-nicknames (:func #:parsex-cl/functional-interface)
+  (:local-nicknames (:func-v1 #:parsex-cl/functional-interface/v1)
                     (:input #:parsex-cl/regex/input)
                     (:tokenizer #:parsex-cl/source-backed-tokenizer)
                     (:match #:parsex-cl/regex/match))
@@ -287,7 +296,7 @@
 
 (defpackage :parsex-cl/rdp/parser
   (:use #:cl)
-  (:local-nicknames (:func #:parsex-cl/functional-interface)
+  (:local-nicknames (:func-v1 #:parsex-cl/functional-interface/v1)
                     (:constr #:parsex-cl/rdp/grammar/constructs)
                     (:input #:parsex-cl/regex/input)
                     (:bt-tokenizer #:parsex-cl/backtracking-tokenizer))

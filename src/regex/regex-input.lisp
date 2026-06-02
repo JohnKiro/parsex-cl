@@ -1,6 +1,6 @@
 (in-package :parsex-cl/regex/input)
 
-(func:define-functional-interface input-source ()
+(func-v1:define-functional-interface input-source ()
   "Interface of operations that apply to regex input source."
   (source-empty-p
    ()
