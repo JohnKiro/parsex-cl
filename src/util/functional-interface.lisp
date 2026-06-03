@@ -167,7 +167,9 @@ which is in the same format as extracted from the body of the `define-functional
                                            (cons ,func-name ',accessor-name)))))
                 (let-slot-binding-forms
                   (delete nil let-slot-binding-forms-unfiltered)))
-           `(class-util:let-slots ,let-slot-binding-forms ,interface-object ,@body))))))
+           `(class-util:let-slots ,let-slot-binding-forms ,interface-object
+              ,@(cons `(declare (type ,',interface-name ,interface-object))
+                      body)))))))
 
 ;; TODO: consider optionally specifying naming for the functions, to ensure they are in same package as
 ;; the struct itself (e.g. in case interface name is specified with package (mypkg:my-func-interface),
