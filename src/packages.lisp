@@ -297,6 +297,7 @@
 (defpackage :parsex-cl/rdp/parser
   (:use #:cl)
   (:local-nicknames (:func-v1 #:parsex-cl/functional-interface/v1)
+                    (:func #:parsex-cl/functional-interface)
                     (:constr #:parsex-cl/rdp/grammar/constructs)
                     (:input #:parsex-cl/regex/input)
                     (:bt-tokenizer #:parsex-cl/backtracking-tokenizer))

@@ -33,6 +33,13 @@ anyway (typically coming from construct's first set)."
                                 :rem-sync-tokens-fn #'rem-sync-tokens
                                 :find-in-sync-tokens-fn #'find-in-sync-tokens))))
 
+(func:define-functional-interface parser-callbacks ()
+  "Interface for callback functions called by the parser."
+  (notify-parse-start (construct)
+                      :doc "Call notification function before parsing construct.")
+  (notify-parse-end (construct status result-details)
+                    :doc "Call notification function before parsing construct."  ))
+
 ;; FIXME: we depend on the fact that the OR element included its 1st set. Example: in (or int id), when
 ;; matching the INT token fails, and assuming the `*check-sync-tokens*` flag is active, then we'll find
 ;; ID in the sync list, and report :no-match, which will be understood by the OR construct as failure,
@@ -45,21 +52,23 @@ anyway (typically coming from construct's first set)."
 ;; without skipping here, and leave it to the upper construct to handle the error (OR, for example, would
 ;; rewind and try next branch).
 
-(defun parse-root (root-construct-obj tokenizer token-matching-fn notification-fn
+(defun parse-root (root-construct-obj tokenizer token-matching-fn parse-callbacks
                    &key resilience (seq-abort-on-first-failure t) (check-sync-tokens t)
                    &aux
                      (recursion-depth 0)
                      (sync-token-mgr (sync-tokens-manager-factory))
-                     (input-exhausted nil))
+                     (input-exhausted nil)
+                     notify-parse-start-fn
+                     notify-parse-end-fn)
   "Entry point for the parser, starting with the root construct `root-construct-obj`, recursively parsing
 it, and using a backtracking tokenizer implementation `tokenizer` to retrieve tokens from input source.
 The `token-matching-fn` is a predicate that matches expected token (1st arg) against actual tokens
 received from the regex machine (2nd arg). Implementations should return a truth value or NIL (in case no
 match).
-The `notification-fn` is funcalled to do any required processing (e.g. constructing parse tree), and
-it takes three arguments: the `construct-obj` object, the parsing status, and parsing result details,
-which is currently only used for token constructs (all other constructs need just a status, at least for
-now). TODO: actually need two callback functions: pre and post.
+The `parse-callbacks` parameter is a `parse-callbacks` interface containing callback functions that the
+parser calls at designated instants to do any required processing (e.g. constructing parse tree). For
+information about the arguments expected by each callback function, refer to the documentation of the
+`parse-callbacks`interface.
 `resilience` is a flag indicating whether the one-or-more/zero-or-more construct parsers should abort
 loop on first child's failure, or proceed with attempt to parse child over again. For these constructs
 also, tokenizer progress is checked, to avoid infinite loop in case of zero consumption (e.g.
@@ -73,12 +82,17 @@ are not matched. If set and token is found in sync list, then the token will be 
 tokenizer for the upper construct that is interested in it, else (if not found), then it will be
 skipped (since won't be interesting to any upper construct), else (if flag is not set), then error will
 returned without skipping."
+  (with-parser-callbacks (parse-callbacks :notify-parse-start notify-parse-start
+                                          :notify-parse-end notify-parse-end)
+    (setf notify-parse-start-fn notify-parse-start)
+    (setf notify-parse-end-fn notify-parse-end))
   (labels ((parse-construct (construct-obj)
              #+debug(format t "~&Start parsing construct ~a......~%" construct-obj)
              #+debug(format t "Tokenizer state before: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
              (when (> recursion-depth +max-parse-recursion-depth+)
                (error "Recursion protection activated: execution count reached ~a!" recursion-depth))
              (incf recursion-depth)
+             (notify-parse-start (:function-obj notify-parse-start-fn) construct-obj)
              (multiple-value-bind (status result-details)
                  (etypecase construct-obj
                    (constr:token-construct (parse-token-construct construct-obj))
@@ -87,11 +101,7 @@ returned without skipping."
                    (constr:one-or-more-construct (parse-one-or-more-construct construct-obj))
                    (constr:zero-or-more-construct (parse-zero-or-more-construct construct-obj))
                    (constr:zero-or-one-construct (parse-zero-or-one-construct construct-obj)))
-               (funcall notification-fn construct-obj status result-details)
-               ;; TODO: it might be useful to return whatever the notif function returns (which could be multiple
-               ;; values. This gives control to the client code, but one condition on the notif function, in order
-               ;; to preserve the parsing flow, is to include the `status` as the primary value (any other params
-               ;; could be added as secondary values)
+               (notify-parse-end (:function-obj notify-parse-end-fn) construct-obj status result-details)
                (decf recursion-depth)
                #+debug(format t "Tokenizer state after: ~a~%" (bt-tokenizer:dump-internal-state tokenizer))
                #+debug(format t "~&End parsing construct ~a.~%" construct-obj)

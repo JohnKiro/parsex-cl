@@ -25,31 +25,36 @@ arg), the parsing status (2nd arg), the token's text (for token constructs). In 
 accumulates an error log entry that includes the construct, status, last tokenization result, skipped
 tokenizations (if any).
 The `input-source` argument is used to retrieve the token's accumulated value (text).
-Note: when the closure is called with the first arg as NIL, it doesn't append any log entries, but
-rather, returns two values, including the accumulated log entries. This is how the logs are retrieved
-for testing and debugging."
+Note: when the parse end notification is called with the first arg as NIL, it doesn't append any log
+entries, but rather, returns two values, including the accumulated log entries. This is how the logs are
+retrieved for testing and debugging."
   (let (parsing-log error-log)
-    (lambda (construct-obj parsing-status maybe-token-construct-parsing-result)
-      (if construct-obj ; append log entry or dump log?
-          (let ((maybe-skipped-tokenizations-results
-                  (when maybe-token-construct-parsing-result
-                    (parser:skipped-tokens maybe-token-construct-parsing-result))))
-            (let ((log `(,construct-obj
-                         ,parsing-status
-                         ,@(when maybe-token-construct-parsing-result
-                             (input:retrieve-subrange input-source
-                                                      (parser:tokenizer-matched-tokens-indices
-                                                       maybe-token-construct-parsing-result))))))
-              (push log parsing-log)
-              nil)
-            (when (or (eq parsing-status :partial-failure)
-                      maybe-skipped-tokenizations-results)
-              (add-parsing-error-entry error-log
-                                       construct-obj
-                                       parsing-status
-                                       maybe-token-construct-parsing-result
-                                       maybe-skipped-tokenizations-results)))
-          (values (nreverse parsing-log) (nreverse error-log))))))
+    (parser::make-parser-callbacks
+     :notify-parse-start-fn
+     (lambda (construct-obj)
+       (list construct-obj 'nothing-for-now))
+     :notify-parse-end-fn
+     (lambda (construct-obj parsing-status maybe-token-construct-parsing-result)
+       (if construct-obj ; append log entry or dump log?
+           (let ((maybe-skipped-tokenizations-results
+                   (when maybe-token-construct-parsing-result
+                     (parser:skipped-tokens maybe-token-construct-parsing-result))))
+             (let ((log `(,construct-obj
+                          ,parsing-status
+                          ,@(when maybe-token-construct-parsing-result
+                              (input:retrieve-subrange input-source
+                                                       (parser:tokenizer-matched-tokens-indices
+                                                        maybe-token-construct-parsing-result))))))
+               (push log parsing-log)
+               nil)
+             (when (or (eq parsing-status :partial-failure)
+                       maybe-skipped-tokenizations-results)
+               (add-parsing-error-entry error-log
+                                        construct-obj
+                                        parsing-status
+                                        maybe-token-construct-parsing-result
+                                        maybe-skipped-tokenizations-results)))
+           (values (nreverse parsing-log) (nreverse error-log)))))))
 
 (defun %prepare-test-data-from-log-entry (parsing-log-entry)
   (destructuring-bind (construct-obj status . maybe-token-text) parsing-log-entry
@@ -105,7 +110,8 @@ is that the final parsing result is :ok."
                                              :check-sync-tokens check-sync-tokens)
                           expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
-        (multiple-value-bind (parsing-log error-log) (funcall sample-parser-notif-callback nil nil nil)
+        (multiple-value-bind (parsing-log error-log)
+            (parser::notify-parse-end (:parser-callbacks-obj sample-parser-notif-callback) nil nil nil)
           ;; dumps log, for visual inspection, and then could be fed back subsequently into the
           ;; expected-parsing-result parameter. The idea is that after first visual inspection, it serves
           ;; in subsequent (automated) regression tests. The error log is also dumped for inspection.
