@@ -158,7 +158,7 @@ which is in the same format as extracted from the body of the `define-functional
     (let* ((the-with-macro-name (prepend-prefix-to-symbol interface-name "WITH-"))
            (func-names (loop for imo in interface-metadata-objects
                              collect (slot-value imo '%func-name))))
-      `(defmacro ,the-with-macro-name (interface-object (&key ,@func-names) &body body)
+      `(defmacro ,the-with-macro-name ((interface-object &key ,@func-names) &body body)
          (let* ((let-slot-binding-forms-unfiltered
                   (list ,@(loop for imo in interface-metadata-objects
                                 for func-name in func-names
@@ -182,7 +182,7 @@ which is in the same format as extracted from the body of the `define-functional
 ;;              (:predicate cl-user::my-struct-p)
 ;;              (:copier cl-user::copy-my-struct))
 ;;  slot1 ...)
-(defmacro define-functional-interface (interface-name (&optional included-interface) &body body)
+(defmacro %define-functional-interface (interface-name (&optional included-interface) &body body)
   "Define a functional interface, composed of a struct containing function objects (closures), and a set
 of macros to provide the user with a simple interface to call those functions, using funcall, on the
 corresponding struct's slot.
@@ -199,37 +199,10 @@ directly, by passing the `function-obj` keyword parameter, or the macro can retr
 interface object, also passed as keyword argument. Priority is given to the function argument, and the
 interface object is used only if the function argument is not provided. If both are missing, an error
 will be thrown during macro invocation. Note that version 1 of the interface does not support passing the
-function object, and the interface object is passed as positional argument. Client code depending on
-ver 1 should use the corresponding package, which sets the dynamic variable `*interface-version*` to 1.
-Example usage:
-```
-(define-functional-interface spaceship ()
-  \"Spaceship for games.\"
-  (accelerate (rate) :doc \"Accelerate spaceship by `rate`.\")
-  (fire-missile (direction) :doc \"Fire missile in specified `direction`.\"))
-
-(define-functional-interface shielded-spaceship (spaceship)
-  \"Shielded spaceship for games.\"
-  (activate-shield (&key duration) :doc \"Activate shield for specific `duration` in seconds.\"))
-
-(let ((my-shielded-spaceship
-        (make-shielded-spaceship
-         :accelerate-fn (lambda (rate)
-                          (format t \"Accelerating by ~a..~%\" rate))
-         :fire-missile-fn (lambda (direction)
-                            (format t \"Firing in ~a direction..~%\" direction))
-         :activate-shield-fn (lambda (&key duration)
-                               (format t \"Activating shield for ~a seconds..~%\" duration)))))
-  (with-shielded-spaceship my-shielded-spaceship (:activate-shield activate-shield-func)
-    (with-spaceship my-shielded-spaceship (:accelerate accelerate-func :fire-missile fire-missile-func)
-      (activate-shield (:shielded-spaceship-obj my-shielded-spaceship) :duration 100)
-      (accelerate (:function-obj accelerate-func) 10)
-      (fire-missile (:spaceship-obj my-shielded-spaceship) 'north))))
-```
-Note in the previous example how we needed to use separate WITH- macro invocations for parent and child
-interfaces. A more sophisticated implementation would retrieve interface functions from parent, and
-providing them to the child's WITH-, but I prefer simplicity, which still works, though a bit more
-verbose (may reconsider in the future though)."
+function object, and the interface object is passed as positional argument. This macro is internal, and
+is used by wrapper public macros that set the version (`*interface-version*` variable) before expansion.
+The wrapper macro for version 2 is found in this package, while version 1 is handled in a separate
+package."
   (declare (type symbol interface-name included-interface))
   (multiple-value-bind (functions declarations interface-doc) (alex:parse-body body :documentation t)
     (when declarations
@@ -249,3 +222,44 @@ verbose (may reconsider in the future though)."
                 ,@(nreverse slots))
               ,(prepare-with-macro-definition interface-name interface-metadata-objects)
               ,@(prepare-funcall-macro-definitions interface-name interface-metadata-objects)))))
+
+(defmacro define-functional-interface (interface-name (&optional included-interface) &body body
+                                       &environment env)
+  "Define a functional interface, composed of a struct containing function objects (closures), and a set
+of macros to provide the user with a simple interface to call those functions, using funcall, on the
+corresponding struct's slot. For more details, refer to documentation of `%define-functional-interface`.
+Example usage:
+```
+(define-functional-interface spaceship ()
+  \"Spaceship for games.\"
+  (accelerate (rate) :doc \"Accelerate spaceship by `rate`.\")
+  (fire-missile (direction) :doc \"Fire missile in specified `direction`.\"))
+
+(define-functional-interface shielded-spaceship (spaceship)
+  \"Shielded spaceship for games.\"
+  (activate-shield (&key duration) :doc \"Activate shield for specific `duration` in seconds.\"))
+
+(let ((my-shielded-spaceship
+        (make-shielded-spaceship
+         :accelerate-fn (lambda (rate)
+                          (format t \"Accelerating by ~a..~%\" rate))
+         :fire-missile-fn (lambda (direction)
+                            (format t \"Firing in ~a direction..~%\" direction))
+         :activate-shield-fn (lambda (&key duration)
+                               (format t \"Activating shield for ~a seconds..~%\" duration)))))
+  (with-shielded-spaceship (my-shielded-spaceship :activate-shield activate-shield-func)
+    (with-spaceship (my-shielded-spaceship :accelerate accelerate-func :fire-missile fire-missile-func)
+      (activate-shield (:shielded-spaceship-obj my-shielded-spaceship) :duration 100)
+      (accelerate (:function-obj accelerate-func) 10)
+      (fire-missile (:spaceship-obj my-shielded-spaceship) 'north))))
+```
+Note in the previous example how we needed to use separate WITH- macro invocations for parent and child
+interfaces. A more sophisticated implementation would retrieve interface functions from parent, and
+providing them to the child's WITH-, but I prefer simplicity, which still works, though a bit more
+verbose (may reconsider in the future though)."
+  (let ((*interface-version* 2))
+    ;; ensure expansion in current context, with version = 1
+    (macroexpand-1 `(%define-functional-interface ,interface-name ,(when included-interface
+                                                                     (list included-interface))
+                      ,@body)
+                   env)))

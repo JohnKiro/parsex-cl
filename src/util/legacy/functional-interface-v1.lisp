@@ -33,7 +33,7 @@ Here is an example of usage (compare with the one given in the main file, for v2
                                        &environment env)
   (let ((func::*interface-version* 1))
     ;; ensure expansion in current context, with version = 1
-    (macroexpand-1 `(func:define-functional-interface ,interface-name ,(when included-interface
-                                                                         (list included-interface))
+    (macroexpand-1 `(func::%define-functional-interface ,interface-name ,(when included-interface
+                                                                           (list included-interface))
                       ,@body)
                    env)))
