@@ -171,24 +171,19 @@ which is in the same format as extracted from the body of the `define-functional
               ,@(cons `(declare (type ,',interface-name ,interface-object))
                       body)))))))
 
-;; TODO: consider optionally specifying naming for the functions, to ensure they are in same package as
-;; the struct itself (e.g. in case interface name is specified with package (mypkg:my-func-interface),
-;; in which case, the functions (make-... etc.) will be defined in current package, not 'mypkg'.
-;; example:
-;;
-;; (defstruct (cl-user::my-struct
-;;              (:conc-name cl-user::my-struct-)
-;;              (:constructor cl-user::make-my-struct)
-;;              (:predicate cl-user::my-struct-p)
-;;              (:copier cl-user::copy-my-struct))
-;;  slot1 ...)
-(defmacro %define-functional-interface (interface-name (&optional included-interface) &body body)
+(defmacro %define-functional-interface (interface-name (&key
+                                                          included-interface
+                                                          (conc-name nil conc-name-supplied-p)
+                                                          (predicate nil predicate-supplied-p))
+                                        &body body)
   "Define a functional interface, composed of a struct containing function objects (closures), and a set
 of macros to provide the user with a simple interface to call those functions, using funcall, on the
 corresponding struct's slot.
 Arguments:
 - `interface-name`: interface name, which will be given to the struct as a name.
-- `included-interface`: included struct (optional).
+- `included-interface`: included struct (option passed to defstruct's :include).
+- `conc-name`: overrides function slot name prefix (option passed to defstruct)
+- `predicate`: overrides struct type predicate name (option passed to defstruct)
 - `body`: definitions of the functions, each in the form (func-name lambda-list &key doc), where;
 - `func-name`:the function's name, which will be also used as a name for the corresponding macro.
 - `lambda-list`: the argument list, as will be expected by the macro.
@@ -203,7 +198,7 @@ function object, and the interface object is passed as positional argument. This
 is used by wrapper public macros that set the version (`*interface-version*` variable) before expansion.
 The wrapper macro for version 2 is found in this package, while version 1 is handled in a separate
 package."
-  (declare (type symbol interface-name included-interface))
+  (declare (type symbol interface-name included-interface conc-name predicate))
   (multiple-value-bind (functions declarations interface-doc) (alex:parse-body body :documentation t)
     (when declarations
       (error "Declarations are not allowed!"))
@@ -216,14 +211,24 @@ package."
       (dolist (imo interface-metadata-objects)
         (class-util:let-slots ((slot-name . func-slot-name)) imo
           (push `(,slot-name nil :type function) slots)))
-      `(progn (defstruct (,interface-name ,@(when included-interface
-                                              (list `(:include ,included-interface))))
+      `(progn (defstruct (,interface-name ,@(append
+                                             (when included-interface
+                                               `((:include ,included-interface)))
+                                             (when conc-name-supplied-p
+                                               `((:conc-name ,conc-name)))
+                                             (when predicate-supplied-p
+                                               `((:predicate ,predicate)))))
                 ,@(when interface-doc (list interface-doc))
                 ,@(nreverse slots))
               ,(prepare-with-macro-definition interface-name interface-metadata-objects)
               ,@(prepare-funcall-macro-definitions interface-name interface-metadata-objects)))))
 
-(defmacro define-functional-interface (interface-name (&optional included-interface) &body body
+(defmacro define-functional-interface (interface-name (&whole options
+                                                       &key
+                                                         (conc-name nil conc-name-supplied-p)
+                                                         (predicate nil predicate-supplied-p)
+                                                         included-interface)
+                                       &body body
                                        &environment env)
   "Define a functional interface, composed of a struct containing function objects (closures), and a set
 of macros to provide the user with a simple interface to call those functions, using funcall, on the
@@ -257,9 +262,9 @@ Note in the previous example how we needed to use separate WITH- macro invocatio
 interfaces. A more sophisticated implementation would retrieve interface functions from parent, and
 providing them to the child's WITH-, but I prefer simplicity, which still works, though a bit more
 verbose (may reconsider in the future though)."
+  (declare (ignorable conc-name conc-name-supplied-p predicate predicate-supplied-p included-interface))
   (let ((*interface-version* 2))
     ;; ensure expansion in current context, with version = 1
-    (macroexpand-1 `(%define-functional-interface ,interface-name ,(when included-interface
-                                                                     (list included-interface))
+    (macroexpand-1 `(%define-functional-interface ,interface-name ,options
                       ,@body)
                    env)))
