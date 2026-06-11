@@ -19,6 +19,36 @@
            :skipped-tokenizations-log ,,skipped-tokenizations-log)
          ,error-log))
 
+
+(defstruct (parsed-construct-node (:conc-name node-))
+  "Parent abstract node."
+  (construct nil :type (or null constr:grammar-construct))
+  (parsing-status nil :type (or keyword null)))
+
+(defstruct (parsed-single-child-construct-node (:include parsed-construct-node)
+                                               (:conc-name single-child-node-))
+  (child nil :type (or null parsed-construct-node)))
+
+(defstruct (parsed-compound-construct-node (:include parsed-construct-node)
+                                           (:conc-name compound-node-))
+  (children (make-array 10 :element-type '(or null parsed-construct-node)
+                           :initial-element nil
+                           :adjustable t
+                           :fill-pointer 0)
+   :type (or null (array parsed-construct-node))))
+
+(defstruct (parsed-token-node (:include parsed-construct-node)
+                              (:conc-name token-node-))
+  (parsing-result nil :type parser::token-construct-parsing-result))
+
+(defun add-child (parent child)
+  (declare (type parsed-construct-node parent child))
+  (etypecase parent
+    (parsed-compound-construct-node (vector-push-extend child (compound-node-children parent)))
+    (parsed-single-child-construct-node (if #1=(single-child-node-child parent)
+                                            (error "Construct already has its child set! Bug?")
+                                            (setf #1# child)))))
+
 (defun sample-parser-notif-callback-factory (input-source)
   "Create a parser callback closure, that accumulates a log entry for each parsed construct (1st
 arg), the parsing status (2nd arg), the token's text (for token constructs). In case of error, it also
@@ -28,33 +58,64 @@ The `input-source` argument is used to retrieve the token's accumulated value (t
 Note: when the parse end notification is called with the first arg as NIL, it doesn't append any log
 entries, but rather, returns two values, including the accumulated log entries. This is how the logs are
 retrieved for testing and debugging."
-  (let (parsing-log error-log)
-    (parser::make-parser-callbacks
-     :notify-parse-start-fn
-     (lambda (construct-obj)
-       (list construct-obj 'nothing-for-now))
-     :notify-parse-end-fn
-     (lambda (construct-obj parsing-status maybe-token-construct-parsing-result)
-       (if construct-obj ; append log entry or dump log?
-           (let ((maybe-skipped-tokenizations-results
-                   (when maybe-token-construct-parsing-result
-                     (parser:skipped-tokens maybe-token-construct-parsing-result))))
-             (let ((log `(,construct-obj
-                          ,parsing-status
-                          ,@(when maybe-token-construct-parsing-result
-                              (input:retrieve-subrange input-source
-                                                       (parser:tokenizer-matched-tokens-indices
-                                                        maybe-token-construct-parsing-result))))))
-               (push log parsing-log)
-               nil)
-             (when (or (eq parsing-status :partial-failure)
-                       maybe-skipped-tokenizations-results)
-               (add-parsing-error-entry error-log
-                                        construct-obj
-                                        parsing-status
-                                        maybe-token-construct-parsing-result
-                                        maybe-skipped-tokenizations-results)))
-           (values (nreverse parsing-log) (nreverse error-log)))))))
+  (declare (optimize (speed 0) (debug 3)))
+  (let ((parsing-log nil)
+        (error-log nil)
+        (root-node nil)
+        (parsing-stack nil))
+    (flet ((notify-parse-start-fn (construct-obj)
+             (declare (optimize (speed 0) (debug 3)))
+             (let ((new-node (etypecase construct-obj
+                               (constr:token-construct nil)
+                               (constr:zero-or-one-construct
+                                (make-parsed-single-child-construct-node :construct construct-obj))
+                               (constr:grammar-construct
+                                (make-parsed-compound-construct-node :construct construct-obj)))))
+               (when new-node
+                 (when parsing-stack
+                   (add-child (car parsing-stack) new-node))
+                 (push new-node parsing-stack))))
+           (notify-parse-end-fn (construct-obj parsing-status maybe-token-construct-parsing-result)
+             (declare (optimize (speed 0) (debug 3)))
+             ;; building parsing tree, added after notification interface was added
+             (etypecase construct-obj
+               (null nil) ;the overloaded use of this func with NIL constr obj, just to dump (I hate it!)
+               (constr:token-construct
+                (let ((token-node (make-parsed-token-node
+                                   :construct construct-obj
+                                   :parsing-status parsing-status
+                                   :parsing-result maybe-token-construct-parsing-result)))
+                  (if parsing-stack
+                      (add-child (car parsing-stack) token-node)
+                      (push token-node parsing-stack))))
+               (t (let ((current-node (pop parsing-stack)))
+                    (setf (node-parsing-status current-node) parsing-status)
+                    (unless parsing-stack
+                      (setf root-node current-node)))))
+             ;; original stuff (TODO: tidy up, remove redundancy later)
+             (if construct-obj ; append log entry or dump log?
+                 (let ((maybe-skipped-tokenizations-results
+                         (when maybe-token-construct-parsing-result
+                           (parser:skipped-tokens maybe-token-construct-parsing-result))))
+                   (let ((log `(,construct-obj
+                                ,parsing-status
+                                ,@(when maybe-token-construct-parsing-result
+                                    (input:retrieve-subrange input-source
+                                                             (parser:tokenizer-matched-tokens-indices
+                                                              maybe-token-construct-parsing-result))))))
+                     (push log parsing-log)
+                     nil)
+                   (when (or (eq parsing-status :partial-failure)
+                             maybe-skipped-tokenizations-results)
+                     (add-parsing-error-entry error-log
+                                              construct-obj
+                                              parsing-status
+                                              maybe-token-construct-parsing-result
+                                              maybe-skipped-tokenizations-results)))
+                 (values (nreverse parsing-log) (nreverse error-log) root-node))))
+      (parser::make-parser-callbacks
+       :notify-parse-start-fn #'notify-parse-start-fn
+       :notify-parse-end-fn #'notify-parse-end-fn))))
 
 (defun %prepare-test-data-from-log-entry (parsing-log-entry)
   (destructuring-bind (construct-obj status . maybe-token-text) parsing-log-entry
@@ -110,7 +171,7 @@ is that the final parsing result is :ok."
                                              :check-sync-tokens check-sync-tokens)
                           expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
-        (multiple-value-bind (parsing-log error-log)
+        (multiple-value-bind (parsing-log error-log root-node)
             (parser::notify-parse-end (:parser-callbacks-obj sample-parser-notif-callback) nil nil nil)
           ;; dumps log, for visual inspection, and then could be fed back subsequently into the
           ;; expected-parsing-result parameter. The idea is that after first visual inspection, it serves
@@ -122,9 +183,11 @@ is that the final parsing result is :ok."
             (terpri)
             (princ "Error log:")
             (print error-log)
-            (terpri))
-          (when expected-parsing-result
-            (check-log parsing-log expected-parsing-result)))))))
+            (terpri)
+            (princ "Root node:")
+            (print root-node)
+            (when expected-parsing-result
+              (check-log parsing-log expected-parsing-result))))))))
 
 (fiveam:test parser-test
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
