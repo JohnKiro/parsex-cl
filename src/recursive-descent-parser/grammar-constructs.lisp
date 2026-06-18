@@ -19,6 +19,15 @@
            :initform (error "Must specify a token upon construction!")
            :reader token)))
 
+(defmethod initialize-instance ((construct token-construct) &key token)
+  (with-slots ((constr-id %construct-id)
+               (tok %token)
+               (first-set %first-set))
+      construct
+    (setf constr-id token
+          tok token
+          first-set (list token))))
+
 (defclass single-construct-wrapper (grammar-construct)
   ((%child-construct :initarg :child-construct
                      :initform nil
@@ -95,7 +104,8 @@ for now, as I'm going in the direction of PEG and Packrat."))
   (compute-first-set (child-construct g)))
 
 (defmethod compute-first-set ((g token-construct))
-  (list (token g)))
+  ;; computed and set upon construction
+  (slot-value g '%first-set))
 
 (defmethod compute-first-set ((g (eql :epsilon)))
   (list :epsilon))

@@ -16,7 +16,7 @@ just a symbol that was inadvertently interned in the package."
 (defun create-grammar-construct (construct-tag &optional construct-id)
   "Given construct tag (symbol, one of: OR, SEQ, ?, *, +), creates corresponding object. The symbol
 does not need to be in the DSL package, since the function uses `find-tag-dsl-package`.
-Note that it initializes only the optional construct ID slot, which is initialized to rule ID/token ID.
+Note that it initializes only the optional construct ID slot, which is initialized to rule ID.
 The construct ID is optional because inner (unnamed) constructs have no ID.
 Other slots will be initialized afterwards, using adequate setter."
   (make-instance (ecase (find-tag-dsl-package construct-tag)
@@ -67,7 +67,6 @@ convenience, a hash table mapping each rule ID to corresponding construct object
         (grammar-table (make-hash-table)))
     (labels ((store (row-id row-value)
                "Low-level grammar table update function. It also checks for duplicate entries."
-               #+nil(break "Adding entry to grammar table: key = ~a, value = ~a..~%" row-id row-value)
                (if #1=(gethash row-id grammar-table)
                    (error "Duplicate row (token/rule) ~a detected!" row-id)
                    (setf #1# row-value)))
@@ -75,16 +74,16 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                "Add entry for grammar item in question, whether token or grammar rule."
                (alexandria:destructuring-ecase grammar-form
                  ;; it's a token, => insert it in hash table as it is (key = value = token id)
-                 ;; TODO: later, may be better to use a wrapper class (i.e. a token class)
                  ((dsl:token token-id _)
                   (declare (ignorable _))
-                  (let ((tok-constr (make-instance 'constr:token-construct :token token-id
-                                                                           :construct-id token-id)))
-                    (constr::initialize-first-set tok-constr)
+                  (let ((tok-constr (make-instance 'constr:token-construct :token token-id)))
                     (store token-id tok-constr)))
-                 ((dsl:rule rule-id (rule-key . _))
-                  (declare (ignorable _))
-                  (store rule-id (create-grammar-construct rule-key rule-id)))))
+                 ((dsl:rule rule-id rule-details)
+                  (let ((rule-obj
+                          (etypecase rule-details
+                            (symbol (retrieve-construct rule-details))
+                            (cons (create-grammar-construct (car rule-details) rule-id)))))
+                    (store rule-id rule-obj)))))
              (initialize-grammar-table ()
                "Initialize grammar table with entry per rule/token, mapping id -> construct object."
                #+nil(declare (optimize (debug 3) (speed 0)))

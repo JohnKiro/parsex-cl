@@ -919,3 +919,33 @@ also test one-or-more with resilience flag activated, in order to test finding a
                                             (constr:sequence-construct root :ok)))))
 
 
+(fiveam:test parser-test-10
+  "Demonstrates grammar rules referring to other rules rather than specifying a construct (I may call
+this aliasing. Note how the alias ID (statement) disappears, and only expr is seen in the result. "
+  (declare (optimize (debug 3) (speed 0)))
+  (parser-test :grammar '((token id "const")
+                          (token num "12345")
+                          (token assign #\=)
+                          (token semicolon #\;)
+                          (rule expr (seq id assign num semicolon))
+                          (rule statement expr)
+                          (rule root (+ statement)))
+               :text (concatenate 'string
+                                  "const=12345;"
+                                  "const=12345;")
+               :expected-parsing-result '((constr:token-construct id :ok "const")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct num :ok "12345")
+                                          (constr:token-construct semicolon :ok ";")
+                                          (constr:sequence-construct expr :ok)
+                                          ;(constr:sequence-construct statement :ok)
+                                          (constr:token-construct id :ok "const")
+                                          (constr:token-construct assign :ok "=")
+                                          (constr:token-construct num :ok "12345")
+                                          (constr:token-construct semicolon :ok ";")
+                                          (constr:sequence-construct expr :ok)
+                                          ;(constr:sequence-construct statement :ok)
+                                          (constr:token-construct id :regex-not-matched)
+                                          (constr:sequence-construct expr :complete-failure)
+                                          (constr:one-or-more-construct root :ok))))
+;;TODO: TEST
