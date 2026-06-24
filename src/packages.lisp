@@ -292,7 +292,11 @@
                     (:constr #:parsex-cl/rdp/grammar/constructs)
                     (:regex-sexp :parsex-cl/regex/sexp)
                     (:tok-core :parsex-cl/tokenizer-core))
-  (:export #:parse-grammar))
+  (:export #:parse-grammar
+           #:token
+           #:rule
+           #:grammar
+           #:define-grammar))
 
 (defpackage :parsex-cl/rdp/parser
   (:use #:cl)

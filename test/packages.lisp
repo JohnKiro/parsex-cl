@@ -68,7 +68,8 @@
                     (:tokenizer #:parsex-cl/source-backed-tokenizer)
                     (:bt-tokenizer #:parsex-cl/backtracking-tokenizer)
                     (:parser #:parsex-cl/rdp/parser)
-                    (:constr #:parsex-cl/rdp/grammar/constructs)))
+                    (:constr #:parsex-cl/rdp/grammar/constructs)
+                    (:g #:parsex-cl/rdp/grammar/sexp)))
 
 (defpackage :parsex-cl.test/chars.test
   (:use #:cl

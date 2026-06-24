@@ -157,7 +157,7 @@ for exch, and tokenized text for each token). When not provided (or provided as 
 is that the final parsing result is :ok."
   (let ((*print-case* :downcase))
     (multiple-value-bind (root-grammar-constr tokenizer-core-dfa _)
-        (parsex-cl/rdp/grammar/sexp:parse-grammar grammar grammar-start-rule)
+        (parsex-cl/rdp/grammar/sexp:parse-grammar grammar :start-rule grammar-start-rule)
       (declare (ignorable _))
       (let* ((input (input:create-basic-regex-input text))
              (underlying-tokenizer (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input))
@@ -921,15 +921,17 @@ also test one-or-more with resilience flag activated, in order to test finding a
 
 (fiveam:test parser-test-10
   "Demonstrates grammar rules referring to other rules rather than specifying a construct (I may call
-this aliasing. Note how the alias ID (statement) disappears, and only expr is seen in the result. "
+this aliasing. Note how the alias ID (statement) disappears, and only expr is seen in the result. Also
+changed the grammar definition, to use the new DSL grammar macro."
   (declare (optimize (debug 3) (speed 0)))
-  (parser-test :grammar '((token id "const")
-                          (token num "12345")
-                          (token assign #\=)
-                          (token semicolon #\;)
-                          (rule expr (seq id assign num semicolon))
-                          (rule statement expr)
-                          (rule root (+ statement)))
+  (parser-test :grammar (g:grammar
+                          (g:token id "const")
+                          (g:token num "12345")
+                          (g:token assign #\=)
+                          (g:token semicolon #\;)
+                          (g:rule expr (seq id assign num semicolon))
+                          (g:rule statement expr)
+                          (g:rule root (+ statement)))
                :text (concatenate 'string
                                   "const=12345;"
                                   "const=12345;")

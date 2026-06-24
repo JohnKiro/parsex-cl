@@ -1,7 +1,13 @@
 (in-package :parsex-cl/rdp/grammar/sexp)
 
-(defconstant +dsl-package+ :parsex-cl/rdp/grammar/sexp/dsl)
-(defparameter +construct-tags+ '(dsl:or dsl:seq dsl:? dsl:* dsl:+))
+(defparameter +dsl-package+ (find-package :dsl))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter +construct-tags+ '(dsl:or dsl:seq dsl:? dsl:* dsl:+))
+  (defun construct-tag-p (sym)
+    (member sym +construct-tags+)))
+
+(deftype construct-tag () '(satisfies construct-tag-p))
 
 (defun find-tag-dsl-package (dsl-tag)
   "Check whether tag specified with `dsl-tag` is valid, i.e. found in grammar DSL package. The argument
@@ -56,15 +62,19 @@ token forms pass through unchanged (except for the TOKEN tag, which belongs to g
 ;; TODO: better grammar syntax verification and error reporting
 ;; TODO: detect (and reject or fix) grammar having left-recursive rules
 ;; TODO: may be generic?
-(defun parse-grammar (grammar &optional (start-rule :root))
+(defun parse-grammar (grammar &key (start-rule :root) (normalized-p nil))
   "Parses grammar in sexp form `grammar` (for now, it is something similar to EBNF/PEG, to be refined
-later), and produces a corresponding graph of construct objects. `start-rule` identifies the parsing root
-element. Returns three values: the construct object for the `start-rule`, the tokenizer core, and for
-convenience, a hash table mapping each rule ID to corresponding construct object. Note that we choose
-:root as default start rule, i.e. a keyword, which is a sensible default package."
+later), and produces a corresponding graph of construct objects. The grammar is optionally normalized, to
+ensure the grammar vocab is in the DSL package. If the `normalize-p` flag is set, the function assumes
+the input grammar to be already normalized.
+`start-rule` identifies the parsing root element.
+Returns three values: the construct object for the `start-rule`, the tokenizer core, and for convenience,
+a hash table mapping each rule ID to corresponding construct object.
+Note that we choose :root as default start rule, i.e. a keyword, which is a sensible default package."
   (declare (optimize (debug 3) (speed 0)))
-  (let ((grammar (normalize-grammar grammar))
-        (grammar-table (make-hash-table)))
+  (unless normalized-p
+    (setf grammar (normalize-grammar grammar)))
+  (let ((grammar-table (make-hash-table)))
     (labels ((store (row-id row-value)
                "Low-level grammar table update function. It also checks for duplicate entries."
                (if #1=(gethash row-id grammar-table)
@@ -134,3 +144,20 @@ convenience, a hash table mapping each rule ID to corresponding construct object
                    (dsl:rule  (process-rule-form (retrieve-construct g-id) g-contents))))
         (let ((tokenizer-core (funcall tokenizer-core-build-fn)))
           (values (retrieve-construct start-rule) tokenizer-core grammar-table))))))
+
+(defmacro token (token-id regex-form)
+  "User interface macro to define a grammar token element."
+  `(dsl:token ,token-id ,regex-form))
+
+(defmacro rule (rule-id rule-form)
+  "User interface macro to define a grammar rule element."
+  `(dsl:rule ,rule-id ,rule-form))
+
+(defmacro grammar (&body grammar-forms)
+  "User interface macro to define grammar, in normalized form (vocab in DSL package)."
+  `(normalize-grammar ',grammar-forms))
+
+(defmacro define-grammar ((&key (start-rule :root)) &body grammar-forms)
+  "User interface macro to parse and generate grammar. Returns three values returned by `parse-grammar`:
+the construct object for the `start-rule`, the tokenizer core, and rule mapping hash table."
+  `(parse-grammar (grammar ,@grammar-forms) :start-rule ',start-rule :normalized-p t))
