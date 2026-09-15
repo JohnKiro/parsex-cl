@@ -113,8 +113,6 @@ of the backtracking index (analysis and testing will show whether it's sufficien
                backtracking-index)
              (compare-positions (position-older position-newer)
                "Compare two positions along the progression of the tokenizer."
-               (format t "Comparing older (previous) ~a with newer (current) ~a..~%"
-                       position-older position-newer)
                (cond
                  ((< position-older position-newer) :progress)
                  ((= position-older position-newer) :no-progress)

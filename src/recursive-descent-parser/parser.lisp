@@ -163,8 +163,6 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                        (progn
                          (when (and (not input-exhausted) (eq tokenization-status :input-exhausted))
                            (setf input-exhausted t))
-                         (format t "~%No token returned, tokenizer status: ~a.~%"
-                                 tokenization-status)
                          ;; TOOD: consider adding a flag to loop till get a token, in case the
                          ;; status is regex not matched (note that here we catch also input
                          ;; exhausted case)

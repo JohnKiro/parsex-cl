@@ -56,6 +56,7 @@ state) `tokenizer-core`, and applying test assertions provided in the `body`."
 a source-backed tokenizer). Also tests input exhaustion (no more input for tokenization to work)."
   ((*sample-tokenizer-core* *sample-input-text*)
    (tokenizer input))
+  (declare (ignorable input))
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'assign-op)
   (match-and-check tokenizer 'id)
@@ -74,6 +75,7 @@ rewinding to backtracking points. Note that I haven't yet settled on the return 
 unmark / rewind functions, and may change them later (so this TC should be updated accordingly then)."
   ((*sample-tokenizer-core* *sample-input-text*)
    (tokenizer input))
+  (declare (ignorable input))
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'assign-op)
   (match-and-check tokenizer 'id)
@@ -102,6 +104,7 @@ unmark / rewind functions, and may change them later (so this TC should be updat
   "Backtracking tokenizer test, covering error handling during rewinding and unmarking."
   ((*sample-tokenizer-core* *sample-input-text*)
    (tokenizer input))
+  (declare (ignorable input))
   (match-and-check tokenizer 'id)
   (match-and-check tokenizer 'assign-op)
   (match-and-check tokenizer 'id)

@@ -71,7 +71,6 @@ the input grammar to be already normalized.
 Returns three values: the construct object for the `start-rule`, the tokenizer core, and for convenience,
 a hash table mapping each rule ID to corresponding construct object.
 Note that we choose :root as default start rule, i.e. a keyword, which is a sensible default package."
-  (declare (optimize (debug 3) (speed 0)))
   (unless normalized-p
     (setf grammar (normalize-grammar grammar)))
   (let ((grammar-table (make-hash-table)))
@@ -83,7 +82,6 @@ Note that we choose :root as default start rule, i.e. a keyword, which is a sens
              (add-grammar-element-to-table (grammar-form)
                "Add entry for grammar item in question, whether token or grammar rule."
                (alexandria:destructuring-ecase grammar-form
-                 ;; it's a token, => insert it in hash table as it is (key = value = token id)
                  ((dsl:token token-id _)
                   (declare (ignorable _))
                   (let ((tok-constr (make-instance 'constr:token-construct :token token-id)))
@@ -96,7 +94,6 @@ Note that we choose :root as default start rule, i.e. a keyword, which is a sens
                     (store rule-id rule-obj)))))
              (initialize-grammar-table ()
                "Initialize grammar table with entry per rule/token, mapping id -> construct object."
-               #+nil(declare (optimize (debug 3) (speed 0)))
                (dolist (grammar-form grammar)
                  (add-grammar-element-to-table grammar-form)))
              (retrieve-construct (row-id)
@@ -160,4 +157,4 @@ Note that we choose :root as default start rule, i.e. a keyword, which is a sens
 (defmacro define-grammar ((&key (start-rule :root)) &body grammar-forms)
   "User interface macro to parse and generate grammar. Returns three values returned by `parse-grammar`:
 the construct object for the `start-rule`, the tokenizer core, and rule mapping hash table."
-  `(parse-grammar (grammar ,@grammar-forms) :start-rule ',start-rule :normalized-p t))
+  `(parse-grammar ',grammar-forms :start-rule ',start-rule :normalized-p nil))

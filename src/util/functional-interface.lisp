@@ -1,8 +1,8 @@
 (in-package :parsex-cl/functional-interface)
 
 (declaim (type (integer 1 2) *interface-version*))
-(defparameter *interface-version* 2 "With version 2, the macro accepts function object as argument.legacy
-code would use 1.")
+(defparameter *interface-version* 2 "With version 2, the macro accepts function object as argument.
+Legacy code would use 1.")
 
 (eval-when (:compile-toplevel :execute :load-toplevel)
   (defun append-suffix-to-symbol (sym suffix)
