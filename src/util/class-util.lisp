@@ -77,6 +77,48 @@ reading the slot over and over (e.g. in tight loops)."
                collect `(,slot-var (,slot-reader ,obj)))
      ,@body))
 
+(defmacro define-let-slots-for-class (class-name (&rest slot-keys-and-readers))
+  "Defines a LET-X-SLOTS macro for class `class-name`, which enhances the `let-slots` user
+interface, by giving a hint for the user about the supported slots, which will appear as keyword
+arguments.
+Each element in `slot-keys-and-readers` should be a list in the form (key slot-reader). The
+slot-reader must match the class slot readers. See next example.
+Example usage (assuming an RGB class is defined with slot readers `rgb-red`, `rgb-green`, `rgb-blue`):
+(define-let-slots-for-class rgb ((r rgb-red) (g rgb-green) (b rgb-blue)))
+This would define a `let-rgb-slots` macro that can be used as follows:
+(let-rgb-slots my-color (:r rr :g gg :b bb)
+  (list 'color-components-are rr gg bb))"
+  (let ((macro-name (intern (concatenate 'string "LET-" (string class-name) "-SLOTS")))
+        (slot-keys (mapcar #'first slot-keys-and-readers)))
+    `(defmacro ,macro-name (obj (&key ,@slot-keys) &body body)
+       `(let-slots ,(remove nil (list ,@(loop for (key reader) in slot-keys-and-readers
+                                                   collect `(when ,key (cons ,key ',reader)))))
+            ,obj
+          ,@body))))
+
+;; the following macro has exactly same structure as the previous one, except for the generated macro
+;; name, and also `list` is used instead of `cons` in the generated body of `with-accessors`.
+;; TODO: may change LET-SLOTS from dotted pair into normal pair, to avoid this, and to allow extract
+;; common code into a single macro (or function?).
+(defmacro define-with-slot-accessors-for-class (class-name (&rest slot-keys-and-readers))
+  "Defines a WITH-X-ACCESSORS macro for class `class-name`, which enhances the `with-accessors` user
+interface, by giving a hint for the user about the supported slots, which will appear as keyword
+arguments. This macro also allows to export only the generated macro, rather than all the slot readers.
+Each element in `slot-keys-and-readers` should be a list in the form (key slot-reader). The
+slot-reader must match the class slot readers. See next example.
+Example usage (assuming an RGB class is defined with slot readers `rgb-red`, `rgb-green`, `rgb-blue`):
+(define-with-slot-accessors-for-class rgb ((r rgb-red) (g rgb-green) (b rgb-blue)))
+This would define a `with-rgb-accessors` macro that can be used as follows:
+(with-rgb-accessors my-color (:r rr :g gg :b bb)
+  (list 'color-components-are rr gg bb))"
+  (let ((macro-name (intern (concatenate 'string "WITH-" (string class-name) "-ACCESSORS")))
+        (slot-keys (mapcar #'first slot-keys-and-readers)))
+    `(defmacro ,macro-name (obj (&key ,@slot-keys) &body body)
+       `(with-accessors ,(remove nil (list ,@(loop for (key reader) in slot-keys-and-readers
+                                                   collect `(when ,key (list ,key ',reader)))))
+            ,obj
+          ,@body))))
+
 (defmacro with-function-slots-funcall-macros ((&rest macro-names-and-slot-readers) obj &body body)
   "Macro that defines local macros that expand to FUNCALLing function slots in provided object
 `obj`, to be available in `body`. The `macro-names-and-slot-readers` argument is a list of elements

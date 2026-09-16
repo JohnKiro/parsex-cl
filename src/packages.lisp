@@ -22,6 +22,8 @@
            #:define-class-of-functions-constructor
            #:define-class-of-functions-with-constructor
            #:let-slots
+           #:define-let-slots-for-class
+           #:define-with-slot-accessors-for-class
            #:with-function-slots-funcall-macros))
 
 (defpackage :parsex-cl/functional-interface
