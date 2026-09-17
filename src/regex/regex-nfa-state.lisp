@@ -179,8 +179,8 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
  characters. NFA states argument should be a list of normal transitions."
   (declare (type list nfa-states))
   (multiple-value-bind (iter-fn get-result-fn) (elm:make-char-range-splitting-points-extractor)
-    (do-normal-transitions (_ state _) nfa-states
-      (funcall iter-fn state))
+    (do-normal-transitions (_ element _) nfa-states
+      (funcall iter-fn element))
     (funcall get-result-fn)))
 
 ;;;TODO: REFACTOR (e.g. extract normalized transition table as abstract data type)
