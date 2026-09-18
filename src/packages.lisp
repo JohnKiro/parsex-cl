@@ -123,10 +123,14 @@
 
 (defpackage :parsex-cl/regex/nfa/transition
   (:use #:cl)
-  (:local-nicknames (:elm #:parsex-cl/regex/element))
+  (:local-nicknames (:elm #:parsex-cl/regex/element)
+                    (:class-util #:parsex-cl/class-util))
   (:export #:nfa-transition
            #:element
-           #:next-state))
+           #:next-state
+           #:with-nfa-transition-accessors
+           #:let-nfa-transition-slots
+           ))
 
 (defpackage :parsex-cl/regex/nfa/state
   (:use #:cl)

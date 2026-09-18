@@ -117,25 +117,17 @@ traversal lookup. This is a helper function."
 
 ;; TODO: considering creating a more general and flexible traversal macro, replacing even the
 ;; FSM traversal generic method
-(defmacro do-normal-transitions ((transition-var
-                                  element-reader-name-var
-                                  next-state-reader-name-var) list-of-states &body body)
+(defmacro do-normal-transitions (transition-var list-of-states &body body)
   "Iterate on normal transitions of a list of states (typically a state closure or a state closure
-union, exposing in each iteration the transition object, as well as accessors for the transition's
-element and next state.
-TODO: may consider passing the name vars as keywords, since I may not always be interested in all
-exposed variables, and wish to access only some of them. However, there is no cost in declaring
-variables that won't be used in the body (since `with-accessors` just defines symbol macros).
-TODO: may (also) define another macro that takes a single state, and compute its closure first,
+union), exposing in each iteration the transition object as `transition-var`.
+TODO: may define another macro that takes a single state, and compute its closure first,
 before iterating on closure's normal transitions. Such macro might be called
 `do-closure-normal-transitions`.
 TODO: THINK ALSO ABOUT ANY-CHAR TRANSITIONS!"
   (alexandria:with-gensyms (nfa-state)
     `(dolist (,nfa-state ,list-of-states)
        (dolist (,transition-var (normal-transitions ,nfa-state))
-         (with-accessors ((,element-reader-name-var trans:element)
-                          (,next-state-reader-name-var trans:next-state)) ,transition-var
-           ,@body)))))
+         ,@body))))
 
 (defmacro with-split-element ((element split-element-var splitting-points) &body body)
   "Analyze the `element` and splits it if necessary, according to `splitting-points`. The split element
@@ -179,8 +171,9 @@ states is dead-end. See also `terminal-nfa-closure-union-p`."
  characters. NFA states argument should be a list of normal transitions."
   (declare (type list nfa-states))
   (multiple-value-bind (iter-fn get-result-fn) (elm:make-char-range-splitting-points-extractor)
-    (do-normal-transitions (_ element _) nfa-states
-      (funcall iter-fn element))
+    (do-normal-transitions trans nfa-states
+      (trans:let-nfa-transition-slots trans (:element element)
+        (funcall iter-fn element)))
     (funcall get-result-fn)))
 
 ;;;TODO: REFACTOR (e.g. extract normalized transition table as abstract data type)
@@ -199,9 +192,10 @@ overlaps. Each element could be single char or char range."
                  (vector-push-extend next-state arr)
                  (unless entry
                    (push (cons element arr) assoc-list)))))
-      (do-normal-transitions (_ element next-state) nfa-state-closure-union
-        (with-split-element (element e splitting-points)
-          (add-trans e next-state)))
+      (do-normal-transitions trans nfa-state-closure-union
+        (trans:let-nfa-transition-slots trans (:element element :next-state next-state)
+          (with-split-element (element e splitting-points)
+            (add-trans e next-state))))
       assoc-list)))
 
 ;;; TODO: this function is candidate to be transformed into a generic traversal, with flexibility

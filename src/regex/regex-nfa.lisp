@@ -147,12 +147,13 @@ this one from now on."
               (let ((splitting-pts (state:collect-char-range-splitting-points closure))
                     (split-elements nil))
                 #+debug(format t "Splitting points: ~s.~&" splitting-pts)
-                (state:do-normal-transitions (_ element next-state) closure
-                  ;; check to avoid inverting an inverted element (not sure if this is possible, but
-                  ;; maybe in NFAs having complex closures, due to recursion)
-                  (unless (eq next-state glue-state)
-                    (state:with-split-element (element e splitting-pts)
-                      (push e split-elements))))
+                (state:do-normal-transitions trans closure
+                  (trans:let-nfa-transition-slots trans (:element element :next-state next-state)
+                    ;; check to avoid inverting an inverted element (not sure if this is possible, but
+                    ;; maybe in NFAs having complex closures, due to recursion)
+                    (unless (eq next-state glue-state)
+                      (state:with-split-element (element e splitting-pts)
+                        (push e split-elements)))))
                 (loop for inv-elem in (elm:invert-elements
                                        (elm:sort-simple-elements split-elements))
                       do (state:add-nfa-normal-transition state inv-elem glue-state))))
@@ -160,8 +161,9 @@ this one from now on."
             (dolist (s closure)
               (add-inversion-transitions s)))
         ;; traverse normal transitions
-        (state:do-normal-transitions (trans elm next-state) closure
-          (add-inversion-transitions next-state))))
+        (state:do-normal-transitions trans closure
+          (trans:let-nfa-transition-slots trans (:next-state next-state)
+            (add-inversion-transitions next-state)))))
     ;; connect the NOT element to the rest of the NFA
     output-state))
 

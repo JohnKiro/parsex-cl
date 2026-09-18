@@ -24,6 +24,12 @@
         (error "Invalid transition element type for transition ~a. Expecting ~a, got ~a!"
                transition required-element-type %element)))))
 
+(class-util:define-let-slots-for-class nfa-transition ((element element)
+                                                       (next-state next-state)))
+
+(class-util:define-with-slot-accessors-for-class nfa-transition ((element element)
+                                                                 (next-state next-state)))
+
 (defparameter *verbose-printing* nil "Enable/disable verbose object printing.")
 
 (defmethod print-object ((object nfa-transition) stream)
