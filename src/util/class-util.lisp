@@ -69,11 +69,11 @@ created. This would typically be the case when some of the functions take argume
 ;; note that it doesn't use slot-value but rather slot reader, so it doesn't even use
 ;; implementation-specific struct slot access.
 (defmacro let-slots ((&rest vars-and-slot-readers) obj &body body)
-  "Macro receiving a list of elements in the form (slot-var . slot-reader), and expanding into code
+  "Macro receiving a list of elements in the form (slot-var slot-reader), and expanding into code
 that LET-binds each slot value (by calling `slot-reader`) to corresponding `slot-var`, around
 `body`. This is useful in cases where the slots are not modified, and we want to avoid the cost of
 reading the slot over and over (e.g. in tight loops)."
-  `(let ,(loop for (slot-var . slot-reader) in vars-and-slot-readers
+  `(let ,(loop for (slot-var slot-reader) in vars-and-slot-readers
                collect `(,slot-var (,slot-reader ,obj)))
      ,@body))
 
@@ -92,14 +92,12 @@ This would define a `let-rgb-slots` macro that can be used as follows:
         (slot-keys (mapcar #'first slot-keys-and-readers)))
     `(defmacro ,macro-name (obj (&key ,@slot-keys) &body body)
        `(let-slots ,(remove nil (list ,@(loop for (key reader) in slot-keys-and-readers
-                                                   collect `(when ,key (cons ,key ',reader)))))
             ,obj
           ,@body))))
+                                                   collect `(when ,key (list ,key ',reader)))))
 
 ;; the following macro has exactly same structure as the previous one, except for the generated macro
-;; name, and also `list` is used instead of `cons` in the generated body of `with-accessors`.
-;; TODO: may change LET-SLOTS from dotted pair into normal pair, to avoid this, and to allow extract
-;; common code into a single macro (or function?).
+;; name, and for the expansion into `with-accessors` instead of `let-slots`.
 (defmacro define-with-slot-accessors-for-class (class-name (&rest slot-keys-and-readers))
   "Defines a WITH-X-ACCESSORS macro for class `class-name`, which enhances the `with-accessors` user
 interface, by giving a hint for the user about the supported slots, which will appear as keyword

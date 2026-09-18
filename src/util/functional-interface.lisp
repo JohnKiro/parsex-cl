@@ -126,11 +126,11 @@ which is in the same format as extracted from the body of the `define-functional
              (type list interface-metadata-objects))
     (let ((macro-defs nil))
       (dolist (imo interface-metadata-objects)
-        (class-util:let-slots ((func-name . func-name)
-                               (slot-accessor-name . func-slot-accessor-name)
-                               (lambda-list .  func-lambda-list-raw)
-                               (arg-list . func-lambda-list-form)
-                               (docstring . func-doc))
+        (class-util:let-slots ((func-name func-name)
+                               (slot-accessor-name func-slot-accessor-name)
+                               (lambda-list func-lambda-list-raw)
+                               (arg-list func-lambda-list-form)
+                               (docstring func-doc))
                               imo
           (let* ((interface-name-arg (append-suffix-to-symbol interface-name "-OBJ"))
                  (complete-lambda-list (case *interface-version*
@@ -164,7 +164,7 @@ which is in the same format as extracted from the body of the `define-functional
                                 for func-name in func-names
                                 for accessor-name = (slot-value imo '%func-slot-accessor-name)
                                 collect `(when ,func-name
-                                           (cons ,func-name ',accessor-name)))))
+                                           (list ,func-name ',accessor-name)))))
                 (let-slot-binding-forms
                   (delete nil let-slot-binding-forms-unfiltered)))
            `(class-util:let-slots ,let-slot-binding-forms ,interface-object
@@ -209,7 +209,7 @@ package."
                                                                :function func))
                                               functions)))
       (dolist (imo interface-metadata-objects)
-        (class-util:let-slots ((slot-name . func-slot-name)) imo
+        (class-util:let-slots ((slot-name func-slot-name)) imo
           (push `(,slot-name nil :type function) slots)))
       `(progn (defstruct (,interface-name ,@(append
                                              (when included-interface
