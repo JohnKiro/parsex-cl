@@ -10,6 +10,7 @@
 (setf fiveam:*on-error* :debug)
 
 (defparameter *dump-parsing-log* nil "Flag to control dumping the generated parsing log during tests.")
+
 (defparameter *parsing-error-registry* nil
   "This is where I'll record parsing errors, for visual inspection while analyzing and debugging.")
 
@@ -173,6 +174,8 @@ is that the final parsing result is :ok."
         ;; call with NIL arg, just to get final parsing log
         (multiple-value-bind (parsing-log error-log root-node)
             (parser::notify-parse-end (:parser-callbacks-obj sample-parser-notif-callback) nil nil nil)
+          (when expected-parsing-result
+            (check-log parsing-log expected-parsing-result))
           ;; dumps log, for visual inspection, and then could be fed back subsequently into the
           ;; expected-parsing-result parameter. The idea is that after first visual inspection, it serves
           ;; in subsequent (automated) regression tests. The error log is also dumped for inspection.
@@ -185,9 +188,7 @@ is that the final parsing result is :ok."
             (print error-log)
             (terpri)
             (princ "Root node:")
-            (print root-node)
-            (when expected-parsing-result
-              (check-log parsing-log expected-parsing-result))))))))
+            (print root-node)))))))
 
 (fiveam:test parser-test
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
@@ -852,36 +853,38 @@ also test one-or-more with resilience flag activated, in order to test finding a
                  :text (concatenate 'string
                                     "100+=20=120;"
                                     "22+33=55;#$%^")
-                 :check-sync-tokens '((constr:token-construct int :ok "100")
-                                      (constr:token-construct add-op :ok "+")
-                                      (constr:token-construct int :no-match "=")
-                                      (constr:token-construct assign :ok "=")
-                                      (constr:token-construct int :ok "20")
-                                      (constr:token-construct semicolon :no-match "120")
-                                      (constr:sequence-construct equality :partial-failure)
-                                      (constr:token-construct int :ok "120")
-                                      (constr:token-construct add-op :no-match ";")
-                                      (constr:token-construct int :no-match ";")
-                                      (constr:token-construct assign :no-match ";")
-                                      (constr:token-construct int :no-match ";")
-                                      (constr:token-construct semicolon :ok ";")
-                                      (constr:sequence-construct equality :partial-failure)
-                                      (constr:token-construct int :ok "22")
-                                      (constr:token-construct add-op :ok "+")
-                                      (constr:token-construct int :ok "33")
-                                      (constr:token-construct assign :ok "=")
-                                      (constr:token-construct int :ok "55")
-                                      (constr:token-construct semicolon :ok ";")
-                                      (constr:sequence-construct equality :ok)
-                                      ;; TODO: better to skip these ones in the token construct itself
-                                      (constr:token-construct int :regex-not-matched)
-                                      (constr:token-construct add-op :regex-not-matched)
-                                      (constr:token-construct int :regex-not-matched)
-                                      (constr:token-construct assign :regex-not-matched)
-                                      (constr:token-construct int :regex-not-matched)
-                                      (constr:token-construct semicolon :input-exhausted)
-                                      (constr:sequence-construct equality :complete-failure)
-                                      (constr:one-or-more-construct root :ok)))))
+                 :expected-parsing-result '((constr:token-construct int :ok "100")
+                                            (constr:token-construct add-op :ok "+")
+                                            (constr:token-construct int :no-match "=")
+                                            (constr:token-construct assign :ok "=")
+                                            (constr:token-construct int :ok "20")
+                                            (constr:token-construct semicolon :no-match "120")
+                                            (constr:sequence-construct equality :partial-failure)
+                                            (constr:token-construct int :ok "120")
+                                            (constr:token-construct add-op :no-match ";")
+                                            (constr:token-construct int :no-match ";")
+                                            (constr:token-construct assign :no-match ";")
+                                            (constr:token-construct int :no-match ";")
+                                            (constr:token-construct semicolon :ok ";")
+                                            (constr:sequence-construct equality :partial-failure)
+                                            (constr:token-construct int :ok "22")
+                                            (constr:token-construct add-op :ok "+")
+                                            (constr:token-construct int :ok "33")
+                                            (constr:token-construct assign :ok "=")
+                                            (constr:token-construct int :ok "55")
+                                            (constr:token-construct semicolon :ok ";")
+                                            (constr:sequence-construct equality :ok)
+                                            ;; TODO: better to skip these ones in the token construct
+                                            ;; itself
+                                            (constr:token-construct int :regex-not-matched)
+                                            (constr:token-construct add-op :regex-not-matched)
+                                            (constr:token-construct int :regex-not-matched)
+                                            (constr:token-construct assign :regex-not-matched)
+                                            (constr:token-construct int :regex-not-matched)
+                                            (constr:token-construct semicolon :input-exhausted)
+                                            (constr:sequence-construct equality :complete-failure)
+                                            (constr:one-or-more-construct root :ok))
+                 :check-sync-tokens t)))
 
 (fiveam:test parser-test-9
   "Simple test focusing on checking progress during a repeating construct (avoiding infinite loop)."
