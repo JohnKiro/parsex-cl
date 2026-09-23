@@ -51,3 +51,14 @@ appends it to internal token sequence."
 generates and returns corresponding DFA machine."
                (prepare-tokenizer-dfa token-elements)))
       (values #'add-token-element #'build))))
+
+;; A functional interface would be nicer, for better auto-completion - keeping this for now
+(defmacro with-tokenizer-core-builder ((add-token build) &body body)
+  (alexandria:with-gensyms (add-token-fn build-fn)
+    `(multiple-value-bind (,add-token-fn ,build-fn)
+         (make-tokenizer-core-builder)
+       (macrolet ((,add-token (token-id regex-element)
+                    `(funcall ,',add-token-fn ,token-id ,regex-element))
+                  (,build ()
+                    `(funcall ,',build-fn)))
+         ,@body))))

@@ -233,7 +233,8 @@
   (:export #:token
            #:tokens
            #:tokenizer
-           #:make-tokenizer-core-builder))
+           #:make-tokenizer-core-builder
+           #:with-tokenizer-core-builder))
 
 (defpackage :parsex-cl/tokenizer/sexp
   (:use #:cl)

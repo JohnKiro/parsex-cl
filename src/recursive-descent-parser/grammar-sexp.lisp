@@ -132,14 +132,12 @@ Note that we choose :root as default start rule, i.e. a keyword, which is a sens
       ;; note that we initialize the table beforehand since rules may refer to other rules that appear
       ;; later in the grammar.
       (initialize-grammar-table)
-      (multiple-value-bind (tokenizer-core-add-token-fn tokenizer-core-build-fn)
-          (tok-core:make-tokenizer-core-builder)
+      (tok-core:with-tokenizer-core-builder (add-token-to-core build-tokenizer-core)
         (loop for (g-tag g-id g-contents) in grammar
               do (ecase g-tag
-                   (dsl:token (funcall tokenizer-core-add-token-fn g-id
-                                       (regex-sexp:prepare-regex-tree g-contents)))
+                   (dsl:token (add-token-to-core g-id (regex-sexp:prepare-regex-tree g-contents)))
                    (dsl:rule  (process-rule-form (retrieve-construct g-id) g-contents))))
-        (let ((tokenizer-core (funcall tokenizer-core-build-fn)))
+        (let ((tokenizer-core (build-tokenizer-core)))
           (values (retrieve-construct start-rule) tokenizer-core grammar-table))))))
 
 (defmacro token (token-id regex-form)
