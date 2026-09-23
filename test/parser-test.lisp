@@ -154,12 +154,10 @@ also refer to the included test cases for examples."
   "Prepares and executes parsing test, for a specific grammar `grammar` (in sexp form, for now), input
 text `text`, and given optional expected parsing result `expected-parsing-result`, which serves to test
 not only the final parsing status, but the progress of parsing (sequence of constructs, expected status
-for exch, and tokenized text for each token). When not provided (or provided as NIL), the only test done
+for each, and tokenized text for each token). When not provided (or provided as NIL), the only test done
 is that the final parsing result is :ok."
   (let ((*print-case* :downcase))
-    (multiple-value-bind (root-grammar-constr tokenizer-core-dfa _)
-        (parsex-cl/rdp/grammar/sexp:parse-grammar grammar :start-rule grammar-start-rule)
-      (declare (ignorable _))
+    (g::with-grammar (root-grammar-constr tokenizer-core-dfa) (grammar grammar-start-rule)
       (let* ((input (input:create-basic-regex-input text))
              (underlying-tokenizer (tokenizer:create-source-backed-tokenizer tokenizer-core-dfa input))
              (bt-tokenizer (bt-tokenizer:create-backtracking-tokenizer underlying-tokenizer input))

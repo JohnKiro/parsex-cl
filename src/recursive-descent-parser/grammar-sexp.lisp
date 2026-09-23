@@ -154,7 +154,10 @@ Note that we choose :root as default start rule, i.e. a keyword, which is a sens
   "User interface macro to define grammar, in normalized form (vocab in DSL package)."
   `(normalize-grammar ',grammar-forms))
 
-(defmacro define-grammar ((&key (start-rule :root)) &body grammar-forms)
-  "User interface macro to parse and generate grammar. Returns three values returned by `parse-grammar`:
-the construct object for the `start-rule`, the tokenizer core, and rule mapping hash table."
-  `(parse-grammar ',grammar-forms :start-rule ',start-rule :normalized-p nil))
+(defmacro with-grammar ((grammar-root-obj tokenizer-core &optional grammar-table) (grammar start-rule)
+                        &body body)
+  "User interface macro to parse and generate grammar. It provides the grammar root object,tokenizer
+core, and rule mapping hash table for the body, in a lexical scope."
+    `(multiple-value-bind (,grammar-root-obj ,tokenizer-core ,@(when grammar-table (list grammar-table)))
+       (parse-grammar ,grammar :start-rule ,start-rule :normalized-p nil)
+     ,@body))
