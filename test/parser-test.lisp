@@ -149,8 +149,7 @@ also refer to the included test cases for examples."
   (mapcar #'check-log-entry parsing-log expected-parsing-log))
 
 (defun parser-test (&key grammar text (expected-final-parsing-status :ok) expected-parsing-result
-                      (check-sync-tokens nil) (grammar-start-rule 'root) (resilience nil)
-                      (seq-abort-on-first-failure t))
+                      (check-sync-tokens nil) (grammar-start-rule 'root) (resilience nil))
   "Prepares and executes parsing test, for a specific grammar `grammar` (in sexp form, for now), input
 text `text`, and given optional expected parsing result `expected-parsing-result`, which serves to test
 not only the final parsing status, but the progress of parsing (sequence of constructs, expected status
@@ -166,7 +165,6 @@ is that the final parsing result is :ok."
                                              #'parser:token-matches-p
                                              sample-parser-notif-callback
                                              :resilience resilience
-                                             :seq-abort-on-first-failure seq-abort-on-first-failure
                                              :check-sync-tokens check-sync-tokens)
                           expected-final-parsing-status))
         ;; call with NIL arg, just to get final parsing log
@@ -187,6 +185,7 @@ is that the final parsing result is :ok."
             (terpri)
             (princ "Root node:")
             (print root-node)))))))
+
 
 (fiveam:test parser-test
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
@@ -259,7 +258,8 @@ grammar."
                             (rule statement (seq id assign mul-expr semicolon))
                             (rule statement-block (seq statement (* statement)))
                             (rule root (seq statement-block eot)))
-                 :seq-abort-on-first-failure nil
+                 :grammar-start-rule 'statement-block
+                 :resilience t
                  :text (concatenate 'string
                                     "id1=id2*3;"
                                     "id11=id22*33;")
@@ -308,18 +308,17 @@ grammar."
                    ;; the zero-or-one above caused the report to be partial failure, not complete failure
                    (constr:sequence-construct statement :partial-failure)
                    ;; z-o-m handles the seq failure gracefully even though it's partial failure.
-                   ;; normally should behave like this only on complete failure. I think I need two
-                   ;; thinkgs: treat :input-exhausted specially (abort regardless of flag),
-                   ;; and also may need to detect case of partial failure when the succeeded children
+                   ;; normally should behave like this only on complete failure. TODO: I think may need
+                   ;; to detect case of partial failure when the succeeded children
                    ;; did not consume any thing (such as the zero-or-one in this grammar)
                    (constr:zero-or-more-construct nil :ok)
-                   (constr:sequence-construct statement-block :ok)
-                   (constr:token-construct eot :ok "")
-                   (constr:sequence-construct root :ok)))))
+                   (constr:sequence-construct statement-block :ok)))))
+                   ;; since resilience is set, the above zero-or-more did not rewind, hence we'd get
+                   ;; input-exhausted status, if we keep the EOT (which is now removed).
 
 (fiveam:test parser-test-2
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
-grammar. This one is identical to previous one, except that it uses one-or-more instead of seq +
+grammar. This one is identical to parser-test, except that it uses one-or-more instead of seq +
 zero-or-more (to test that construct as well)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
@@ -845,7 +844,6 @@ also test one-or-more with resilience flag activated, in order to test finding a
                             (token semicolon #\;)
                             (rule equality (seq int add-op int assign int semicolon))
                             (rule root (+ equality)))
-                 :seq-abort-on-first-failure nil
                  :resilience t
                  :grammar-start-rule 'root
                  :text (concatenate 'string
@@ -891,7 +889,6 @@ also test one-or-more with resilience flag activated, in order to test finding a
                             (token end "$")
                             (rule silly-nums (+ (seq (* int) (? (+ int)) (or (* int) (+ int)))))
                             (rule root (seq silly-nums end)))
-                 :seq-abort-on-first-failure nil
                  :resilience t
                  :text "$"
                  :check-sync-tokens t

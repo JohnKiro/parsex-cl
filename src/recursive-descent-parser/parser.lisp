@@ -27,7 +27,7 @@ an empty hash table, and returns a struct holding pointers to the operations (ad
 from tokenizer, in the form of array rather than a list. I'm planning to convert the above into array
 anyway (typically coming from construct's first set)."
                (loop for tok across tokens
-                     when (> (gethash tok sync-tokens) 0)
+                     when (> (gethash tok sync-tokens 0) 0)
                        return t)))
       (make-sync-tokens-manager :add-sync-tokens-fn #'add-sync-tokens
                                 :rem-sync-tokens-fn #'rem-sync-tokens
@@ -53,8 +53,9 @@ anyway (typically coming from construct's first set)."
 ;; rewind and try next branch).
 
 (defun parse-root (root-construct-obj tokenizer token-matching-fn parse-callbacks
-                   &key resilience (seq-abort-on-first-failure t) (check-sync-tokens t)
+                   &key resilience (check-sync-tokens t)
                    &aux
+                     (seq-abort-on-first-failure (not resilience))
                      (recursion-depth 0)
                      (sync-token-mgr (sync-tokens-manager-factory))
                      (input-exhausted nil)
@@ -74,9 +75,9 @@ loop on first child's failure, or proceed with attempt to parse child over again
 also, tokenizer progress is checked, to avoid infinite loop in case of zero consumption (e.g.
 child failure, or even successfully matching a zero-length string. In such cases, the construct parsing
 would abort anyway, regardless of the resilience flag.
-`seq-abort-on-first-failure` is a flag indicating whether the seq construct parser should abort on first
-failure (same purpose as resilience, but with inverted meaning), or proceed with attempt to parse all
-remaining children. TODO: TO BE MERGED INTO RESILIENCE, AND ALLOWING OVERRIDING PER CONSTRUCT IN GRAMMAR.
+The same flag is also used by the seq construct parser, to decide to either abort on first failure (if
+NIL), or proceed with attempt to parse all remaining children.
+TODO: ALLOWING OVERRIDING PER CONSTRUCT IN GRAMMAR.
 `check-sync-tokens` flag is used by parser for token constructs, to check in sync list for tokens that
 are not matched. If set and token is found in sync list, then the token will be put back into the
 tokenizer for the upper construct that is interested in it, else (if not found), then it will be
@@ -197,7 +198,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                    (if a-child-failed
                        :partial-failure
                        :ok)
-                   :complete-failure)))
+                   :complete-failure))) ;; TODO: shouldn't we split case child failed/not?
            (parse-or-construct (construct-obj)
              (loop for child across (constr:child-constructs construct-obj)
                    do (add-sync-tokens sync-token-mgr (constr:first-set child)))
@@ -232,10 +233,11 @@ Note that any inner errors will be reported by the inner constructs themselves."
                        ;; we check progress: if no progress, then unmark and return. This saves the need
                        ;; for the get-current-backtracking-position operation, but it could be useful op
                        ;; anyway, if we need to get progress without marking.
-                       (when (and prev-position
-                                  (eq (bt-tokenizer:compare-positions tokenizer prev-position
-                                                                      curr-position)
-                                      :no-progress))
+                       (when (or input-exhausted
+                                 (and prev-position
+                                      (eq (bt-tokenizer:compare-positions tokenizer prev-position
+                                                                          curr-position)
+                                          :no-progress)))
                          (return :ok))
                        (bt-tokenizer:mark-backtracking-position tokenizer child)
                        (setf status (parse-construct child))
