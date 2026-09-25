@@ -16,9 +16,9 @@ used in case some tokens are pending in the backtracking buffer, otherwise, the 
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
 the token accumulated slice indices, as a pair: (tokens . slice-indices).
 Returns next token(s) and slice indices as a pair.
-Note that calling it successively returns the same result, unless a call to another state-changing
-function (e.g. `advance`) intervenes. In case it receives an error from the underlying tokenizer,
-it returns NIL as a primary value, and a status as a secondary value, indicating the error.")
+Note that calling it successively would return successive tokens. In case it receives an error from the
+underlying tokenizer,it returns NIL as a primary value, and a status as a secondary value, indicating the
+error.")
   (put-back-tokens
    ()
    :doc "Put back tokens retrieved by last call to `get-tokens`.")
@@ -30,7 +30,7 @@ implementation. The only requirement is to have compatibility with the `compare-
   (compare-positions
    (position-older position-newer)
    :doc "Compares between the two backtracking positions `position-older` and `position-newer`, which
-both are expected to be retrieveng using `get-current-backtracking-position`, typically to check whether
+both are expected to be retrieved using `get-current-backtracking-position`, typically to check whether
 the tokenizer has progressed between the two points. Implementations should support the following
 possible return values: :progress (older position precedes newer position), :no-progress (older position
 is same as newer position).")
@@ -69,8 +69,7 @@ dumping internal state as a p-list (for testing/debugging)."
                "Retrieve next token(s) from either source or backtracking buffer. The backtracking
 buffer is used in case some tokens are pending in the backtracking buffer, otherwise, the source is used.
 In the second case, the retrieved token(s) are also appended to the backtracking buffer, together with
-the token accumulated slice indices. Note that calling it successively returns the same result, unless
-a call to another state-changing function (e.g. `advance`) intervenes.
+the token accumulated slice indices. Note that calling it successively would return successive tokens.
 When there is failure, it returns NIL, and a secondary value to describe the specific error (see cases
 2 and 3 below).
 Here are the identified special cases coming from the underlying tokenizer:
