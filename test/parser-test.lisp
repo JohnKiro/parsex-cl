@@ -252,12 +252,10 @@ grammar."
                             (token *-op #\*)
                             (token assign #\=)
                             (token semicolon #\;)
-                            (token eot "") ;;TODO: HANDLE!!!
                             (rule factor (or id int))
                             (rule mul-expr (seq factor (? (seq *-op factor))))
                             (rule statement (seq id assign mul-expr semicolon))
-                            (rule statement-block (seq statement (* statement)))
-                            (rule root (seq statement-block eot)))
+                            (rule statement-block (seq statement (* statement))))
                  :grammar-start-rule 'statement-block
                  :resilience t
                  :text (concatenate 'string
@@ -290,8 +288,8 @@ grammar."
                    (constr:sequence-construct mul-expr :ok)
                    (constr:token-construct semicolon :ok ";")
                    (constr:sequence-construct statement :ok)
-                   (constr:token-construct id :no-match "")
-                   ;; rather than aborting here, statment seq proceeds with next child
+                   (constr:token-construct id :regex-not-matched)
+                   ;; rather than aborting here, statement seq proceeds with next child
                    ;; alas! next child (assign) gets empty input, due to "advance on no match" input flag
                    (constr:token-construct assign :input-exhausted)
                    (constr:token-construct id :input-exhausted)
