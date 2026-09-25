@@ -102,7 +102,7 @@ predicate to check before reading at an invalid index."
                    (values t :exhausted)
                    (let ((remaining (- total-length reading-position)))
                      (cond
-                       ((zerop remaining) (setf exhausted t))
+                       ((zerop remaining) (setf exhausted t) t)
                        ((minusp remaining) (setf exhausted t) (values t :exhausted))
                        (t nil)))))
              (remaining-length ()
