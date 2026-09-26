@@ -327,4 +327,5 @@ When this element is accepted, the token will be provided with the acceptance ou
 
 (defun prepare-tokenizer-root-element (token-elements)
   "Creates a tokenizer root element, given a vector of token definitions."
+  (declare (type (vector token-holder-element *) token-elements))
   (make-instance 'or-element :elements token-elements))

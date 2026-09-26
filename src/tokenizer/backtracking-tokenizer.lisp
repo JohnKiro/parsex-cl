@@ -61,6 +61,8 @@ to each token. The implementation supports backtracking by keeping a buffer of a
 well as a stack of backtracking markers. The returned tokenizer object supports operations to retrieve
 next token (without advancing), advance tokenizer, mark and unmark/rewind backtracking position, and
 dumping internal state as a p-list (for testing/debugging)."
+  (declare (type function underlying-tokenizer)
+           (type input:input-source input-source))
   #+nil(declare (optimize (debug 0) (speed 3)))
   (let ((backtracking-buffer (make-array 100 :adjustable t :fill-pointer 0))
         (backtracking-markers nil)

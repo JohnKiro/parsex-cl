@@ -6,6 +6,7 @@
 
 (defun prepare-tokenizer-dfa (token-elements)
   "Creates a tokenizer DFA tree, given a vector of token definitions, and returns the DFA's start state."
+  (declare (type (vector elm:token-holder-element *) token-elements))
   (regex-core:make-regex-machine-core (elm:prepare-tokenizer-root-element token-elements)))
 
 (defmacro token (token-id regex-element)
@@ -41,6 +42,7 @@ It provides two functions, returned as two values (in order):
 internal token elements' sequence.
 - builder function, that finalizes the build and returns the tokenizer core."
   (let ((token-elements (make-array 100 :adjustable t :fill-pointer 0)))
+    (declare (type (vector elm:token-holder-element *) token-elements))
     (labels ((add-token-element (token-id regex-element)
                "Creates a token holder element, given corresponding token id and regex element, and
 appends it to internal token sequence."

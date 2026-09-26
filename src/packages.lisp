@@ -59,7 +59,7 @@
   (:use #:cl #:iterate)
   (:local-nicknames (:class-util #:parsex-cl/class-util)
                     (:func-v1 #:parsex-cl/functional-interface/v1))
-  (:export #:basic-regex-input
+  (:export #:input-source
            #:source-empty-p
            #:remaining-length
            #:read-next-item
@@ -245,6 +245,7 @@
 (defpackage :parsex-cl/source-backed-tokenizer
   (:use #:cl)
   (:local-nicknames (:match #:parsex-cl/regex/match)
+                    (:input #:parsex-cl/regex/input)
                     (:dfa #:parsex-cl/regex/dfa))
   (:export #:create-source-backed-tokenizer))
 

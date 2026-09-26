@@ -27,6 +27,8 @@
 `root-dfa-state`, and returns a result structure of type regex-matching-result`, including matching
 status and matched token(s). In case the input is already exhausted, the result is NIL, and a secondary
 value is returned (:input-exhausted)."
+  (declare (type input:input-source input-source)
+           (type dfa:dfa-state root-dfa-state))
   (labels ((prepare-result (dfa-state)
              "Prepare result based on `dfa-state`. Note that if dfa-state is NIL, then no match."
              ;;putting this here since we need to call it when scanning is terminated
