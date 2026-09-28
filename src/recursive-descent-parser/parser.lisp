@@ -58,7 +58,6 @@ anyway (typically coming from construct's first set)."
                      (seq-abort-on-first-failure (not resilience))
                      (recursion-depth 0)
                      (sync-token-mgr (sync-tokens-manager-factory))
-                     (input-exhausted nil)
                      notify-parse-start-fn
                      notify-parse-end-fn)
   "Entry point for the parser, starting with the root construct `root-construct-obj`, recursively parsing
@@ -75,8 +74,8 @@ loop on first child's failure, or proceed with attempt to parse child over again
 also, tokenizer progress is checked, to avoid infinite loop in case of zero consumption (e.g.
 child failure, or even successfully matching a zero-length string. In such cases, the construct parsing
 would abort anyway, regardless of the resilience flag.
-The same flag is also used by the seq construct parser, to decide to either abort on first failure (if
-NIL), or proceed with attempt to parse all remaining children.
+The resilience flag is also used by the seq construct parser, to decide to either abort on first failure
+(if NIL), or proceed with attempt to parse all remaining children.
 TODO: ALLOWING OVERRIDING PER CONSTRUCT IN GRAMMAR.
 `check-sync-tokens` flag is used by parser for token constructs, to check in sync list for tokens that
 are not matched. If set and token is found in sync list, then the token will be put back into the
@@ -129,10 +128,6 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                              (if check-sync-tokens
                                  (if (find-in-sync-tokens sync-token-mgr actual-tokens)
                                      (progn
-                                       ;; alternatively, need to move this logic to tok
-                                       #+debug
-                                       (format t "No match, token(s) ~a found in sync list, returning..~%"
-                                               actual-tokens)
                                        (bt-tokenizer:put-back-tokens tokenizer)
                                        (return
                                          (values :no-match ;TODO: consider something such as :token-not-consumed
@@ -143,16 +138,9 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                                   :tokenizer-matched-tokens-indices acc-indices
                                                   :skipped-tokens (nreverse skipped-tokens)))))
                                      (progn
-                                       #+debug
-                                       (format t (concatenate 'string
-                                                              "No match, token(s) ~a NOT in sync list, "
-                                                              "skipped and checking next token.~%")
-                                               actual-tokens)
                                        (push tok-and-indices skipped-tokens)))
                                  (progn
                                    ;; not checking sync list, rather, returning token error to parent.
-                                   #+debug
-                                   (format t "No match, token(s) ~a.~%" actual-tokens)
                                    (return
                                      (values :no-match ;TODO: consider something such as :invalid-token
                                              (make-instance
@@ -162,11 +150,9 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                               :tokenizer-matched-tokens-indices acc-indices
                                               :skipped-tokens (nreverse skipped-tokens))))))))
                        (progn
-                         (when (and (not input-exhausted) (eq tokenization-status :input-exhausted))
-                           (setf input-exhausted t))
                          ;; TOOD: consider adding a flag to loop till get a token, in case the
                          ;; status is regex not matched (note that here we catch also input
-                         ;; exhausted case)
+                         ;; exhausted case as :regex-not-matched)
                          (return
                            (values tokenization-status
                                    (make-instance 'token-construct-parsing-result
@@ -233,11 +219,10 @@ Note that any inner errors will be reported by the inner constructs themselves."
                        ;; we check progress: if no progress, then unmark and return. This saves the need
                        ;; for the get-current-backtracking-position operation, but it could be useful op
                        ;; anyway, if we need to get progress without marking.
-                       (when (or input-exhausted
-                                 (and prev-position
-                                      (eq (bt-tokenizer:compare-positions tokenizer prev-position
-                                                                          curr-position)
-                                          :no-progress)))
+                       (when (and prev-position
+                                  (eq (bt-tokenizer:compare-positions tokenizer prev-position
+                                                                      curr-position)
+                                      :no-progress))
                          (return :ok))
                        (bt-tokenizer:mark-backtracking-position tokenizer child)
                        (setf status (parse-construct child))

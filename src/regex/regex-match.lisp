@@ -18,6 +18,14 @@
   (status nil :type (member :regex-matched :regex-not-matched nil))
   (tokens nil))
 
+(class-util:define-let-slots-for-class regex-matching-result
+    ((status regex-matching-result-status)
+     (tokens regex-matching-result-tokens)))
+
+(class-util:define-with-slot-accessors-for-class regex-matching-result
+    ((status regex-matching-result-status)
+     (tokens regex-matching-result-tokens)))
+
 (defun regex-matched-p (regex-matching-result)
   "Returns true if `regex-matching-result` indicates matching success."
   (eq (regex-matching-result-status regex-matching-result) :regex-matched))
@@ -25,12 +33,11 @@
 (defun match-regex (input-source root-dfa-state &aux (last-candidate-terminal-dfa nil))
   "Matches input text from input source `input-source` against regex specified by its root DFA state
 `root-dfa-state`, and returns a result structure of type regex-matching-result`, including matching
-status and matched token(s). In case the input is already exhausted, the result is NIL, and a secondary
-value is returned (:input-exhausted)."
+status and matched token(s)."
   (declare (type input:input-source input-source)
            (type dfa:dfa-state root-dfa-state))
   (labels ((prepare-result (dfa-state)
-             "Prepare result based on `dfa-state`. Note that if dfa-state is NIL, then no match."
+             "Prepare result based on `dfa-state` (NIL indicates no match)."
              ;;putting this here since we need to call it when scanning is terminated
              ;;TODO: either rename label (to be more meaningful, or move this elsewhere)
              (input:notify-match-termination input-source)
@@ -52,14 +59,8 @@ value is returned (:input-exhausted)."
                      (let* ((next-ch (input:read-next-item input-source))
                             (dest-dfa-state (dfa:find-matching-transition origin-dfa-state next-ch)))
                        (if dest-dfa-state
+                           (transit dest-dfa-state)
                            (progn
-                             (input:advance-reading-position input-source)
-                             (transit dest-dfa-state))
-                           (prepare-result last-candidate-terminal-dfa)))))))
-    ;; differentiate between input empty and input already exhausted, to give indication to caller, in
-    ;; order to avoid infinite loop
-    (multiple-value-bind (empty-p exhausted-p) (input:source-empty-p input-source)
-      (declare (ignorable empty-p))
-      (if exhausted-p
-          (values nil :input-exhausted)
-          (transit root-dfa-state)))))
+                             (input:unread-last-item input-source)
+                             (prepare-result last-candidate-terminal-dfa))))))))
+    (transit root-dfa-state)))

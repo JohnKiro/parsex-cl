@@ -62,8 +62,9 @@
   (:export #:input-source
            #:source-empty-p
            #:remaining-length
+           #:peak-next-item
            #:read-next-item
-           #:advance-reading-position
+           #:unread-last-item
            #:notify-match-termination
            #:register-candidate-matching-point
            #:retrieve-last-accumulated-value
@@ -213,13 +214,16 @@
 
 (defpackage :parsex-cl/regex/match
   (:use #:cl #:iterate)
-  (:local-nicknames (:dfa #:parsex-cl/regex/dfa)
+  (:local-nicknames (:class-util #:parsex-cl/class-util)
+                    (:dfa #:parsex-cl/regex/dfa)
                     (:chars #:parsex-cl/char-util)
                     (:elm #:parsex-cl/regex/element)
                     (:fsm #:parsex-cl/regex/fsm)
                     (:input #:parsex-cl/regex/input))
   (:export #:match-regex
            #:regex-matching-result
+           #:let-regex-matching-result-slots
+           #:with-regex-matching-result-accessors
            #:regex-matching-result-p
            #:regex-matching-result-status
            #:regex-matching-result-tokens

@@ -4,21 +4,24 @@
   "Interface of operations that apply to regex input source."
   (source-empty-p
    ()
-   :doc "Predicate that returns t in case no more items could be read from the source. It also returns
-a secondary value (:exhausted), indicating whether the input is exhausted, in which case, the client
-should stop attempting to read more characters from it. It should however remain possible to retrieve
-the last accumulated or consumed values.")
+   :doc "Predicate that returns t in case no more items could be read from the source. It should remain
+possible to retrieve the last accumulated or consumed values.")
   (remaining-length
    ()
    :doc "Returns count of remaining items in source. To have a valid contract, it should return
 0 (zero) in case `source-empty-p` returns t.")
+  (peak-next-item
+   ()
+   :doc "Peak next item (e.g. char) from source (e.g. string), without advancing the reading position.
+Note that we rely on lower-level error, in case of attempt of reading beyong end index.")
   (read-next-item
    ()
-   :doc "Read next item (e.g. char) from source (e.g. string), without advancing the reading
-position. In case source is exhausted, throw an error.")
-  (advance-reading-position
+   :doc "Read next item (e.g. char) from source (e.g. string), and advance the reading position.
+Note that we rely on lower-level error, in case of attempt of reading beyong end index.")
+  (unread-last-item
    ()
-   :doc "Advance reading position in source.")
+   :doc "Rewind reading position one step. Note that it's not allowed to rewind back to within the last
+terminated matching operation or beyond the beginning. An error should be thrown in such cases.")
   (notify-match-termination
    ()
    :doc "Notify source that current matching operation is terminating. Source should prepare
@@ -95,24 +98,32 @@ predicate to check before reading at an invalid index."
         ;; I depend on the fact that definite termination is also candidate termination, so we
         ;; can assume that this will hold value of last matching position (whether last candidate
         ;; or current position). TODO: may rethink about this later.
-        (candidate-matching-point -2)
-        (exhausted nil))
+        (candidate-matching-point -2))
     (labels ((source-empty-p ()
-               (if exhausted
-                   (values t :exhausted)
-                   (let ((remaining (- total-length reading-position)))
-                     (cond
-                       ((zerop remaining) (setf exhausted t) t)
-                       ((minusp remaining) (setf exhausted t) (values t :exhausted))
-                       (t nil)))))
+               (let ((remaining (- total-length reading-position)))
+                 (not (plusp remaining))))
              (remaining-length ()
                "TODO: not used, and possibly not good to floor the value at 0!."
                (let ((remaining (- total-length reading-position)))
                  (max remaining 0)))
-             (read-next-item ()
+             (peak-next-item ()
+               "Peak next item (e.g. char) without advancing reading position."
+               #+nil
+               (when (source-empty-p)
+                 (error "Cannot read from an empty/exhausted source!"))
                (char source reading-position))
-             (advance-reading-position ()
-               (incf reading-position))
+             (read-next-item ()
+               "Read next item (e.g. char) and advance reading position."
+               #+nil
+               (when (source-empty-p)
+                 (error "Cannot read from an empty/exhausted source!"))
+               (prog1
+                   (char source reading-position)
+                 (incf reading-position)))
+             (unread-last-item ()
+               (unless (> reading-position starting-reference-position)
+                 (error "No items to unread!"))
+               (decf reading-position))
              (notify-match-termination ()
                (setf consumption-start starting-reference-position)
                (setf accumulator-start starting-reference-position)
@@ -155,8 +166,9 @@ predicate to check before reading at an invalid index."
                             (subrange-indices-end subrange-indices)))))
       (make-input-source :source-empty-p-fn #'source-empty-p
                          :remaining-length-fn #'remaining-length
+                         :peak-next-item-fn #'peak-next-item
                          :read-next-item-fn #'read-next-item
-                         :advance-reading-position-fn #'advance-reading-position
+                         :unread-last-item-fn #'unread-last-item
                          :notify-match-termination-fn #'notify-match-termination
                          :register-candidate-matching-point-fn #'register-candidate-matching-point
                          :retrieve-last-accumulated-value-fn #'retrieve-last-accumulated-value

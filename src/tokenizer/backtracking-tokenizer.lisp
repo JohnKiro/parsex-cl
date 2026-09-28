@@ -78,30 +78,25 @@ Here are the identified special cases coming from the underlying tokenizer:
 1) case regex matches, but no tokens reported: it acts normally: keeps the NIL tokens in the backtracking
 buffer, together with the indices. This case will typically be prevented, as the grammar handling will
 ensure no NIL tokens. TODO: may reconsider this case, and report it as error instead.
-2) case regex does not match: returns NIL, and regex matching error status as secondary value.
-3) case input exhausted: returns NIL, and input exhausted status as secondary value."
-               (declare (optimize (debug 3) (speed 0)))
+2) case regex does not match: returns NIL, and regex matching error status as secondary value."
                (if (< backtracking-index (length backtracking-buffer))
                    ;; TODO: back to AREF after testing (doesn't check fill-pointer limit, but faster)
                    (prog1
                        (elt backtracking-buffer backtracking-index)
                      (incf backtracking-index))
-                   (multiple-value-bind (tokenizer-result tokenizer-status)
-                       (funcall underlying-tokenizer)
+                   (let ((tokenizer-result (funcall underlying-tokenizer)))
                      (if tokenizer-result
-                         (let ((regex-status (match:regex-matching-result-status tokenizer-result)))
+                         (match:with-regex-matching-result-accessors tokenizer-result
+                             (:status regex-status :tokens tok)
                            (if (eq regex-status :regex-matched)
-                               (let* ((tok (match:regex-matching-result-tokens tokenizer-result))
-                                      (tok-and-indices (cons tok
-                                                             (input:retrieve-last-accumulated-indices
-                                                              input-source))))
+                               (let ((tok-and-indices
+                                       (cons tok
+                                             (input:retrieve-last-accumulated-indices input-source))))
                                  (vector-push-extend tok-and-indices backtracking-buffer)
                                  (incf backtracking-index)
                                  ;; alternatively: (setf backtracking-index (length backtracking-buffer))
                                  tok-and-indices)
                                (values nil regex-status)))
-                         ;; nil tokenizer-result actually implies input-exhausted
-                         (values nil tokenizer-status)))))
              (put-back-tokens ()
                "Put back tokens retrieved by last call to `get-tokens`."
                (unless (plusp backtracking-index)
