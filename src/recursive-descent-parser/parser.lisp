@@ -3,7 +3,13 @@
 (defparameter +max-parse-recursion-depth+ 40 "Temporary protection against infinite recursion")
 
 (func-v1:define-functional-interface sync-tokens-manager ()
-  "Interface of token sync list manager, supporting the operations to add, remove, and find tokens."
+  "Interface of token sync list manager, supporting the operations to add, remove, and find tokens.
+The purpose is for the compound constructs (or, seq, *, +, ?) to add interesting tokens, for the
+tokenizer construct to check in case the token being matched fails. Each compound construct is
+responsible of removing the tokens it added, when they become not interesting anymore. Currently there
+are two cases in which a token is 'interesting':
+- token is expected by an upcoming construct, after erroneous one(s) are skipped.
+- token is in the first set of an upcoming OR's child."
   (add-sync-tokens (tokens) :doc "Add list of tokens (`tokens`) to the sync list.")
   (rem-sync-tokens (tokens) :doc "Remove list of tokens (`tokens`) from the sync list.")
   (find-in-sync-tokens (tokens) :doc "Search for any token specified in the array `tokens` in the sync
@@ -41,17 +47,23 @@ anyway (typically coming from construct's first set)."
                     :doc "Call notification function before parsing construct."  ))
 
 ;; FIXME: we depend on the fact that the OR element included its 1st set. Example: in (or int id), when
-;; matching the INT token fails, and assuming the `*check-sync-tokens*` flag is active, then we'll find
+;; matching the INT token fails, and assuming the `check-sync-tokens` flag is active, then we'll find
 ;; ID in the sync list, and report :no-match, which will be understood by the OR construct as failure,
 ;; and will rewind and try the 'id' branch. If the sync list does not contain the 'id' token (for some
 ;; reason, then it will skip it, and get next token (after the ID), and hence interferes with the upper
-;; OR, which is bad! Why bad? Because the purpose of sync list is to find a continuation point in case
+;; OR, which might be bad! Why? Because the purpose of sync list is to find a continuation point in case
 ;; of failure, which is not the case here, since failure in one branch of the OR construct is normal.
 ;; So currently for the OR to operate properly, it must add 1st set of all branches to the sync list!
 ;; So I think alternatively, I may just report the status (e.g. :no-match-but-token-found-in-sync-list),
 ;; without skipping here, and leave it to the upper construct to handle the error (OR, for example, would
 ;; rewind and try next branch).
-
+;; AFTER RETHINKING: I see alternative would be unnecessarily complicated, because the OR could not be
+;; immediate parent, and there could be more OR constructs upwards, so either we keep it this way, or
+;; we would create a separate sync list for the OR elements, that cannot be ignored. But, the current
+;; solution would win performance-wise.
+;; CONCLUSION: just keep the sync list mandatory, and give it a broader meaning (not just for error
+;; recovery). For now at least, I'm keeping the `check-sync-tokens` flag (for study and comparison, but
+;; hould be always set to T in production)
 (defun parse-root (root-construct-obj tokenizer token-matching-fn parse-callbacks
                    &key resilience (check-sync-tokens t)
                    &aux
@@ -84,6 +96,7 @@ skipped (since won't be interesting to any upper construct), else (if flag is no
 returned without skipping."
   (with-parser-callbacks (parse-callbacks :notify-parse-start notify-parse-start
                                           :notify-parse-end notify-parse-end)
+    ;; I didn't want to change indentation level, that's why this SETF workaround :(
     (setf notify-parse-start-fn notify-parse-start)
     (setf notify-parse-end-fn notify-parse-end))
   (labels ((parse-construct (construct-obj)
@@ -111,6 +124,7 @@ returned without skipping."
 the tokenizer (`tokenizer`). Returns status (:ok / :no-match / status returned by tokenizer),
 and a secondary value contains tokenization details as an `token-construct-parsing-result` object.
 TODO: consider just reporting the status to caller, and leaving it up to it to decide how to handle."
+             (declare (type constr:token-construct construct-obj))
              (let ((expected-token (constr:token construct-obj))
                    (skipped-tokens nil))
                (loop
@@ -159,6 +173,10 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                                                   :tokenization-status tokenization-status
                                                   :skipped-tokens (nreverse skipped-tokens))))))))))
            (parse-sequence-construct (construct-obj)
+             ;; TODO: for performance, may instead define a 'sync list' for the seq construct, to be
+             ;; computed only once upon initialization (together with 1st set calculation).
+             ;; we could generalize this 'sync list' for other constructs as well, but for them, it
+             ;; simply boils down to the construct's first set.
              (loop for child across (constr:child-constructs construct-obj)
                    do (add-sync-tokens sync-token-mgr (constr:first-set child)))
              (let ((curr-child-status nil)
@@ -167,10 +185,13 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                (loop for child across (constr:child-constructs construct-obj)
                      ;; yes, 1st child added needlessly, but this way the above loop is simple
                      ;; note that we still need to remove sync tokens, even if we abort from the sequence
+                     ;; also note that parent actually already added sequence's first set to sync list,
+                     ;; which corresponds to its 1st child's first set. This is not the case though if
+                     ;; the sequence is the root construct (since no parent)
                      do (rem-sync-tokens sync-token-mgr (constr:first-set child))
-                        ;; TODO: may have a check here for :input-exhausted condition, to break the loop
+                        ;; TODO: may have a check here for no-tokens-ahead condition, to break the loop
                         ;; if so, but not sure, because this would be done unnecessarily many times,
-                        ;; until we reach end of input
+                        ;; until we reach end of input - but isn't this same as resilience = nil??
                         (unless (and a-child-failed seq-abort-on-first-failure)
                           (setf curr-child-status (parse-construct child))
                           (if (eq curr-child-status :ok)
@@ -186,8 +207,7 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                        :ok)
                    :complete-failure))) ;; TODO: shouldn't we split case child failed/not?
            (parse-or-construct (construct-obj)
-             (loop for child across (constr:child-constructs construct-obj)
-                   do (add-sync-tokens sync-token-mgr (constr:first-set child)))
+             (add-sync-tokens sync-token-mgr (constr:first-set construct-obj))
              (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
              (let (status)
                (loop for child across (constr:child-constructs construct-obj)
