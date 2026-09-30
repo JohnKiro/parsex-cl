@@ -261,6 +261,7 @@
                     (:match #:parsex-cl/regex/match))
   (:export #:create-backtracking-tokenizer
            #:get-tokens
+           #:no-tokens-ahead-p
            #:put-back-tokens
            #:get-current-backtracking-position
            #:compare-positions

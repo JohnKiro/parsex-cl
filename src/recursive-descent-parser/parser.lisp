@@ -219,10 +219,11 @@ Note that any inner errors will be reported by the inner constructs themselves."
                        ;; we check progress: if no progress, then unmark and return. This saves the need
                        ;; for the get-current-backtracking-position operation, but it could be useful op
                        ;; anyway, if we need to get progress without marking.
-                       (when (and prev-position
-                                  (eq (bt-tokenizer:compare-positions tokenizer prev-position
-                                                                      curr-position)
-                                      :no-progress))
+                       (when (or (bt-tokenizer:no-tokens-ahead-p tokenizer)
+                                 (and prev-position
+                                      (eq (bt-tokenizer:compare-positions tokenizer prev-position
+                                                                          curr-position)
+                                          :no-progress)))
                          (return :ok))
                        (bt-tokenizer:mark-backtracking-position tokenizer child)
                        (setf status (parse-construct child))

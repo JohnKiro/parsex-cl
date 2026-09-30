@@ -189,7 +189,8 @@ is that the final parsing result is :ok."
 
 (fiveam:test parser-test
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
-grammar."
+grammar. Note how parsing of the statement-block terminates just after the 2nd (last) statement, as it
+detects there are no more tokens ahead in the tokenizer (using `no-tokens-ahead-p` operation)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
@@ -233,16 +234,14 @@ grammar."
                                           (constr:sequence-construct mul-expr :ok)
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
-                                          (constr:token-construct id :no-match "")
-                                          ;; since statement seq had zero progress, => complete failure
-                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:zero-or-more-construct nil :ok)
                                           (constr:sequence-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))))
 
 (fiveam:test parser-test_1
-  "Basic test, similar to previous, but with 'sequence abortion on failure' disabled."
+  "Basic test, similar to previous, but with 'sequence abortion on failure' disabled. This won't have
+effect, since with latest changes, the zero-or-more iteration stops on 'no tokens ahead' condition."
   (declare (optimize (debug 3) (speed 0)))
   (let ()
     (parser-test :grammar '((token id (seq
@@ -288,31 +287,8 @@ grammar."
                    (constr:sequence-construct mul-expr :ok)
                    (constr:token-construct semicolon :ok ";")
                    (constr:sequence-construct statement :ok)
-                   (constr:token-construct id :regex-not-matched)
-                   ;; rather than aborting here, statement seq proceeds with next child
-                   ;; alas! next child (assign) gets empty input, due to "advance on no match" input flag
-                   (constr:token-construct assign :regex-not-matched)
-                   (constr:token-construct id :regex-not-matched)
-                   (constr:token-construct int :regex-not-matched)
-                   (constr:or-construct factor :regex-not-matched)
-                   (constr:token-construct *-op :regex-not-matched)
-                   (constr:token-construct id :regex-not-matched)
-                   (constr:token-construct int :regex-not-matched)
-                   (constr:or-construct factor :regex-not-matched)
-                   (constr:sequence-construct nil :complete-failure)
-                   (constr:zero-or-one-construct nil :ok)
-                   (constr:sequence-construct mul-expr :partial-failure)
-                   (constr:token-construct semicolon :regex-not-matched)
-                   ;; the zero-or-one above caused the report to be partial failure, not complete failure
-                   (constr:sequence-construct statement :partial-failure)
-                   ;; z-o-m handles the seq failure gracefully even though it's partial failure.
-                   ;; normally should behave like this only on complete failure. TODO: I think may need
-                   ;; to detect case of partial failure when the succeeded children
-                   ;; did not consume any thing (such as the zero-or-one in this grammar)
                    (constr:zero-or-more-construct nil :ok)
                    (constr:sequence-construct statement-block :ok)))))
-                   ;; since resilience is set, the above zero-or-more did not rewind, hence we'd get
-                   ;; input-exhausted status, if we keep the EOT (which is now removed).
 
 (fiveam:test parser-test-2
   "Basic test that demonstrates parser usage in client code, and provides quick verification for a simple
@@ -361,8 +337,6 @@ zero-or-more (to test that construct as well)."
                                           (constr:sequence-construct mul-expr :ok)
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
-                                          (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))))
@@ -495,8 +469,6 @@ branch. Anyway, I'm still working on the 'harmony' between the different types o
                                           (constr:sequence-construct add-expr :ok)
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
-                                          (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:zero-or-more-construct nil :ok)
                                           (constr:sequence-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
@@ -604,8 +576,6 @@ in sync list."
                                           ;; '*' and '=' skipped
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
-                                          (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))
@@ -726,9 +696,7 @@ list."
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
                                           ;; we recovered from the partial failure and moved forward,
-                                          ;; next: trying to parse a new statement
-                                          (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure)
+                                          ;; next: no more statement (since no more tokens ahead)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))
@@ -802,8 +770,6 @@ successfully matches, then parsing proceeds successfully till end."
                                           (constr:sequence-construct mul-expr :ok)
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
-                                          (constr:token-construct id :no-match "")
-                                          (constr:sequence-construct statement :complete-failure)
                                           (constr:one-or-more-construct statement-block :ok)
                                           (constr:token-construct eot :ok "")
                                           (constr:sequence-construct root :ok))
@@ -943,7 +909,5 @@ changed the grammar definition, to use the new DSL grammar macro."
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct expr :ok)
                                           ;(constr:sequence-construct statement :ok)
-                                          (constr:token-construct id :regex-not-matched)
-                                          (constr:sequence-construct expr :complete-failure)
                                           (constr:one-or-more-construct root :ok))))
 ;;TODO: TEST

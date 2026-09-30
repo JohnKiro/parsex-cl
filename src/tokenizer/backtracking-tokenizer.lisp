@@ -19,6 +19,10 @@ Returns next token(s) and slice indices as a pair.
 Note that calling it successively would return successive tokens. In case it receives an error from the
 underlying tokenizer,it returns NIL as a primary value, and a status as a secondary value, indicating the
 error.")
+  (no-tokens-ahead-p
+   ()
+   :doc "Check whether there are no more tokens ahead, that would be returned by `get-tokens`, whether
+from the backtracking buffer or source. Returns T if there are no tokens ahead, NIL otherwise.")
   (put-back-tokens
    ()
    :doc "Put back tokens retrieved by last call to `get-tokens`.")
@@ -97,6 +101,12 @@ ensure no NIL tokens. TODO: may reconsider this case, and report it as error ins
                                  ;; alternatively: (setf backtracking-index (length backtracking-buffer))
                                  tok-and-indices)
                                (values nil regex-status)))
+             (no-tokens-ahead-p ()
+               "Returns true if there are no tokens ahead in the buffer, and the input is empty. Note
+that this could be considered inaccurate, in case a token is defined as 'empty text', but practically,
+this wouldn't be a meaningful token in any grammar anyway. TODO: revise this conclusion if needed."
+               (and (>= backtracking-index (length backtracking-buffer))
+                    (input:source-empty-p input-source)))
              (put-back-tokens ()
                "Put back tokens retrieved by last call to `get-tokens`."
                (unless (plusp backtracking-index)
@@ -152,6 +162,7 @@ simply the backtracking index."
                    :backtracking-markers ,backtracking-markers))))
       (make-backtracking-tokenizer
        :get-tokens-fn #'get-tokens
+       :no-tokens-ahead-p-fn #'no-tokens-ahead-p
        :put-back-tokens-fn #'put-back-tokens
        :get-current-backtracking-position-fn #'get-current-backtracking-position
        :compare-positions-fn #'compare-positions
