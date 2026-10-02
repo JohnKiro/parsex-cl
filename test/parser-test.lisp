@@ -527,9 +527,9 @@ overlook the failure, which would eventually resurge."
                                           (constr:sequence-construct root :partial-failure))))
 
 (fiveam:test parser-test-4_2
-  "Test parsing error (unexpected token in factor, assign found instead of factor): parser managed to
-detect and record the error (in a separate log so far) and recover, by skipping tokens that are not found
-in sync list."
+  "Test parsing error (unexpected token in factor, assign found instead of factor): the OR fails, and
+causes the upper SEQ to fail, and eventually the broken factor is skipped ('*=). Note how the error
+handling here is more reasonable than previous test (same grammar, same input)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token id (seq
                                      #1=(or (char-range #\A #\Z) (char-range #\a #\z))
@@ -566,14 +566,12 @@ in sync list."
                                           (constr:token-construct id :ok "id22")
                                           (constr:or-construct factor :ok)
                                           (constr:token-construct *-op :ok "*")
-                                          ;; '=' skipped
-                                          (constr:token-construct id :no-match ";")
-                                          (constr:token-construct int :no-match ";")
+                                          (constr:token-construct id :no-match "=")
+                                          (constr:token-construct int :no-match "=")
                                           (constr:or-construct factor :no-match)
                                           (constr:sequence-construct nil :partial-failure)
                                           (constr:zero-or-one-construct nil :ok)
                                           (constr:sequence-construct mul-expr :ok)
-                                          ;; '*' and '=' skipped
                                           (constr:token-construct semicolon :ok ";")
                                           (constr:sequence-construct statement :ok)
                                           (constr:one-or-more-construct statement-block :ok)
@@ -912,7 +910,10 @@ changed the grammar definition, to use the new DSL grammar macro."
                                           (constr:one-or-more-construct root :ok))))
 
 (fiveam:test parser-test-11
-  "Testing a more complicated OR construct. Note the different backtracking for the two different ORs."
+  "Testing a more complicated OR construct, without sync list checking, hence, without skipping tokens
+not found in sync list. Note the different backtracking for the two different ORs. This behaves very
+well, because 'second' remains and causes failure to the 'first-form'. Note however that with latest fix,
+the OR disables sync list check anyway (compare with following test)."
   (declare (optimize (debug 3) (speed 0)))
   (parser-test :grammar '((token this "this ")
                           (token is "is ")
@@ -934,6 +935,80 @@ changed the grammar definition, to use the new DSL grammar macro."
                                line3 #\newline
                                line4 #\newline
                                line2 #\newline))
+               :check-sync-tokens nil
+               :expected-parsing-result '((constr:token-construct this :ok "this ")
+                                          (constr:token-construct is :ok "is ")
+                                          (constr:token-construct first :ok "first ")
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct form :ok "form")
+                                          (constr:token-construct end :ok #.(format nil ";~a" #\newline))
+                                          (constr:sequence-construct first-form :ok)
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct this :ok "this ")
+                                          (constr:token-construct is :ok "is ")
+                                          (constr:token-construct first :no-match "second ")
+                                          (constr:token-construct 1st :no-match "second ")
+                                          (constr:or-construct nil :no-match)
+                                          (constr:sequence-construct first-form :partial-failure)
+                                          (constr:token-construct this :ok "this ")
+                                          (constr:token-construct is :ok "is ")
+                                          (constr:token-construct second :ok "second ")
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct form :ok "form")
+                                          (constr:token-construct end :ok #.(format nil ";~a" #\newline))
+                                          (constr:sequence-construct second-form :ok)
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct this :ok "this ")
+                                          (constr:token-construct is :ok "is ")
+                                          (constr:token-construct first :no-match "2nd ")
+                                          (constr:token-construct 1st :no-match "2nd ")
+                                          (constr:or-construct nil :no-match)
+                                          (constr:sequence-construct first-form :partial-failure)
+                                          (constr:token-construct this :ok "this ")
+                                          (constr:token-construct is :ok "is ")
+                                          (constr:token-construct second :no-match "2nd ")
+                                          (constr:token-construct 2nd :ok "2nd ")
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct form :ok "form")
+                                          (constr:token-construct end :ok #.(format nil ";~a" #\newline))
+                                          (constr:sequence-construct second-form :ok)
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct this :ok "this ")
+                                          (constr:token-construct is :ok "is ")
+                                          (constr:token-construct first :no-match "1st ")
+                                          (constr:token-construct 1st :ok "1st ")
+                                          (constr:or-construct nil :ok)
+                                          (constr:token-construct form :ok "form")
+                                          (constr:token-construct end :ok #.(format nil ";~a" #\newline))
+                                          (constr:sequence-construct first-form :ok)
+                                          (constr:or-construct nil :ok)
+                                          (constr:one-or-more-construct root :ok))))
+
+(fiveam:test parser-test-11_2
+  "Testing a more complicated OR construct, this time with sync list checking. Note that the OR
+constructs disable the sync list check."
+  (declare (optimize (debug 3) (speed 0)))
+  (parser-test :grammar '((token this "this ")
+                          (token is "is ")
+                          (token first "first ")
+                          (token 1st "1st ")
+                          (token second "second ")
+                          (token 2nd "2nd ")
+                          (token form "form")
+                          (token end (seq #\; #\newline))
+                          (rule first-form (seq this is (or first 1st) form end))
+                          (rule second-form (seq this is (or second 2nd) form end))
+                          (rule root (+ (or first-form second-form))))
+               :text (let ((line1 "this is first form;")
+                           (line2 "this is 1st form;")
+                           (line3 "this is second form;")
+                           (line4 "this is 2nd form;"))
+                       (format nil "~a~a~a~a~a~a~a~a"
+                               line1 #\newline
+                               line3 #\newline
+                               line4 #\newline
+                               line2 #\newline))
+               :check-sync-tokens t
                :expected-parsing-result '((constr:token-construct this :ok "this ")
                                           (constr:token-construct is :ok "is ")
                                           (constr:token-construct first :ok "first ")

@@ -46,28 +46,11 @@ anyway (typically coming from construct's first set)."
   (notify-parse-end (construct status result-details)
                     :doc "Call notification function before parsing construct."  ))
 
-;; FIXME: we depend on the fact that the OR element included its 1st set. Example: in (or int id), when
-;; matching the INT token fails, and assuming the `check-sync-tokens` flag is active, then we'll find
-;; ID in the sync list, and report :no-match, which will be understood by the OR construct as failure,
-;; and will rewind and try the 'id' branch. If the sync list does not contain the 'id' token (for some
-;; reason, then it will skip it, and get next token (after the ID), and hence interferes with the upper
-;; OR, which might be bad! Why? Because the purpose of sync list is to find a continuation point in case
-;; of failure, which is not the case here, since failure in one branch of the OR construct is normal.
-;; So currently for the OR to operate properly, it must add 1st set of all branches to the sync list!
-;; So I think alternatively, I may just report the status (e.g. :no-match-but-token-found-in-sync-list),
-;; without skipping here, and leave it to the upper construct to handle the error (OR, for example, would
-;; rewind and try next branch).
-;; AFTER RETHINKING: I see alternative would be unnecessarily complicated, because the OR could not be
-;; immediate parent, and there could be more OR constructs upwards, so either we keep it this way, or
-;; we would create a separate sync list for the OR elements, that cannot be ignored. But, the current
-;; solution would win performance-wise.
-;; CONCLUSION: just keep the sync list mandatory, and give it a broader meaning (not just for error
-;; recovery). For now at least, I'm keeping the `check-sync-tokens` flag (for study and comparison, but
-;; hould be always set to T in production)
 (defun parse-root (root-construct-obj tokenizer token-matching-fn parse-callbacks
                    &key resilience (check-sync-tokens t)
                    &aux
                      (seq-abort-on-first-failure (not resilience))
+                     (or-construct-active nil)
                      (recursion-depth 0)
                      (sync-token-mgr (sync-tokens-manager-factory))
                      notify-parse-start-fn
@@ -93,7 +76,9 @@ TODO: ALLOWING OVERRIDING PER CONSTRUCT IN GRAMMAR.
 are not matched. If set and token is found in sync list, then the token will be put back into the
 tokenizer for the upper construct that is interested in it, else (if not found), then it will be
 skipped (since won't be interesting to any upper construct), else (if flag is not set), then error will
-returned without skipping."
+returned without skipping. Note that the OR construct overrides the flag, by causing no token to be
+skipped, which is necessary for the proper handling (since failure in OR branches is possible even when
+input is compliant to grammar). "
   (with-parser-callbacks (parse-callbacks :notify-parse-start notify-parse-start
                                           :notify-parse-end notify-parse-end)
     ;; I didn't want to change indentation level, that's why this SETF workaround :(
@@ -123,7 +108,8 @@ returned without skipping."
              "Matches expected token against next token(s), which it retrieves by calling `get-tokens` on
 the tokenizer (`tokenizer`). Returns status (:ok / :no-match / status returned by tokenizer),
 and a secondary value contains tokenization details as an `token-construct-parsing-result` object.
-TODO: consider just reporting the status to caller, and leaving it up to it to decide how to handle."
+TODO: consider allowing caller (upper constructs) to control the tokenizer in token handling upon match
+failure."
              (declare (type constr:token-construct construct-obj))
              (let ((expected-token (constr:token construct-obj))
                    (skipped-tokens nil))
@@ -132,37 +118,48 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                      (bt-tokenizer:get-tokens tokenizer)
                    (if tok-and-indices
                        (destructuring-bind (actual-tokens . acc-indices) tok-and-indices
-                         (if (funcall token-matching-fn expected-token actual-tokens)
-                             (return (values :ok (make-instance
-                                                  'token-construct-parsing-result
-                                                  :tokenization-status tokenization-status
-                                                  :tokenizer-matched-token actual-tokens
-                                                  :tokenizer-matched-tokens-indices acc-indices
-                                                  :skipped-tokens (nreverse skipped-tokens))))
-                             (if check-sync-tokens
-                                 (if (find-in-sync-tokens sync-token-mgr actual-tokens)
-                                     (progn
-                                       (bt-tokenizer:put-back-tokens tokenizer)
-                                       (return
-                                         (values :no-match ;TODO: consider something such as :token-not-consumed
-                                                 (make-instance
-                                                  'token-construct-parsing-result
-                                                  :tokenization-status tokenization-status
-                                                  :tokenizer-matched-token actual-tokens
-                                                  :tokenizer-matched-tokens-indices acc-indices
-                                                  :skipped-tokens (nreverse skipped-tokens)))))
-                                     (progn
-                                       (push tok-and-indices skipped-tokens)))
-                                 (progn
-                                   ;; not checking sync list, rather, returning token error to parent.
-                                   (return
-                                     (values :no-match ;TODO: consider something such as :invalid-token
-                                             (make-instance
-                                              'token-construct-parsing-result
-                                              :tokenization-status tokenization-status
-                                              :tokenizer-matched-token actual-tokens
-                                              :tokenizer-matched-tokens-indices acc-indices
-                                              :skipped-tokens (nreverse skipped-tokens))))))))
+                         (cond
+                           ((funcall token-matching-fn expected-token actual-tokens)
+                            (return (values :ok (make-instance
+                                                 'token-construct-parsing-result
+                                                 :tokenization-status tokenization-status
+                                                 :tokenizer-matched-token actual-tokens
+                                                 :tokenizer-matched-tokens-indices acc-indices
+                                                 :skipped-tokens (nreverse skipped-tokens)))))
+                           (or-construct-active ;; don't skip token if an OR is active at any upper level
+                            (bt-tokenizer:put-back-tokens tokenizer)
+                            (return
+                              (values :no-match ;TODO: consider something such as :token-not-consumed
+                                      (make-instance
+                                       'token-construct-parsing-result
+                                       :tokenization-status tokenization-status
+                                       :tokenizer-matched-token actual-tokens
+                                       :tokenizer-matched-tokens-indices acc-indices
+                                       :skipped-tokens (nreverse skipped-tokens)))))
+                           (check-sync-tokens
+                            (if (find-in-sync-tokens sync-token-mgr actual-tokens)
+                                (progn
+                                  (bt-tokenizer:put-back-tokens tokenizer)
+                                  (return
+                                    (values :no-match ;TODO: consider something like :token-not-consumed
+                                            (make-instance
+                                             'token-construct-parsing-result
+                                             :tokenization-status tokenization-status
+                                             :tokenizer-matched-token actual-tokens
+                                             :tokenizer-matched-tokens-indices acc-indices
+                                             :skipped-tokens (nreverse skipped-tokens)))))
+                                (progn
+                                  (push tok-and-indices skipped-tokens))))
+                           (t
+                            ;; not checking sync list, rather, returning token error to parent.
+                            (return
+                              (values :no-match ;TODO: consider something like :invalid-token
+                                      (make-instance
+                                       'token-construct-parsing-result
+                                       :tokenization-status tokenization-status
+                                       :tokenizer-matched-token actual-tokens
+                                       :tokenizer-matched-tokens-indices acc-indices
+                                       :skipped-tokens (nreverse skipped-tokens)))))))
                        (progn
                          ;; TOOD: consider adding a flag to loop till get a token, in case the
                          ;; status is regex not matched (note that here we catch also input
@@ -207,26 +204,26 @@ TODO: consider just reporting the status to caller, and leaving it up to it to d
                        :ok)
                    :complete-failure))) ;; TODO: shouldn't we split case child failed/not?
            (parse-or-construct (construct-obj)
-             (add-sync-tokens sync-token-mgr (constr:first-set construct-obj))
-             (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
-             (let (status)
-               (loop for child across (constr:child-constructs construct-obj)
-                     do (rem-sync-tokens sync-token-mgr (constr:first-set child))
-                     unless (eq status :ok) do
-                       (progn
-                         (setf status (parse-construct child))
-                         (unless (eq status :ok)
-                           (bt-tokenizer:rewind-token-position tokenizer construct-obj))))
-               ;; TODO: check if need to rewind in the FINALLY clause (meaning no match found, stopping
-               ;; at start position, or should we keep at current position? Should be clear when I
-               ;; implement actual parsing.
-               ;; TODO: check if we need to report a "stronger" error, in case no OR branch succeeded,
-               ;; since OR does not tolerate failure, unlike zero-or-one, for example! (see tc #4)
-               (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
-               ;; TODO (19 May): I think status should either be OK or NOK, so if last branch's status is
-               ;; :partial-failure, for example, should change it, because it's not meaningful as a
-               ;; parsing states of the OR
-               status))
+             (let ((or-construct-active-ori or-construct-active))
+               (setf or-construct-active t)
+               (add-sync-tokens sync-token-mgr (constr:first-set construct-obj))
+               (bt-tokenizer:mark-backtracking-position tokenizer construct-obj)
+               (let (status)
+                 (loop for child across (constr:child-constructs construct-obj)
+                       do (rem-sync-tokens sync-token-mgr (constr:first-set child))
+                       unless (eq status :ok) do
+                         (progn
+                           (setf status (parse-construct child))
+                           (unless (eq status :ok)
+                             (bt-tokenizer:rewind-token-position tokenizer construct-obj))))
+                 ;; TODO: check if we need to report a "stronger" error, in case no OR branch succeeded,
+                 ;; since OR does not tolerate failure, unlike zero-or-one, for example! (see tc #4)
+                 (bt-tokenizer:unmark-backtracking-position tokenizer construct-obj)
+                 (setf or-construct-active or-construct-active-ori)
+                 ;; TODO (19 May): I think status should either be OK or NOK, so if last branch's status is
+                 ;; :partial-failure, for example, should change it, because it's not meaningful as a
+                 ;; parsing states of the OR
+                 status)))
            (parse-zero-or-more-child (child)
              "Parser for zero-or-more, that will be used in both zero-or-more-construct and
 one-or-more-construct. It parses the child as long as it gets success status or if the resilience flag is
