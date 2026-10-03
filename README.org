@@ -1,26 +1,42 @@
 #+title: Parsex-Cl
-#+subtitle: Experimental project for regular expressions, lexer and parser design
+#+subtitle: Recursive-Descent Grammar IR Generator
 
 * Purpose of this Project
-This is an experimental regex project, with "lispy" syntax, that could hopefully be part of a bigger lexer-parser system. At this stage, I'm fairly satisfied with the regex feature coverage it provides. However, it is not meant to compete with the well-established, feature-rich *[[https://github.com/edicl/cl-ppcre][CL-PPCRE]]*.
+This project started as an experimental sexp-based regex interpreter, and as of version *0.5.0*, it comprises the following:
+
+- Regular expression interpreter and DFA generator.
+- Regular expression matcher that could serve as backend for different tools (parsers, grep-like tools etc.).
+- PEG grammar interpreter and grammar IR generator.
+- Customizable recursive-descent parser.
+- Various generic utils that could end up in separate systems.
+
+The syntax for both regular expression and grammar is currently provided in SEXP form, however, the design is flexible enough to introduce different front-ends. The decision to choose Lisp expression to represent such data should be obvious :)
+
+#+begin_note
+#+end_note
+At this stage, I'm fairly satisfied with the maturity of this project, However, it is not meant to compete with well-established and feature-rich projects, such as *[[https://github.com/edicl/cl-ppcre][CL-PPCRE]]*.
 
 * Status
-While it's still at an early experimental status, it is already capable of matching strings against classical *regular expressions*, that are provided in the form of *s-expressions*. See section entitled [[unit-tests][Unit Tests]] for information about how to experiment with the regex matcher.
+At this stage, I think the project could be useful as a workbench for people interested in Lisp (Common Lisp in particular), regular expressions, or recursive-descent parsers. It's equipped with hundreds of test cases, based on FiveAM, so hopefully the reader should not feel lost.
+
+Regarding code quality, I was experimenting with different Common Lisp features and alternatives along the project. So whenever the reader would ask "why did he use CLOS here but a 'closure factory' there?", well, this could be the answer.
 
 * Features
 
-** Regex Format
-I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to define regular expressions, for different reasons:
+** Regex and Grammar Formats
+I'm convinced that in Lisp, there is little reason to use a non-lisp syntax to define regular expressions or grammars, for different reasons:
 
-- I get regex parsing almost for free, thanks to the *Common Lisp Reader*. This also allows adding more features in the future, without the need for complicated parser updates.
+- We get regex or grammar parsing almost for free, thanks to the *Common Lisp Reader*. This also allows adding more features in the future, without the need for complicated regex or grammar parser updates.
 - Ambiguity related to order of evalution is avoided, thanks to the parentheses.
 
-Having said that, it's designed with separation between regex presentation and processing in mind. This means that different "front-ends" could be implemented, allowing regex to be expressed in different forms (e.g. string with wildcards or JSON).
+Even so, as mentioned previously, the design takes into consideration separating between representation and processing, for both the regex and grammar specifications . This means that different "front-ends" could be implemented, allowing  different forms (traditional regex, PEG grammar, JSON etc.).
 
-** Supported Constructs
+** Regex
+
+*** Supported Regex Constructs
 Regex constructs are either simple (that is, matching a single character), or composed of other constructs.
 
-The following table describes the supported constructs. For brievity, I'm assuming that the reader is already familiar with regular expressions in general.
+The following table describes the supported constructs. For brievity, I'm assuming a level of familiarity with regular expressions in general.
 
 |-----------------+------------------------------------------------------------------------------+--------------------------------|
 | Regex Element   | Description                                                                  | Example                        |
@@ -46,15 +62,87 @@ Note:
 - Character overlaps are handled decently.
 - The *negation* element is still subject to changes, and its behavior will most probably be controlled using flags (to be added).
 
-** Some Implementation Notes
+*** Some Implementation Notes
 
 Here are some assorted implementation details, which need to be addressed by expanding them into architecture document, or that may need to be handled in the code (besides being documented):
 
-*** Backtracking
+**** Backtracking
 Backtracking in case of no match and in case of /candidate match/ are both implemented in the input source. These features are transparent to the regex matching function itself. There are two benefits from this:
 
 1. The contract between the matching function and the input handling is simple.
 2. Different behavior can be implemented in different implementations of the input source, without altering the matching function. For example, more efficient source could be implemented for exact matches only. Note that currently, only one implemententation is provided for the input source.
+
+
+** Parser
+*** Supported Grammar Constructs
+PEG grammar can be specified using the constructs described in the table below.
+
+I'm assuming a level of familiarity with PEG grammars.
+
+|---------------------+--------------------------------------------------|
+| Construct           | Description                                      |
+|---------------------+--------------------------------------------------|
+| Sequence            | Sequence of one or more constructs               |
+| Ordered Choice (Or) | Ordered choice between multiple constructs       |
+| Zero or More        | Zero or more occurrences of a specific construct |
+| One or more         | One or more occurrences of a specific construct  |
+| Zero or One         | Zero or one occurrence of a specific construct   |
+|---------------------+--------------------------------------------------|
+
+#+begin_note
+I think this covers most of the PEG features, except maybe for /predicates/, which are not currently supported. May consider adding them in future update.
+#+end_note
+
+*** Grammar Specification
+In this section, I'll describe briefly how can grammar be specified in SEXP form.
+
+Grammar in this library may be specified as a list of forms;
+each for could be either *token* or *rule*;
+a /token/ starts with the symbol =token=, and is specified using an /id/ and a regex form;
+a /rule/ starts with the symbol =rule=, and is specified using an /id/ and a grammar form, or an alias (reference) to another rule;
+
+Here is an example:
+
+#+begin_src lisp
+  '((token id (seq
+               #1=(or (char-range #\A #\Z) (char-range #\a #\z))
+               (+ (or #1# (char-range #\0 #\9)))))
+    (token int (+ (char-range #\0 #\9)))
+    (token *-op #\*)
+    (token assign #\=)
+    (token semicolon #\;)
+    (rule factor (or id int))
+    (rule mul-expr (seq factor (? (seq *-op factor))))
+    (rule statement (seq id assign mul-expr semicolon))
+    (rule statement-block (seq statement (* statement))))
+#+end_src
+
+Here is an sample text that complies with the above grammar:
+#+begin_example
+"id1=id2*3;id11=id22*33;"
+#+end_example
+
+Note the following:
+- The order of forms (tokens and rules) is irrelevant; the grammar "parser" is able to handle forward references.
+- White spaces are currently not treated in any special way. In a future update, the tokenizer would be able to handle them (e.g. treat them as token separators).
+- In the above grammar example, I'm using Common Lisp's object label notation (*#n=*, *#n#*) to avoid redundancy. I.e. these are not special features in the grammar itself, and it could be regarded as one of the benefits of relying on Common Lisp's reader.
+
+From the last note, one could see that I leaned towards minimalism and using whatever feature that Common Lisp provides for free. Nevertheless, More features could be added in the future.
+
+
+
+*** Parsing
+The parser uses the IR (Intermediate Representation) generated from the grammar, to parse text provided by a *backtracking tokenizer*.
+
+TODO: expand.
+
+** Components
+TODO, explain the different components:
+- Regex parser tree generator
+- NFA and DFA generators
+- Regex text matcher (and tokenizer)
+- Backtracking tokenizer
+- Parser (including pre and post notifications interface)
 
 * Prerequisites
 - Git
@@ -91,10 +179,12 @@ TODO: Enhance this section.
 
 * Usage
 
-** User Interface
+** Regex DFA Generation
+
+*** User Interface
 TODO: so far, I was focusing on test cases, and the only available matching function takes a DFA. This means that before matching, NFA and DFA need to be generated in a separate step (which is useful in case a single regex will be used in many matching operations, for performance). Next, I will focus on the user interface (API / command line), and update this section.
 
-** Unit Tests <<unit-tests>>
+*** Unit Tests <<unit-tests>>
 
 First, the unit tests system needs to be loaded as follows:
 
@@ -191,7 +281,7 @@ rankdir = LR;
 
 #+end_example
 
-** Visualizing the GraphViz Dot Diagrams
+*** Visualizing the GraphViz Dot Diagrams
 
 In order to inspect the NFA or DFA visually, the *dot* utility provided with *Graphviz* may be used to export the Dot output into *SVG*.
 
@@ -204,7 +294,7 @@ For example, to generate NFA and DFA for the regex =(or (seq :any-char #\z) "hel
        (regex '(or (seq :any-char #\z) "hello"))
        (regex-obj-tree (parsex-cl/regex/sexp:prepare-regex-tree regex)))
   (multiple-value-bind (start end) (parsex-cl/regex/nfa:produce-nfa regex-obj-tree)
-    (let ((dfa (parsex-cl/regex/dfa:produce-dfa start)))
+    (let ((dfa (parsex-cl/regex/dfa:nfa-to-dfa start)))
       (print end)
       (parsex-cl/graphviz-util:generate-graphviz-dot-diagram start "/tmp/sample-nfa.svg"
                                                              :regex regex
@@ -225,13 +315,20 @@ Then, view the generated SVG files with any modern web browser or vector graphic
 [[./images/sample-dfa.svg]]
 
 
-* TODO: Up Next
+** Regex Matching
+TODO - for now, reader could refer to [[./test/regex-test.lisp][regex-test.lisp]] for examples on matching of text against a regex specified with a DFA.
 
-- Complete the implementation of negation (add customizable behavior).
+** Parsing
+TODO - for now, reader could refer to [[./test/parser-test.lisp][parser-test.Lisp]] for examples on parsing of text against a PEG grammar.
+
+* TODO
+
+- Test parser on a real-world grammar and text. This could be accompanied with a practical application (e.g. syntax coloring).
 - Implement *anchors*, via specific matching functions. This won't affect the regex engine itself.
 - There are also some TODOs in the source code that are worth checking out/cleaning up.
-- Lexer and parser!
+- Optimization, refactoring etc...
+- Revise/Complete the implementation of negation (add customizable behavior). Not a priority since the negation use case may not be useful/meaningful.
 
 * Author
-+ John Badie (johnkirollos@gmail.com)
++ John Kirollos (johnkirollos@gmail.com)
 
