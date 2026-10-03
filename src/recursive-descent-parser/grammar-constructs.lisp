@@ -81,14 +81,11 @@ decide whether order is relevant, is implied or specified with a different flag.
   (vector-push-extend child (slot-value grammar-construct '%child-constructs)))
 
 (defgeneric compute-first-set (grammar-construct)
-  (:documentation "Compute and return the first set for `grammar-construct`. TODO: won't focus on it
-for now, as I'm going in the direction of PEG and Packrat."))
+  (:documentation "Compute and return the first set for `grammar-construct`."))
 
 (defmethod compute-first-set ((g or-construct))
-  (let ((first-set nil))
-    (loop for child across (child-constructs g)
-          do (setf first-set (union (compute-first-set child) first-set)))
-    first-set))
+  (delete-duplicates (loop for child across (child-constructs g)
+                           append (compute-first-set child))))
 
 (defmethod compute-first-set ((g sequence-construct))
   (let ((first-set nil))
