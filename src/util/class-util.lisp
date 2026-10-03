@@ -81,11 +81,11 @@ reading the slot over and over (e.g. in tight loops)."
   "Defines a LET-X-SLOTS macro for class `class-name`, which enhances the `let-slots` user
 interface, by giving a hint for the user about the supported slots, which will appear as keyword
 arguments.
-Each element in `slot-keys-and-readers` should be a list in the form (key slot-reader). The
-slot-reader must match the class slot readers. See next example.
+Each element in `slot-keys-and-readers` should be a list in the form (key slot-reader). `slot-reader`
+must match the corresponding slot's reader, as defined in the defclass form.
 The generated macro will have an optional argument to add an instance type check. The argument is NIL by
 default, in which case, the macro invocation will not fail if called on instances of other classes, that
-happen to have identical accessor names.
+happen to have identical accessors.
 Example usage (assuming an RGB class is defined with slot readers `rgb-red`, `rgb-green`, `rgb-blue`):
 (define-let-slots-for-class rgb ((r rgb-red) (g rgb-green) (b rgb-blue)))
 This would define a `let-rgb-slots` macro that can be used as follows:
@@ -93,6 +93,7 @@ This would define a `let-rgb-slots` macro that can be used as follows:
   (list 'color-components-are rr gg bb))"
   (let ((macro-name (intern (concatenate 'string "LET-" (string class-name) "-SLOTS")))
         (slot-keys (mapcar #'first slot-keys-and-readers)))
+    (format t "~%Generating macro: ~a.~%" macro-name)
     `(defmacro ,macro-name (obj (&key ,@slot-keys ensure-obj-type) &body body)
        (labels ((prepare-let-slots-form (obj-sym-name)
                   `(let-slots ,(remove nil (list ,@(loop for (key reader) in slot-keys-and-readers
@@ -120,7 +121,7 @@ Each element in `slot-keys-and-readers` should be a list in the form (key slot-r
 slot-reader must match the class slot readers. See next example.
 The generated macro will have an optional argument to add an instance type check. The argument is NIL by
 default, in which case, the macro invocation will not fail if called on instances of other classes, that
-happen to have identical accessor names.
+happen to have identical accessors.
 Example usage (assuming an RGB class is defined with slot readers `rgb-red`, `rgb-green`, `rgb-blue`):
 (define-with-slot-accessors-for-class rgb ((r rgb-red) (g rgb-green) (b rgb-blue)))
 This would define a `with-rgb-accessors` macro that can be used as follows:
@@ -128,6 +129,7 @@ This would define a `with-rgb-accessors` macro that can be used as follows:
   (list 'color-components-are rr gg bb))"
   (let ((macro-name (intern (concatenate 'string "WITH-" (string class-name) "-ACCESSORS")))
         (slot-keys (mapcar #'first slot-keys-and-readers)))
+    (format t "~%Generating macro: ~a.~%" macro-name)
     `(defmacro ,macro-name (obj (&key ,@slot-keys ensure-obj-type) &body body)
        (labels ((prepare-with-accessors-form (obj-sym-name)
                   `(with-accessors ,(remove nil (list ,@(loop for (key reader) in slot-keys-and-readers
